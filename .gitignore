@@ -1,0 +1,35 @@
+# Bisherige Projektordner: bewusst nicht Teil dieses Repositorys.
+# Einige davon haben ein eigenes Git-Repository.
+/detektorforum/
+/haus-des-gottes/
+/horus-tempel-edfu/
+/sherlock/
+/sherlock-holmes-in-berlin/
+/sherlock2/
+/test/
+/wartenberg/
+
+# Claude Code: rechnerlokale Einstellungen und Session-Worktrees
+/.claude/settings.local.json
+/.claude/worktrees/
+
+# Abhängigkeiten und Build-Ausgaben
+node_modules/
+dist/
+
+# Ergebnisse von Testläufen
+test-results/
+playwright-report/
+shots/current/
+shots/diff/
+*.log
+
+# Geheimnisse
+.env
+.env.*
+!.env.example
+
+# Systemdateien
+Thumbs.db
+desktop.ini
+.DS_Store
