@@ -37,9 +37,14 @@ Browserspiel (Deutsch, Erwachsene) für Smartphone und PC: Sherlock Holmes ermit
 - übrige Orte von Fall 1, danach weitere Fälle (je eigenes Viertel)
 
 ## Fall 1: „Die Leiche im Panoptikum“ (gewählt)
-- Herbst 1892. In einem Wachsfigurenkabinett an der Friedrichstraße steht morgens eine echte Leiche zwischen den Figuren.
+- Herbst 1892. In **Castans Panoptikum** (echt; obere Räume des Pschorr-Hauses, Ecke Friedrich-/Behrenstraße, gegenüber dem Südausgang der Kaisergalerie) steht morgens eine echte Leiche zwischen den Figuren.
 - Viertel: um Kaisergalerie, Unter den Linden, Friedrichstraße, Bahnhof Friedrichstraße.
-- Das Kabinett ist **erfunden** – der echten Firma Castan nichts andichten. Echte Personen nie als Täter.
+- **Entscheidung des Nutzers (Nov. 2026):** Der Fall spielt im echten Castans Panoptikum (statt eines erfundenen Kabinetts – an dieser Stelle gab es schon zwei echte, siehe Quellen). Folgen:
+  - Das Haus ist echt, **alle handelnden Personen darin sind erfunden** (Angestellte). Die Brüder Castan als Inhaber höchstens erwähnt, nie verdächtig oder Täter. Echte Personen nie als Täter.
+  - Die Verbrecher-Abteilung ist die belegte **Schreckenskammer** (Baedeker 1891: Zuschlag 30 Pf.; Führer um 1900: III. Etage mit Verbrecherköpfen, Richtschwertern, Folterwerkzeugen – Stockwerk für 1892 noch prüfen).
+  - Öffnungszeit 1891: täglich 9–10 Uhr (Baedeker) → Leiche wird vor 9 Uhr vom Personal gefunden.
+  - Der Hinweis „Handlungen und Personen können erfunden sein“ deckt den erfundenen Mord im echten Haus.
+  - Noch offen: hatte Castans Haus eine eigene Werkstatt im Gebäude? Wer leitete den Betrieb 1892? (Nicht raten.)
 - Verworfene Ideen (für spätere Fälle): Reichstagsbaustelle Königsplatz, Cholera-Probe Sept. 1892, Lilienthal in Südende.
 - **Entscheidungen (Rückfragen):**
   - Anlass: Sigerson folgt einer Spur von Moriartys Bande nach Berlin (roter Faden über mehrere Fälle). Fall 1 hat ein eigenes Motiv; nur ein Fundstück am Ende verrät die Bande → Aufhänger für Fall 2.
@@ -50,15 +55,15 @@ Browserspiel (Deutsch, Erwachsene) für Smartphone und PC: Sherlock Holmes ermit
   - Sigerson spricht gutes Deutsch mit leichtem Akzent.
   - Tod andeutend dargestellt (kein Blut/keine Wunden im Detail).
   - Oktober 1892, ein Tag: Fund am Morgen bis Festnahme am Abend unter Gaslicht. Ende: Überführung + Festnahme, dann das Fundstück zur Bande.
-  - Kabinett: erfunden, Friedrichstraße nahe Kaisergalerie, **nie mit Hausnummer**. Ausstellung: Herrscher/Berühmtheiten (nur 1892 schon bekannte) und Verbrecher-Abteilung (dort steht die Leiche).
+  - ~~Kabinett erfunden, ohne Hausnummer~~ → ersetzt durch Castans Panoptikum (siehe oben). Ausstellung: Herrscher/Berühmtheiten (nur 1892 schon bekannte) und Schreckenskammer (dort steht die Leiche).
   - Alle Orte im Viertel (Kabinett, Werkstatt, Wohnung des Opfers, Lokal, Polizeiwache – Lage 1892 prüfen).
   - Erster spielbarer Ort (Version 1): Kabinett innen (Saal + Werkstatt).
 
 ### Entwurf Fall 1 (vom Nutzer freigegeben)
 - **Datum (vorläufig):** Donnerstag, 13. 10. 1892. Sonne ca. 6.22 / 17.10 Uhr **Berliner Ortszeit** (berechnet nach NOAA-Formeln, gegen heutige Daten geprüft).
-- **Figuren (alle erfunden):** Schutzmann Paul Kranich (~24, findet die Leiche auf seinem Rundgang). Kriminalkommissar Gustav Dorn (glaubt an Unfall/Selbstmord wegen Schulden des Opfers). Opfer Emil Wendt, Wachsbildner im *Panopticum Lassow*.
-- **Verdächtige:** Friedrich Lassow (Besitzer; Geldsorgen, Lohnstreit; unschuldig, Alibi). Ida Brandt (Kassiererin, Nichte und Erbin; unschuldig, Alibi). **Otto Rehfeld** (Gehilfe) = **Täter**.
-- **Tathergang:** Rehfeld goss in Wendts Werkstatt heimlich Schlüssel nach Wachsabdrücken der Schlüssel von *Juwelier Albrecht* (erfunden, Kaisergalerie). Wendt entdeckte es und drohte mit der Polizei; Rehfeld erschlug ihn nachts (nur angedeutet), zog ihm das Kostüm einer Mörderfigur an und stellte ihn in die Verbrecher-Abteilung – sollte wie ein Reklamescherz des Besitzers wirken und die Entdeckung verzögern.
+- **Figuren (alle erfunden):** Schutzmann Paul Kranich (~24, findet die Leiche auf seinem Rundgang). Kriminalkommissar Gustav Dorn (glaubt an Unfall/Selbstmord wegen Schulden des Opfers). Opfer Emil Wendt, Wachsbildner in Castans Panoptikum.
+- **Verdächtige:** Friedrich Lassow (erfundener **Geschäftsführer** von Castans Panoptikum – nicht Inhaber; vom Nutzer bestätigt; Geldsorgen, Lohnstreit; unschuldig, Alibi). Ida Brandt (Kassiererin, Nichte und Erbin; unschuldig, Alibi). **Otto Rehfeld** (Gehilfe) = **Täter**.
+- **Tathergang:** Rehfeld goss in Wendts Werkstatt heimlich Schlüssel nach Wachsabdrücken der Schlüssel von *Juwelier Albrecht* (erfunden, Kaisergalerie). Wendt entdeckte es und drohte mit der Polizei; Rehfeld erschlug ihn nachts (nur angedeutet), zog ihm das Kostüm einer Mörderfigur an und stellte ihn in die Verbrecher-Abteilung – sollte wie ein Reklamescherz des Geschäftsführers wirken und die Entdeckung verzögern.
 - **Hinweise:**
   1. Die echte Wachsfigur fehlt und liegt in der Werkstatt → jemand mit Schlüssel aus dem Haus.
   2. Dunkles Wachs unter Wendts Fingernägeln, anders als das helle Figurenwachs.
@@ -74,13 +79,14 @@ Browserspiel (Deutsch, Erwachsene) für Smartphone und PC: Sherlock Holmes ermit
 - **Bauhinweise:** Uhren zeigen Berliner Ortszeit. Unter den Linden abends elektrische Bogenlampen (Schupmann-Kandelaber, seit 1888), nicht nur Gas. Café Kranzler / Café Bauer an der Ecke Linden/Friedrichstraße nur als Kulisse – dort nichts Erfundenes geschehen lassen. Schutzmann mit Lederhelm mit Spitze und Säbel.
 
 ## Offene Punkte
-- **Fall 1 – vor dem Bau klären:**
-  - Wetter am 13. 10. 1892 belegen (sonst als erfunden kennzeichnen).
-  - Straßenbeleuchtung der Friedrichstraße 1892: Gas oder schon elektrisch?
-  - Lage des zuständigen Polizeireviers 1892 (Adressbuch 1885 hat ein Revierverzeichnis; Ausgabe 1892 prüfen).
-  - Straßenverlauf und Hausfronten nach Stadtplan/Fotos; Verkehrsmittel in der Friedrichstraße (Pferdebahn/Pferdeomnibus?); Farbe der Schutzmann-Uniform 1892.
-  - Namen (Lassow, Albrecht, Wendt, Rehfeld, Brandt, Dorn, Kranich) gegen das Adressbuch 1892 prüfen – kein echtes Geschäft gleichen Namens in der Gegend.
-- Gab es 1892 in der Kaisergalerie ein „Passage-Panopticum“ (Unter den Linden 22–23)? Unbelegt.
+- **Fall 1 – Prüfstand (Nov. 2026):**
+  - Laut Baedeker 1891 gab es am geplanten Ort schon zwei echte Panoptiken (Passage-Panoptikum in der Kaisergalerie, Castans Panoptikum gegenüber) → **entschieden: Fall spielt im echten Castans Panoptikum** (siehe oben).
+  - Wetter 13. 10. 1892: keine Tageswerte gefunden (Web, Internet Archive) → als erfunden kennzeichnen oder neutral halten.
+  - Beleuchtung Friedrichstraße: nicht belegt. Baedeker 1891 nennt elektrisches Licht nur für Unter den Linden (seit 1888) und Leipziger Straße (ab Friedrichstraße westwärts), für die Friedrichstraße nichts.
+  - Polizeirevier für die Gegend: nicht gefunden. Belegt: 82 Polizeibureaux, Tag und Nacht offen → Schutzmann kommt „vom nächsten Polizeibureau“, ohne Adresse.
+  - Uniformfarbe Schutzmann: nicht belegt (Dunkelblau plausibel, nur Magdeburger Offiziersrock 1851–1900 als Vergleich). Helm mit Spitze und Säbel belegt.
+  - Namen gegen Adressbuch 1892 prüfen: nicht möglich – digital.zlb.de sperrt automatische Abrufe und zeigt eine Browserprüfung (nicht umgehen). Nutzer könnte Seiten selbst öffnen.
+  - Straßenverlauf und Hausfronten nach Stadtplan/Fotos: offen (Stadtplan 1892 noch nicht gefunden).
 - **Schriften:** historisch passende Weltschrift und lesbare Oberflächenschrift, lokal mit freier Lizenz. Widerspricht derzeit `.claude/rules/html.md` („Schriften: System-Schriften“) – Regeländerung erst mit dem Nutzer klären.
 - `shaders/basis.vert|frag` aus der Vorlage werden nicht mehr genutzt – löschen nur mit Ja des Nutzers.
 - Steuerung noch auf echtem Smartphone testen (bisher nur simulierte Touch-Eingaben).
@@ -102,6 +108,16 @@ Je Angabe: Behauptung – Quelle. Erste Recherche (Web, Nov. 2026); vor dem Einb
 - Castans Panopticum, Führer um 1900: III. Etage „Schreckenskammer“ (Verbrecherköpfe, Richtschwerter, Folterwerkzeuge), 493 Objekte – berlin.museum-digital.de/pdf/object/121001.pdf
 - Ecke Unter den Linden/Friedrichstraße: Café Kranzler, Café Bauer (seit 1878, nur eine Quelle), Café Victoria – berliner-zeitung.de (Artikel 254744), germanhistorydocs.org (Kreuzung um 1900)
 - Schutzmannschaft: Lederhelm mit Spitze (Messing/Neusilber-Beschlag), Säbel – deutsche-digitale-bibliothek.de/item/SGZJIIR3EB5JGDOCBBSWG6PZJN3UOZQ2
+- **Baedeker, Berlin und Umgebungen, 7. Aufl. 1891** (gemeinfrei, Internet Archive: archive.org/details/berlinundumgebu01firgoog, Volltext …_djvu.txt). Seitenangaben nach dem Buch:
+  - S. 60/61: Kaisergalerie, Eingang Unter den Linden 22/23, mündet Ecke Friedrich-/Behrenstraße; erbaut 1869–73 von Kyllmann & Heyden; innen 7,9 m breit, 13,5 m hoch; Terrakotta-Fassaden im Renaissance-Stil; darin Läden, ein Wiener Café, Kaiserpanorama, Passage-Panoptikum.
+  - S. 60: Unter den Linden „seit 1888 … abends elektrisch beleuchtet“.
+  - S. 46: Passage-Panoptikum (Wachsfiguren, Dioramen, ethnographische Sammlung, Sintflutpanorama), tägl. 10–9 Uhr, Eintritt 50 Pf. Kaiserpanorama (Stereoskopen), 9 Uhr früh bis 10 Uhr abends, 20 Pf.
+  - S. 44/107: Castans Panoptikum (Wachsfigurenkabinett) Ecke Behren-/Friedrichstraße, gegenüber dem Südausgang der Kaisergalerie, im Pschorr-Haus (Kayser & v. Großheim), dort seit Ende 1888; tägl. 9–10 Uhr, 50 Pf., Schreckenskammer zusätzlich 30 Pf.
+  - S. 107: Von der Ecke Friedrich-/Behrenstraße fahren Pferdebahnen nach Kreuzberg (Linie 14) und zum Görlitzer Bahnhof (Linie 42); Omnibus vom Halleschen Tor durch die ganze Friedrichstraße zur Liesenstraße. Friedrichstraße zwischen Linden und Leipziger Straße Hauptverkehr.
+  - S. 110: Leipziger Straße ab Friedrichstraße westwärts abends bis 12 Uhr elektrisch beleuchtet.
+  - S. 34: Polizeipräsidium (Frh. v. Richthofen) am Alexanderplatz; 82 Polizeibureaux mit Feuermeldestelle, Tag und Nacht offen; Schutzleute zu Pferde/zu Fuß mit Nummern auf der Achsel; Fremde müssen binnen 6 Tagen vom Wirt polizeilich angemeldet werden.
+  - S. 22/23: Droschken 1. und 2. Klasse (je rund 2600), Tarif vom 14. 5. 1880; Kutscher 1. Klasse blauer Rock mit silberner Kragenborte, 2. Klasse gelbe Borte (laut Auswertung; Wortlaut vor Einbau nochmals prüfen).
+  - Behrenstraße: Sitz mehrerer der größten Bankhäuser.
 - Quellen für die Feinarbeit: Berliner Adressbuch 1892 (ZLB, digital.zlb.de, Bände 1892,1 und 1892,2; gemeinfrei); Straube's illustrierter Führer durch Berlin 1892/93 (ZLB/DDB, gemeinfrei)
 
 ## Besonderheiten
