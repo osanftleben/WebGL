@@ -1,0 +1,12 @@
+{
+  "name": "ressourcen",
+  "version": "1.0.0",
+  "beschreibung": "Geometrien, Materialien und Texturen freigeben",
+  "three": [
+    "r187"
+  ],
+  "braucht": {},
+  "dateien": [
+    "aufraeumen.js"
+  ]
+}

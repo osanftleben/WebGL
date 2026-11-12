@@ -1,0 +1,71 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python .claude/scripts/*)",
+      "Bash(python .claude/skills/*)",
+      "Bash(tools/bin/glslang/glslang.exe *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "PowerShell(git status*)",
+      "PowerShell(git diff*)",
+      "PowerShell(git log*)"
+    ],
+    "ask": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "PowerShell(git commit *)",
+      "PowerShell(git push *)"
+    ],
+    "deny": [
+      "Bash(node *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "PowerShell(node *)",
+      "PowerShell(npm *)",
+      "PowerShell(npx *)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(/detektorforum/**)",
+      "Read(/haus-des-gottes/**)",
+      "Read(/horus-tempel-edfu/**)",
+      "Read(/sherlock/**)",
+      "Read(/sherlock-holmes-in-berlin/**)",
+      "Read(/sherlock2/**)",
+      "Read(/test/**)",
+      "Read(/wartenberg/**)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/sitzungsstart.py\"", "timeout": 30 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/schutz.py\"", "timeout": 30 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/nach_aenderung.py\"", "timeout": 60 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/abschluss_check.py\"", "timeout": 300 }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "shader",
+  "version": "1.0.0",
+  "beschreibung": "Shader-Dateien (.vert/.frag) laden",
+  "three": [],
+  "braucht": {},
+  "dateien": [
+    "laden.js"
+  ]
+}

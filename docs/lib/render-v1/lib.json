@@ -1,0 +1,13 @@
+{
+  "name": "render",
+  "version": "1.0.0",
+  "beschreibung": "Renderer erstellen, Größe/Pixeldichte anpassen, Render-Schleife",
+  "three": [
+    "r187"
+  ],
+  "braucht": {},
+  "dateien": [
+    "renderer.js",
+    "schleife.js"
+  ]
+}

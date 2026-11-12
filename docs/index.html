@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebGL-Projekte</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --hintergrund: #f6f6f4;
+      --flaeche: #ffffff;
+      --text: #1d1d1f;
+      --leise: #6b6b70;
+      --akzent: #2f6fdb;
+      --rand: #e2e2de;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --hintergrund: #141416;
+        --flaeche: #1e1e21;
+        --text: #ececee;
+        --leise: #9a9aa2;
+        --akzent: #7aa7ff;
+        --rand: #2c2c31;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--hintergrund);
+      color: var(--text);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main { max-width: 720px; margin: 0 auto; padding: 48px 16px; }
+    h1 { font-size: 28px; margin: 0 0 4px; }
+    p.untertitel { color: var(--leise); margin: 0 0 32px; }
+    ul.projekte { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+    ul.projekte a {
+      display: block;
+      padding: 16px 20px;
+      background: var(--flaeche);
+      border: 1px solid var(--rand);
+      border-radius: 10px;
+      color: var(--text);
+      text-decoration: none;
+    }
+    ul.projekte a:hover { border-color: var(--akzent); }
+    ul.projekte a span { display: block; color: var(--leise); font-size: 14px; }
+    p.leer { color: var(--leise); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>WebGL-Projekte</h1>
+    <p class="untertitel">Experimente und Projekte mit three.js</p>
+    <!-- PROJEKTE:START (wird von .claude/scripts/projekte.py gepflegt) -->
+    <ul class="projekte">
+      <li><a href="testwuerfel/">Testwürfel<span>testwuerfel · three.js r187</span></a></li>
+    </ul>
+    <!-- PROJEKTE:ENDE -->
+  </main>
+</body>
+</html>

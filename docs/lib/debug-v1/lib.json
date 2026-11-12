@@ -1,0 +1,12 @@
+{
+  "name": "debug",
+  "version": "1.0.0",
+  "beschreibung": "Debug-Zugang window.__debug (nur lokal), Bildrate messen",
+  "three": [
+    "r187"
+  ],
+  "braucht": {},
+  "dateien": [
+    "debug.js"
+  ]
+}

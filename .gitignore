@@ -17,6 +17,11 @@
 node_modules/
 dist/
 
+# Lokal installierte Werkzeuge (z. B. glslang) und vollständige Fremdpakete
+# (z. B. three.js als Vorrat für Zusätze), nicht im Repository
+/tools/bin/
+/tools/vendor/
+
 # Ergebnisse von Testläufen
 test-results/
 playwright-report/

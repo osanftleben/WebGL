@@ -1,0 +1,9 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #101014;
+  color: #ececee;
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
