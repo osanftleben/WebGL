@@ -1,0 +1,47 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #101014;
+  color: #ececee;
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Kein Markieren/Lupe beim langen Drücken auf dem Handy */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Bedienhinweis oben */
+.hilfe {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 13px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Kurze Meldung unten (z. B. „Angetippt: …“) */
+.meldung {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 5;
+}
+.meldung.sichtbar {
+  opacity: 1;
+}
