@@ -10,7 +10,7 @@ paths:
 
 ## Arbeitsstand (zuletzt 13. 11. 2026)
 - **Fertig und committet:** Version 1 (bis e104b58), Grafik-Feinschliff A und B (baf7cd9).
-- **Licht committet** in 1d0d086, 227543c, b8c20b6. **Danach, noch nicht committet:** Umbau auf Flächen-Lichtkarten (siehe „Grafik“), Weichzeichnung der Lichtkarte, browserfeste Prüfsumme. **Offen:** Licht ist neu berechnet und passt zur Aufteilung (Python, 571 s). Noch: Rundgang, Nutzer prüft in Firefox („Beleuchtung: Lichtkarte aktiv“), dann auf Wunsch committen. Zurückgestellt: Lichtberechnung auf der Grafikkarte (WebGL, geschätzt 50–100× schneller) – erst beim nächsten Ort.
+- **Licht committet** in 1d0d086, 227543c, b8c20b6. **Danach, noch nicht committet:** Umbau auf Flächen-Lichtkarten (siehe „Grafik“), Weichzeichnung der Lichtkarte, browserfeste Prüfsumme. **Offen:** Licht ist neu berechnet und passt zur Aufteilung (Python, 571 s). Noch: Rundgang, Nutzer prüft in Firefox („Beleuchtung: Lichtkarte aktiv“), dann auf Wunsch committen (dabei `welt/kontaktschatten.js` löschen – wird nicht mehr benutzt). Zurückgestellt: Lichtberechnung auf der Grafikkarte (WebGL, geschätzt 50–100× schneller) – erst beim nächsten Ort.
 - **Vereinbart mit dem Nutzer (Nov. 2026):** Beim Licht keine weiteren Feinschliff-Schleifen. Kleine Schönheitsfehler hier notieren und weitermachen, nur echte Fehler sofort beheben. Für jede größere Teilaufgabe eine neue Sitzung.
 - **Bekannte kleine Schönheitsfehler Licht:** Fenster ohne Überstrahlen (Geschmackssache, kostet Leistung).
 - **Danach:** Feinschliff C (bessere Wachsfiguren: Körperform, Hände, Gesichter, Kleidung) – vorher Abnahme festlegen (siehe CLAUDE.md „Grafik und Feinschliff“), dann D (Stuck, Beschläge). Danach weitere Inhalte von Fall 1 (siehe Ausbaustufen).
