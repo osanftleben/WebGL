@@ -8,7 +8,7 @@
     0.0,
     0.0
   ],
-  "hoechstwert": 1.0205154418945312,
+  "hoechstwert": 1.0196348428726196,
   "gamma": 2.2,
   "richtungen": [
     "+x",
@@ -28,7 +28,7 @@
       0.0
     ],
     "ab": 3.7,
-    "hoechstwert": 0.04542669281363487
+    "hoechstwert": 0.045433323830366135
   },
   "hinweis": "Vorab berechnet mit .claude/scripts/holmes_licht.py (bedeckter Himmel, Annahmen siehe dort)"
 }

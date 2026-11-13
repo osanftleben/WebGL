@@ -37,7 +37,7 @@ ZIEL_VORGABE = WURZEL / "docs" / "holmes-berliner-faelle" / "licht"
 RAUM_MIN = (0.0, 0.0, 0.0)
 RAUM_MAX = (9.0, 4.0, 27.5)
 SCHRITT = 0.4          # Gitterabstand
-STRAHLEN = 96          # Strahlen je Gitterpunkt
+STRAHLEN = 192         # Strahlen je Gitterpunkt
 DURCHGAENGE = 4        # 1 = nur Himmel, weitere = Reflexionen
 HIMMEL = (0.92, 0.96, 1.0)    # Farbe des bedeckten Himmels (Annahme)
 BODEN_AUSSEN = (0.80, 0.78, 0.72)
@@ -315,7 +315,9 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
         L[hb] = albedo[tref_box[hb]] * E / np.pi
         indirekt = np.zeros((anzahl, 6, 3), dtype=np.float32)
         indirekt[idx] = np.einsum("pra,prc->pac", gewicht, L)
-        indirekt = glaette(fuelle(indirekt))
+        # Erst glätten, dann auffüllen: Punkte auf Wänden übernehmen so geglättete Nachbarwerte
+        # (vorher verrauschte – helle und dunkle Flecken an Wandkanten und in Ecken)
+        indirekt = fuelle(glaette(indirekt))
         feld = direkt + indirekt
         print(f"Durchgang {durchgang + 1}: mittlere Helligkeit {feld[gueltig].mean():.4f}")
 
