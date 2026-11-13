@@ -167,7 +167,6 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
   const pfeiler = (/** @type {number} */ von, /** @type {number} */ bis) => {
     if (bis - von < 0.01) return;
     const teil = box(bis - von, hoehe, dicke, (von + bis) / 2, hoehe / 2, zMitte, material, true);
-    teil.userData.mauerwerk = true;
     gruppe.add(teil);
     hindernisse.push(teil);
   };
@@ -179,17 +178,11 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
     pfeiler(x, links);
     // Sturz über der Öffnung
     const oben = unten + o.hoehe;
-    if (hoehe - oben > 0.01) {
-      const sturz = box(o.breite, hoehe - oben, dicke, o.pos, (oben + hoehe) / 2, zMitte, material, true);
-      // Mauerwerk zählt in der Lichtberechnung immer, auch wenn es kleiner als 1,5 m ist
-      sturz.userData.mauerwerk = true;
-      gruppe.add(sturz);
-    }
+    if (hoehe - oben > 0.01) gruppe.add(box(o.breite, hoehe - oben, dicke, o.pos, (oben + hoehe) / 2, zMitte, material, true));
 
     if (o.art === 'fenster') {
       if (unten > 0.01) {
         const bruestung = box(o.breite, unten, dicke, o.pos, unten / 2, zMitte, material, true);
-        bruestung.userData.mauerwerk = true;
         gruppe.add(bruestung);
         hindernisse.push(bruestung);
       }
@@ -226,6 +219,8 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
         for (const seite of [-1, 1]) {
           const schal = new THREE.Mesh(vorhangGeometrie(stangeY - 0.05), m.vorhang);
           schal.position.set(o.pos + seite * (o.breite / 2 + 0.12), (stangeY - 0.05) / 2 + 0.05, 0.1);
+          // Verdeckt in der Lichtberechnung als umgebender Quader (Stoff mit Falten ist kein Quader)
+          schal.userData.lichtHuelle = true;
           gruppe.add(schal);
         }
       }
@@ -756,6 +751,8 @@ export function kopfschrank(m, breite, saat) {
  */
 export function saeule(m, hoehe) {
   const g = new THREE.Group();
+  // Runde Teile (Schaft, Kapitell) verdecken in der Lichtberechnung als umgebender Quader
+  g.userData.lichtHuelle = true;
   g.add(box(0.42, 0.2, 0.42, 0, 0.1, 0, m.gesims));
   const schaft = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, hoehe - 0.55, 24), m.marmor);
   schaft.position.y = 0.2 + (hoehe - 0.55) / 2;

@@ -110,10 +110,14 @@ float bgFensterTreffer( vec3 p, vec3 r ) {
 			float bgCos = clamp( - bgV.y, 0.0, 1.0 );
 			float bgFresnel = 0.04 + 0.31 * pow( 1.0 - bgCos, 5.0 );
 			float bgAo = 1.0;
-			#ifdef USE_AOMAP
-				// unter Möbeln und an Wänden (Bodenabdunkelung) glänzt es weniger
-				bgAo = texture2D( aoMap, vAoMapUv ).r;
-				bgAo *= bgAo;
+			#ifdef LK_KARTE
+				// unter Möbeln und an Wänden glänzt es weniger: Verdeckung aus dem Alphakanal der Lichtkarte
+				// (1 … 255 = Anteil freier Sicht, 0 = keine Lichtkarte)
+				vec4 bgLk = texture2D( lkKarte, vLkUv );
+				if ( lkAn > 0.5 && bgLk.a > 0.5 / 255.0 ) {
+					bgAo = clamp( ( bgLk.a * 255.0 - 1.0 ) / 254.0, 0.0, 1.0 );
+					bgAo *= bgAo;
+				}
 			#endif
 			outgoingLight += bgFarbe * bgFensterTreffer( vBgWelt, bgR ) * bgFresnel * bgAo * bgStaerke;
 		}

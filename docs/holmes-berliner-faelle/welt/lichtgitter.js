@@ -1,22 +1,29 @@
-// Vorab berechnetes Lichtgitter (Strahlverfolgung mit .claude/scripts/holmes_licht.py) einlesen
+// Vorab berechnete Beleuchtung (Strahlverfolgung mit .claude/scripts/holmes_licht.py) einlesen
 // und als Umgebungslicht für alle beleuchteten Materialien verwenden.
-// Das Gitter speichert je Punkt die Bestrahlungsstärke aus 6 Richtungen (+x, −x, +y, −y, +z, −z).
+//
+// Zwei Teile:
+// - Lichtkarte: je Bildpunkt (10 cm) das Licht auf einer Seite eines statischen Quaders oder einer Fläche
+//   (Wände, Boden, Decke, Möbel aus Quadern). Koordinaten im Attribut `lkUv` (siehe lichtmodell.js).
+// - Lichtgitter (0,4 m): je Punkt die Bestrahlungsstärke aus 6 Richtungen (+x, −x, +y, −y, +z, −z),
+//   für alles ohne Lichtkarte (runde Formen, Figuren, Personen, Fundstücke).
 import * as THREE from 'three';
 
 /**
  * @typedef {object} Lichtgitter
  * @property {THREE.Data3DTexture} textur
  * @property {{ nx: number, ny: number, nz: number, schritt: number, ursprung: number[], hoechstwert: number, gamma: number,
- *   decke?: { datei: string, nx: number, nz: number, schritt: number, ursprung: number[], ab: number, hoechstwert: number } }} info
- * @property {THREE.DataTexture | null} decke Deckenkarte (Licht von unten auf Decke und Gesims-Unterseiten)
+ *   lichtkarte?: { datei: string, breite: number, hoehe: number, hoechstwert: number, pruefsumme: string } }} info
+ * @property {THREE.Texture | null} karte Lichtkarte (nur, wenn sie zum aktuellen Raum passt)
  */
 
 /**
- * Lädt Bild und Beschreibung des Lichtgitters (lokale Dateien).
- * @param {URL} ordner Ordner mit licht-etage3.png und licht-etage3.json
+ * Lädt Lichtgitter und Lichtkarte (lokale Dateien).
+ * @param {URL} ordner Ordner mit licht-etage3.png, licht-etage3-karte.png und licht-etage3.json
+ * @param {string} pruefsumme Prüfsumme des aktuellen Lichtkarten-Atlas (lichtmodell.js); passt die Datei
+ *   nicht dazu (Raum umgebaut, Licht nicht neu berechnet), bleibt die Lichtkarte aus
  * @returns {Promise<Lichtgitter>}
  */
-export async function ladeLichtgitter(ordner) {
+export async function ladeLichtgitter(ordner, pruefsumme) {
   const info = await (await fetch(new URL('licht-etage3.json', ordner))).json();
   const bild = new Image();
   bild.src = new URL('licht-etage3.png', ordner).href;
@@ -39,31 +46,29 @@ export async function ladeLichtgitter(ordner) {
   textur.unpackAlignment = 1;
   textur.needsUpdate = true;
 
-  // Deckenkarte (feines Raster für Decke und Gesims-Unterseiten), falls vorhanden
-  /** @type {THREE.DataTexture | null} */
-  let decke = null;
-  if (info.decke) {
-    const dbild = new Image();
-    dbild.src = new URL(info.decke.datei, ordner).href;
-    await dbild.decode();
-    const dc = document.createElement('canvas');
-    dc.width = dbild.width;
-    dc.height = dbild.height;
-    const dctx = /** @type {CanvasRenderingContext2D} */ (dc.getContext('2d', { willReadFrequently: true }));
-    dctx.drawImage(dbild, 0, 0);
-    // Bildzeile = z, Spalte = x; Zeile 0 der Daten = oberste Bildzeile = kleinstes z
-    const ddaten = new Uint8Array(dctx.getImageData(0, 0, dc.width, dc.height).data.buffer);
-    decke = new THREE.DataTexture(ddaten, dc.width, dc.height, THREE.RGBAFormat, THREE.UnsignedByteType);
-    decke.minFilter = THREE.LinearFilter;
-    decke.magFilter = THREE.LinearFilter;
-    decke.needsUpdate = true;
+  /** @type {THREE.Texture | null} */
+  let karte = null;
+  if (info.lichtkarte && info.lichtkarte.pruefsumme === pruefsumme) {
+    // Ohne Umweg über ein Canvas laden: der Alphakanal (Verdeckung) bliebe sonst nicht exakt erhalten
+    const blob = await (await fetch(new URL(info.lichtkarte.datei, ordner))).blob();
+    const bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+    karte = new THREE.Texture(bitmap);
+    karte.flipY = false; // Bildzeile 0 = v 0, wie in lichtmodell.js
+    karte.premultiplyAlpha = false;
+    karte.colorSpace = THREE.NoColorSpace;
+    karte.generateMipmaps = false;
+    karte.minFilter = THREE.LinearFilter;
+    karte.magFilter = THREE.LinearFilter;
+    karte.needsUpdate = true;
+  } else if (info.lichtkarte) {
+    console.warn('Lichtkarte passt nicht zum Raum (umgebaut?) – Licht neu berechnen (holmes_licht.py). Bis dahin nur Lichtgitter.');
   }
-  return { textur, info, decke };
+  return { textur, info, karte };
 }
 
 /**
- * Ersetzt bei allen beleuchteten Materialien unter `wurzel` das Umgebungslicht durch das Lichtgitter.
- * (Direkte Lichtquellen mit Schatten bleiben unberührt.)
+ * Ersetzt bei allen beleuchteten Materialien unter `wurzel` das Umgebungslicht: Lichtkarte, wo vorhanden,
+ * sonst Lichtgitter. Definiert `LK_KARTE` (für Ergänzungen wie den Bodenglanz: `vLkUv`, `lkKarte`, `lkAn`).
  * @param {THREE.Object3D} wurzel
  * @param {Lichtgitter} gitter
  * @param {number} staerke Helligkeitsfaktor
@@ -78,16 +83,9 @@ export function wendeLichtgitterAn(wurzel, gitter, staerke) {
     lgMax: { value: info.hoechstwert },
     lgGamma: { value: info.gamma },
     lgStaerke: { value: staerke },
-    // Deckenkarte: Bereich (x0, z0, Breite, Tiefe), gilt oberhalb lgDeckeAb für nach unten zeigende Flächen
-    lgDecke: { value: gitter.decke },
-    lgDeckeAn: { value: gitter.decke && info.decke ? 1 : 0 },
-    lgDeckeBereich: {
-      value: info.decke
-        ? new THREE.Vector4(info.decke.ursprung[0], info.decke.ursprung[1], info.decke.nx * info.decke.schritt, info.decke.nz * info.decke.schritt)
-        : new THREE.Vector4(0, 0, 1, 1),
-    },
-    lgDeckeAb: { value: info.decke ? info.decke.ab : 1e4 },
-    lgDeckeMax: { value: info.decke ? info.decke.hoechstwert : 0 },
+    lkKarte: { value: gitter.karte },
+    lkAn: { value: gitter.karte ? 1 : 0 },
+    lkMax: { value: gitter.karte && info.lichtkarte ? info.lichtkarte.hoechstwert : 0 },
   };
   /** @type {Set<THREE.Material>} */
   const erledigt = new Set();
@@ -104,12 +102,15 @@ export function wendeLichtgitterAn(wurzel, gitter, staerke) {
     mat.onBeforeCompile = (/** @type {any} */ shader, /** @type {any} */ r) => {
       if (vorher) vorher.call(mat, shader, r);
       Object.assign(shader.uniforms, uniforms);
+      // Meshes ohne `lkUv` lesen (0, 0): dort liegt im Atlas „keine Lichtkarte“ (Alpha 0)
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vLgWelt;')
-        .replace('#include <project_vertex>', '#include <project_vertex>\n\tvLgWelt = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
+        .replace('#include <common>', '#include <common>\nvarying vec3 vLgWelt;\nattribute vec2 lkUv;\nvarying vec2 vLkUv;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\n\tvLgWelt = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\n\tvLkUv = lkUv;');
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
+#define LK_KARTE
 varying vec3 vLgWelt;
+varying vec2 vLkUv;
 uniform highp sampler3D lichtGitter;
 uniform vec3 lgUrsprung;
 uniform float lgSchritt;
@@ -117,11 +118,9 @@ uniform vec3 lgN;
 uniform float lgMax;
 uniform float lgGamma;
 uniform float lgStaerke;
-uniform sampler2D lgDecke;
-uniform float lgDeckeAn;
-uniform vec4 lgDeckeBereich;
-uniform float lgDeckeAb;
-uniform float lgDeckeMax;
+uniform sampler2D lkKarte;
+uniform float lkAn;
+uniform float lkMax;
 vec3 lgWert( vec3 g, float richtung ) {
 	vec3 c = clamp( g, vec3( 0.5 ), lgN - 0.5 );
 	vec3 uvw = vec3( ( richtung * lgN.x + c.x ) / ( 6.0 * lgN.x ), c.y / lgN.y, c.z / lgN.z );
@@ -136,12 +135,14 @@ vec3 lgBestrahlung( vec3 p, vec3 n ) {
 }`)
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
 	{
-		vec3 lgNormale = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz );
-		vec3 lgE = lgBestrahlung( vLgWelt + lgNormale * 0.15, lgNormale );
-		// Decke und Gesims-Unterseiten: feine Deckenkarte statt des groben Gitters
-		if ( lgDeckeAn > 0.5 && lgNormale.y < -0.9 && vLgWelt.y > lgDeckeAb ) {
-			vec2 lgUv = ( vLgWelt.xz - lgDeckeBereich.xy ) / lgDeckeBereich.zw;
-			lgE = pow( texture2D( lgDecke, lgUv ).rgb, vec3( lgGamma ) ) * lgDeckeMax;
+		vec3 lgE;
+		vec4 lk = texture2D( lkKarte, vLkUv );
+		if ( lkAn > 0.5 && lk.a > 0.5 / 255.0 ) {
+			// Statische Quader und Flächen: Lichtkarte (direkt auf der Fläche berechnet)
+			lgE = pow( lk.rgb, vec3( lgGamma ) ) * lkMax;
+		} else {
+			vec3 lgNormale = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz );
+			lgE = lgBestrahlung( vLgWelt + lgNormale * 0.15, lgNormale );
 		}
 		reflectedLight.indirectDiffuse = lgE * BRDF_Lambert( material.diffuseColor ) * lgStaerke;
 	}`);

@@ -12,9 +12,8 @@
 // Koordinaten: x zeigt zur Behrenstraße (Norden), z zur Friedrichstraße (Osten), Meter.
 import * as THREE from 'three';
 import { verschmelze } from './verschmelzen.js';
-import { sammleLichtModell } from './lichtmodell.js';
-import { kontaktschattenAnWaenden } from './kontaktschatten.js';
-import { aktiviereSchatten, schattenLicht, bodenAbdunkelung, zweiteUV } from './licht.js';
+import { sammleLichtSzene } from './lichtmodell.js';
+import { aktiviereSchatten, schattenLicht } from './licht.js';
 import { alsHindernis } from 'steuerung/kollision.js';
 import {
   erstelleMaterialien, wand, flaeche, box, heizkoerper, buesteAufSockel, schwertTafel,
@@ -44,7 +43,7 @@ const FENSTER = { breite: 1.3, hoehe: 2.7, unten: 0.35, art: /** @type {const} *
  *   verdecker: THREE.Object3D[],
  *   start: { x: number, z: number, blick: number },
  *   materialien: ReturnType<typeof erstelleMaterialien>,
- *   lichtModell: { min: number[], max: number[], albedo: number[], mauerwerk?: boolean }[],
+ *   lichtSzene: import('./lichtmodell.js').LichtSzene,
  * }}
  */
 export function baueEtage3(scene) {
@@ -55,8 +54,6 @@ export function baueEtage3(scene) {
 
   /** @type {THREE.Object3D[]} Teile, deren Hülle als Hindernis dient */
   const kollision = [];
-  /** @type {THREE.Object3D[]} Gegenstände, die an nahen Wänden weiche Schatten hinterlassen */
-  const wandnah = [];
   /** @type {Hindernis[]} zusätzlich von Hand festgelegte Hindernisse */
   const handHindernisse = [];
 
@@ -76,7 +73,6 @@ export function baueEtage3(scene) {
   // ---------- Boden und Decke ----------
   const boden = flaeche(9, 27.5, m.dielen, 1.6);
   boden.position.set(4.5, 0, 13.75);
-  zweiteUV(boden.geometry, 9 / 1.6, 27.5 / 1.6);
   gruppe.add(boden);
   const decke = flaeche(9, 27.5, m.decke, 2, true);
   decke.position.set(4.5, H, 13.75);
@@ -142,16 +138,7 @@ export function baueEtage3(scene) {
 
   // ---------- Abgeschrägte Ecke (oberhalb des EG ohne Öffnungen, belegt) ----------
   const schraeg = 2.5 * Math.SQRT2;
-  const eckwand = setzeWand({ laenge: schraeg, hoehe: H, dicke: DA, material: m.putzHell, m }, 9, 25, (-3 * Math.PI) / 4);
-  // Für das Lichtmodell (nur Quader) wird die gedrehte Eckwand durch Treppenstufen ersetzt
-  eckwand.gruppe.userData.keinLichtModell = true;
-  /** @type {{ min: number[], max: number[], albedo: number[], mauerwerk?: boolean }[]} */
-  const eckStufen = [];
-  for (let t = 0; t < 1; t += 0.1) {
-    const px = 9 - 2.5 * t;
-    const pz = 25 + 2.5 * t;
-    eckStufen.push({ min: [px - 0.25, 0, pz], max: [px + 0.35, H, pz + 0.6], albedo: [0.45, 0.43, 0.39] });
-  }
+  setzeWand({ laenge: schraeg, hoehe: H, dicke: DA, material: m.putzHell, m }, 9, 25, (-3 * Math.PI) / 4);
   // Hindernisse entlang der Schräge als kleine Quadrate (die Hülle der gedrehten Wand wäre zu groß)
   for (let t = 0; t <= 1.0001; t += 0.1) {
     const px = 9 - 2.5 * t + 0.12;
@@ -164,7 +151,6 @@ export function baueEtage3(scene) {
     [0.08, 9.0, Math.PI / 2], [7.5, 9.75 + 0.08, 0], [3.5, 19.75 + 0.08, 0], [0.08, 26.6, Math.PI / 2],
   ])) {
     const hk = heizkoerper(m, 1.1);
-    wandnah.push(hk);
     hk.position.set(x, 0, z);
     hk.rotation.y = dreh;
     gruppe.add(hk);
@@ -182,7 +168,6 @@ export function baueEtage3(scene) {
   };
   for (let i = 0; i < 6; i++) {
     const b = buesteAufSockel(m, i + 1);
-    wandnah.push(b);
     b.position.set(0.5, 0, 1.6 + i * 1.25);
     b.rotation.y = Math.PI / 2;
     tafelAn(b, 0, 0.95, 0.182);
@@ -191,7 +176,6 @@ export function baueEtage3(scene) {
   }
   for (let i = 0; i < 3; i++) {
     const b = buesteAufSockel(m, i + 10);
-    wandnah.push(b);
     b.position.set(6.75 + i * 0.85, 0, 9.2);
     b.rotation.y = Math.PI;
     tafelAn(b, 0, 0.95, 0.182);
@@ -274,7 +258,6 @@ export function baueEtage3(scene) {
     gruppe.add(form);
   }
   const bank2 = werkbank(m, 2.0, 0.7);
-  wandnah.push(bank2);
   bank2.position.set(3.2, 0, 26.75);
   gruppe.add(bank2);
   kollision.push(bank2);
@@ -357,27 +340,16 @@ export function baueEtage3(scene) {
   // ---------- Hindernisse berechnen, dann statische Teile verschmelzen ----------
   gruppe.updateWorldMatrix(true, true);
   const hindernisse = [...kollision.map((o) => alsHindernis(o)), ...handHindernisse];
-  // Boden an Wänden und unter Möbeln abdunkeln (wirkt auf das Umgebungslicht)
-  m.dielen.aoMap = bodenAbdunkelung(hindernisse, 9, 27.5);
-  m.dielen.aoMapIntensity = 1;
-  m.dielen.needsUpdate = true;
-  // Weiche Kontaktschatten an den Wänden hinter wandnahen Gegenständen (Büsten, Heizkörper, Werkbank)
-  const schattenflecken = kontaktschattenAnWaenden(wandnah, [
-    { achse: 'x', wert: 0, richtung: 1 }, { achse: 'x', wert: 9, richtung: -1 },
-    { achse: 'z', wert: 0, richtung: 1 }, { achse: 'z', wert: 9.5, richtung: -1 }, { achse: 'z', wert: 9.75, richtung: 1 },
-    { achse: 'z', wert: 19.5, richtung: -1 }, { achse: 'z', wert: 19.75, richtung: 1 }, { achse: 'z', wert: 27.5, richtung: -1 },
-  ]);
-  if (schattenflecken) gruppe.add(schattenflecken);
-
-  // Raummodell für die vorab berechnete Lichtverteilung (vor dem Verschmelzen, solange die Teile einzeln sind)
-  const lichtModell = sammleLichtModell(gruppe, eckStufen);
+  // Raummodell und Lichtkarten-Atlas für die vorab berechnete Beleuchtung (vor dem Verschmelzen,
+  // solange die Teile einzeln sind)
+  const lichtSzene = sammleLichtSzene(gruppe);
   // Fensteröffnungen für die Lichtberechnung: Rechteck in der Außenebene der Wand (Himmelslicht kommt
   // nur hier herein). Behrenstraße: Ebene x = 9,5 (Wandaußenseite), Friedrichstraße: Ebene z = 28
   const lichtFenster = [
     ...[...fensterZ, 22.4].map((z) => ({ achse: 'x', ebene: 9 + DA, min: [z - FENSTER.breite / 2, FENSTER.unten], max: [z + FENSTER.breite / 2, FENSTER.unten + FENSTER.hoehe] })),
     ...[6.5 - 1.7, 6.5 - 4.7].map((x) => ({ achse: 'z', ebene: 27.5 + DA, min: [x - FENSTER.breite / 2, FENSTER.unten], max: [x + FENSTER.breite / 2, FENSTER.unten + FENSTER.hoehe] })),
   ];
-  const verdecker = verschmelze(gruppe);
+  const verdecker = verschmelze(gruppe, lichtSzene.koordinaten);
   aktiviereSchatten(gruppe);
 
   // Mit Lichtgitter entfallen alle vier Lampen: Das Gitter enthält das Himmelslicht durch die Fenster
@@ -386,7 +358,7 @@ export function baueEtage3(scene) {
   // Ohne Gitter (Ersatzlösung) bleiben sie in voller Stärke.
   const direktLichter = [himmel, fensterSeite, fensterLicht, ostLicht];
   return {
-    gruppe, hindernisse, verdecker, start: { x: 6.5, z: 1.3, blick: Math.PI }, materialien: m, lichtModell, lichtFenster,
+    gruppe, hindernisse, verdecker, start: { x: 6.5, z: 1.3, blick: Math.PI }, materialien: m, lichtSzene, lichtFenster,
     direktLichter,
     // Räume als z-Bereiche (Raum A, Raum B, Werkstatt), z. B. für die Fensterspiegelung im Boden
     raeumeZ: [[0, 9.5], [9.75, 19.5], [19.75, 27.5]],

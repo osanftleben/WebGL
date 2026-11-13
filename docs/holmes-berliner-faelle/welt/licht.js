@@ -65,53 +65,6 @@ export function schattenLicht(licht, umfang, groesse = 2048) {
 }
 
 /**
- * Erzeugt eine Abdunkelungskarte (Ambient Occlusion) für den Boden: dunkler an Wänden und
- * unter Möbeln. Leinwand-x = Welt-x (0 … breite), Leinwand-y = Welt-z (0 … tiefe).
- * @param {readonly import('steuerung/kollision.js').Hindernis[]} hindernisse
- * @param {number} breite @param {number} tiefe Bodenmaße in Metern
- * @returns {THREE.CanvasTexture} für `aoMap` (Kanal 1 = zweite UV-Koordinate)
- */
-export function bodenAbdunkelung(hindernisse, breite, tiefe) {
-  const proMeter = 28;
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(breite * proMeter);
-  canvas.height = Math.round(tiefe * proMeter);
-  const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  // Weicher Rand durch übereinandergelegte, nach außen größer werdende Rechtecke
-  const stufen = 7;
-  for (const h of hindernisse) {
-    for (let k = stufen; k >= 0; k--) {
-      const rand = k * 0.06;
-      ctx.fillStyle = 'rgba(0,0,0,0.09)';
-      ctx.fillRect(
-        (h.minX - rand) * proMeter,
-        (h.minZ - rand) * proMeter,
-        (h.maxX - h.minX + 2 * rand) * proMeter,
-        (h.maxZ - h.minZ + 2 * rand) * proMeter,
-      );
-    }
-  }
-  const textur = new THREE.CanvasTexture(canvas);
-  textur.channel = 1;
-  return textur;
-}
-
-/**
- * Ergänzt eine zweite UV-Koordinate (0 … 1 über die ganze Fläche), die von der gekachelten
- * ersten UV unabhängig ist – für die Abdunkelungskarte.
- * @param {THREE.BufferGeometry} geometrie Ebene mit bereits gekachelter `uv`
- * @param {number} kachelnU @param {number} kachelnV Anzahl der Kacheln in u/v
- */
-export function zweiteUV(geometrie, kachelnU, kachelnV) {
-  const uv = /** @type {THREE.BufferAttribute} */ (geometrie.getAttribute('uv'));
-  const uv1 = uv.clone();
-  for (let i = 0; i < uv1.count; i++) uv1.setXY(i, uv1.getX(i) / kachelnU, uv1.getY(i) / kachelnV);
-  geometrie.setAttribute('uv1', uv1);
-}
-
-/**
  * Erzeugt die Spiegelungen aus dem **echten Raum**: Die Szene wird einmal von einem Punkt aus
  * in alle sechs Richtungen aufgenommen (CubeCamera) und daraus eine Spiegelungs-Umgebung
  * berechnet. So spiegeln Gold, Messing, Glas und Klingen die hellen Fenster und die Wände.

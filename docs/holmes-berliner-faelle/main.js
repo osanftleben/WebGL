@@ -16,7 +16,7 @@ import { baueSchutzmann } from './welt/personen.js';
 import { GESPRAECH_KRANICH } from './fall1/gespraech-kranich.js';
 import { ladeSpielstand, speichereSpielstand, loescheSpielstand, ladeTonAn, speichereTonAn } from './fall1/spielstand.js';
 import { erstelleKlaenge } from './ton/klaenge.js';
-import { richteRendererEin, aktiviereSchatten, schattenNeu, erzeugeUmgebung, fensterLichtAbfall, bodenAbdunkelung } from './welt/licht.js';
+import { richteRendererEin, aktiviereSchatten, schattenNeu, erzeugeUmgebung, fensterLichtAbfall } from './welt/licht.js';
 import { ladeLichtgitter, wendeLichtgitterAn } from './welt/lichtgitter.js';
 import { bodenGlanz } from './welt/bodenglanz.js';
 
@@ -40,25 +40,25 @@ scene.add(kranich);
 aktiviereSchatten(funde.gruppe);
 aktiviereSchatten(kranich);
 const kranichHindernis = { minX: 5.0, maxX: 5.6, minZ: 15.3, maxZ: 15.9 };
-// Weniger Tageslicht, je weiter von den Fenstern entfernt; fensterzugewandte Flächen heller
-// Umgebungslicht aus dem vorab berechneten Lichtgitter (Strahlverfolgung); fehlt es, gilt die Näherung
+// Vorab berechnete Beleuchtung (Strahlverfolgung): Lichtkarte für statische Quader und Flächen,
+// Lichtgitter für alles andere. Fehlt sie, gilt die alte Näherung mit Lampen.
 /** @type {any} */
 let lichtgitterWerte = null;
 /** @type {any} */
 let bodenGlanzWerte = null;
 try {
-  const gitter = await ladeLichtgitter(new URL('./licht/', import.meta.url));
+  const gitter = await ladeLichtgitter(new URL('./licht/', import.meta.url), etage.lichtSzene.pruefsumme);
   // Helligkeitsfaktor: das Gitter rechnet mit Himmelsleuchtdichte 1, im Innenraum kommen nur wenige Prozent an
   lichtgitterWerte = wendeLichtgitterAn(scene, gitter, 22);
+  // Kurze Meldung, welche Beleuchtung aktiv ist (hilft bei der Fehlersuche auf anderen Rechnern)
+  console.info(gitter.karte
+    ? `Beleuchtung: Lichtkarte aktiv (Prüfsumme ${etage.lichtSzene.pruefsumme})`
+    : `Beleuchtung: nur Lichtgitter (Prüfsumme Raum ${etage.lichtSzene.pruefsumme}, Datei ${gitter.info.lichtkarte?.pruefsumme ?? 'ohne Lichtkarte'})`);
   // Das Gitter enthält das ganze Tageslicht: Lampen und Schattenkarten werden nicht mehr gebraucht
   // (die schattenwerfenden Fensterlichter zeichneten sonnenartige Lichtbahnen, unpassend bei bedecktem Himmel)
   etage.direktLichter.forEach((l) => (l.visible = false));
   renderer.shadowMap.enabled = false;
-  // Weiche Bodenabdunkelung auch unter Fundstücken und Kranich (vorher kam ihr Schatten vom Fensterlicht)
-  etage.materialien.dielen.aoMap?.dispose();
-  etage.materialien.dielen.aoMap = bodenAbdunkelung([...etage.hindernisse, ...funde.hindernisse, kranichHindernis], 9, 27.5);
-  etage.materialien.dielen.needsUpdate = true;
-  // Gewachste Dielen spiegeln die hellen Fenster weich (nur mit Lichtgitter abgestimmt)
+  // Gewachste Dielen spiegeln die hellen Fenster weich (unter Möbeln gedämpft über die Lichtkarte)
   bodenGlanzWerte = bodenGlanz(etage.materialien.dielen, etage.lichtFenster, etage.raeumeZ, { wandDicke: 0.5 });
 } catch (fehler) {
   console.warn('Lichtgitter nicht geladen, verwende Näherung:', fehler);
@@ -260,8 +260,11 @@ if (/** @type {any} */ (window).__debug) {
     fetch(`${location.protocol}//${location.hostname}:8765/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // je Quader: min (3), max (3), Albedo (3), Mauerwerk (1 = immer berücksichtigen)
-      body: JSON.stringify({ quader: etage.lichtModell.map((b) => [...b.min, ...b.max, ...b.albedo, b.mauerwerk ? 1 : 0]), fenster: etage.lichtFenster }),
+      // Verdecker, Lichtkarten-Seiten mit Atlas-Lage, Fensteröffnungen (Aufbau siehe welt/lichtmodell.js)
+      body: JSON.stringify({
+        quader: etage.lichtSzene.quader, flaechen: etage.lichtSzene.flaechen, atlas: etage.lichtSzene.atlas,
+        pruefsumme: etage.lichtSzene.pruefsumme, fenster: etage.lichtFenster, raeume: etage.raeumeZ,
+      }),
     }).then((r) => r.text());
 }
 

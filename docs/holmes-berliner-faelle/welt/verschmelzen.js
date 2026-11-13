@@ -6,9 +6,11 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
  * Fasst alle undurchsichtigen Meshes einer Gruppe je Material zu einem Mesh zusammen
  * (weniger Draw-Calls, wichtig fürs Handy). Durchsichtige Teile bleiben einzeln.
  * @param {THREE.Group} gruppe
+ * @param {Map<THREE.Mesh, Float32Array>} [lichtkarte] Lichtkarten-Koordinaten je Mesh (Attribut `lkUv`);
+ *   Meshes ohne Eintrag bekommen (0, 0) = „keine Lichtkarte“
  * @returns {THREE.Mesh[]} die neuen, zusammengefassten Meshes
  */
-export function verschmelze(gruppe) {
+export function verschmelze(gruppe, lichtkarte) {
   /** @type {Map<THREE.Material, THREE.BufferGeometry[]>} */
   const jeMaterial = new Map();
   /** @type {THREE.Mesh[]} */
@@ -28,6 +30,8 @@ export function verschmelze(gruppe) {
     if (material.transparent && !material.userData.verschmelzbar) return;
     const geo = mesh.geometry.clone();
     geo.applyMatrix4(mesh.matrixWorld);
+    const lk = lichtkarte?.get(mesh);
+    if (lk) geo.setAttribute('lkUv', new THREE.BufferAttribute(lk, 2));
     if (!jeMaterial.has(material)) jeMaterial.set(material, []);
     /** @type {THREE.BufferGeometry[]} */ (jeMaterial.get(material)).push(geo);
     alte.push(mesh);
@@ -39,6 +43,12 @@ export function verschmelze(gruppe) {
   /** @type {THREE.Mesh[]} */
   const neue = [];
   for (const [material, geos] of jeMaterial) {
+    // Zusammenfassen geht nur mit gleichen Attributen: fehlende Lichtkarten-Koordinaten mit (0, 0) ergänzen
+    if (geos.some((g) => g.getAttribute('lkUv'))) {
+      for (const g of geos) {
+        if (!g.getAttribute('lkUv')) g.setAttribute('lkUv', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 2), 2));
+      }
+    }
     const zusammen = mergeGeometries(geos, false);
     for (const g of geos) g.dispose();
     if (!zusammen) continue;
