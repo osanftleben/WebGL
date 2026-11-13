@@ -29,6 +29,19 @@ tools/                      ← nicht im Git: glslang (bin/), three.js-Vorrat (v
 - JavaScript mit **JSDoc**-Typhinweisen, Module mit `import`/`export`, Top-Level-`await` erlaubt.
 - Shader als eigene Dateien `shaders/*.vert` / `*.frag`, laden mit `shader/laden.js`, Pfade per `new URL('./shaders/x.vert', import.meta.url)`.
 - Debug: `debug/debug.js` → `stelleBereit({ renderer, scene, camera })`; nur auf 127.0.0.1 aktiv (`window.__debug`).
+- **Der Nutzer spielt in Firefox, Claude prüft nur in Chromium.** Nichts bauen, das von exakten Gleitkomma-Ergebnissen abhängt (Abgleich JS ↔ Python nur über gerundete oder ganze Werte). Bei browserabhängigen Funktionen den Nutzer gezielt in Firefox prüfen lassen.
+
+## Grafik und Feinschliff
+- Vor dem Start mit dem Nutzer festlegen, was „gut genug“ ist (an Bildern/Blickwinkeln), und höchstens 2 Korrekturrunden. Danach Restfehler in den Projektnotizen festhalten und mit der nächsten Aufgabe weitermachen.
+- Stil ist stilisiert: robuste, einfache Lösungen vor physikalischer Genauigkeit. Vor einem aufwendigen neuen Verfahren (z. B. Vorberechnung) Aufwand, Risiko und eine einfache Alternative nennen.
+- Fehler nicht einzeln flicken: Beim zweiten Fehler mit derselben Ursache das Verfahren überdenken und dem Nutzer vorlegen.
+
+## Sitzungen und Token sparen
+- **Eine Aufgabe pro Sitzung.** Ist eine Aufgabe fertig (oder der Verlauf lang), Arbeitsstand in den Projektnotizen festhalten und eine neue Sitzung vorschlagen.
+- Automatisch geladene Projektnotizen (`.claude/rules/projekte/*.md`) kurz halten (Ziel ≤ 5 KB): nur Arbeitsstand, gültige Regeln, Rundgang. Einzelheiten, Verlauf, Quellen, Fall-Entwürfe nach `.claude/notizen/` – nur lesen, wenn die Aufgabe sie braucht.
+- Dateien nur ausschnittsweise lesen (`grep`, `offset/limit`), lange Ausgaben kürzen (`tail`, Filter).
+- Screenshots klein (`scale: 0.5`) oder als Ausschnitt (`zoom`); erst mit Text/Zahlen prüfen, Bilder für den Rundgang am Ende.
+- Vor großen Umbauten den Aufwand nennen; bei knappem Kontingent kleinere Schritte vorschlagen.
 
 ## Versionierung
 - three.js: Ordner je Release (`three-r187`). Ein Projekt wechselt die Version nur über seine Import-Map.
@@ -42,8 +55,9 @@ tools/                      ← nicht im Git: glslang (bin/), three.js-Vorrat (v
 - Projekte/Startseite: `python .claude/scripts/projekte.py liste|startseite`
 - three.js-Zusatz: `python .claude/scripts/three_addon.py liste <filter>` / `hole <pfad>`
 - Bibliotheken: `python .claude/scripts/libs.py liste|neu|hauptversion`
+- Rechnungen, die länger als 2 Minuten dauern (z. B. `holmes_licht.py berechne`), im **Terminal-Panel** starten (`run_in_terminal`), nicht als Hintergrundaufgabe der Sitzung – die bricht mit der Sitzung ab.
 
 ## Wann ist etwas fertig?
 1. `check.py` meldet 0 Fehler (der Stop-Hook erzwingt das, sobald `docs/` Änderungen hat).
-2. Im Browser geprüft (`/visuell-pruefen`): keine Konsolenfehler, alle Netzwerk-Anfragen gehen an 127.0.0.1, Screenshot sieht richtig aus.
+2. Im Browser geprüft (`/visuell-pruefen`): keine Konsolenfehler, alle Netzwerk-Anfragen gehen an 127.0.0.1, **Rundgang** über alle festgelegten Blickpunkte des Projekts ohne Auffälligkeiten (nicht nur die geänderte Stelle).
 3. Bei Änderungen an einer Bibliothek: alle Projekte geprüft, die sie nutzen.

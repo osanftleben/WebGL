@@ -35,6 +35,11 @@ def main() -> None:
 
     if not g.GLSLANG.is_file():
         zeilen.append(f"ACHTUNG: glslang fehlt ({g.rel(g.GLSLANG)}) – Shader-Prüfung nicht möglich.")
+    # Automatisch geladene Projektnotizen klein halten (Token sparen, siehe CLAUDE.md)
+    for notiz in sorted((g.WURZEL / ".claude" / "rules" / "projekte").glob("*.md")):
+        groesse = notiz.stat().st_size
+        if groesse > 5 * 1024:
+            zeilen.append(f"HINWEIS: {g.rel(notiz)} hat {groesse // 1024} KB (Ziel <= 5 KB) - Einzelheiten nach .claude/notizen/ verschieben.")
     zeilen.append("Vorschau: preview_start 'webgl-vorschau' (http://127.0.0.1:8000/). Prüfung: python .claude/scripts/check.py")
     print("\n".join(zeilen))
 

@@ -40,7 +40,11 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/sitzungsstart.py\"", "timeout": 30 }
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/sitzungsstart.py\"",
+            "timeout": 30
+          }
         ]
       }
     ],
@@ -48,7 +52,11 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/schutz.py\"", "timeout": 30 }
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/schutz.py\"",
+            "timeout": 30
+          }
         ]
       }
     ],
@@ -56,14 +64,33 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/nach_aenderung.py\"", "timeout": 60 }
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/nach_aenderung.py\"",
+            "timeout": 60
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/abschluss_check.py\"", "timeout": 300 }
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/abschluss_check.py\"",
+            "timeout": 300
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/sitzungslaenge.py\"",
+            "timeout": 10
+          }
         ]
       }
     ]
