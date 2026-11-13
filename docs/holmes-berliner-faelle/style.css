@@ -45,3 +45,184 @@ body {
 .meldung.sichtbar {
   opacity: 1;
 }
+
+/* ---------- Hinweiskarte und Notizbuch ---------- */
+.ueberlagerung {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(10, 8, 6, 0.55);
+  z-index: 20;
+}
+.ueberlagerung[hidden] {
+  display: none;
+}
+.karte {
+  box-sizing: border-box;
+  width: min(520px, 100%);
+  max-height: calc(100% - 16px);
+  overflow-y: auto;
+  padding: 18px 20px 16px;
+  border-radius: 6px;
+  border: 1px solid #8a7550;
+  background: #f1eadb;
+  color: #231d15;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.karte-ort {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: #6b5a40;
+}
+.karte-titel {
+  margin: 0 0 10px;
+  font-size: 20px;
+  line-height: 1.25;
+}
+.karte-text {
+  margin: 0 0 10px;
+}
+.karte-vermerk {
+  margin: 0 0 14px;
+  font-size: 14px;
+  font-style: italic;
+  color: #5a4a32;
+}
+.knopf {
+  font: inherit;
+  padding: 8px 18px;
+  min-height: 44px;
+  border-radius: 5px;
+  border: 1px solid #6b5a40;
+  background: #3a2f22;
+  color: #f1eadb;
+  cursor: pointer;
+}
+.knopf:focus-visible {
+  outline: 2px solid #b08d3e;
+  outline-offset: 2px;
+}
+
+/* Knopf oben rechts (am Handy gut mit dem Daumen erreichbar) */
+.notizbuch-knopf {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 6;
+  font: 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 10px 12px;
+  min-height: 44px;
+  border-radius: 6px;
+  border: 1px solid rgba(241, 234, 219, 0.5);
+  background: rgba(20, 16, 12, 0.7);
+  color: #f1eadb;
+  cursor: pointer;
+}
+.notizbuch-liste {
+  margin: 0 0 14px;
+  padding-left: 1.4em;
+}
+.notizbuch-liste li {
+  margin-bottom: 10px;
+}
+.notizbuch-liste p {
+  margin: 4px 0 0;
+}
+.notizbuch-ort {
+  font-size: 13px;
+  color: #6b5a40;
+}
+.notizbuch-offen {
+  color: #8a7a62;
+}
+
+/* Hilfe links oben, damit sie den Notizbuch-Knopf rechts nicht verdeckt */
+.hilfe {
+  left: 8px;
+  transform: none;
+  max-width: calc(100% - 170px);
+  text-align: left;
+}
+
+/* ---------- Notizbuch-Abschnitte ---------- */
+.notizbuch-abschnitt {
+  margin: 12px 0 6px;
+  font-size: 15px;
+  color: #5a4a32;
+  border-bottom: 1px solid #cbbd9f;
+}
+.notizbuch-aussagen {
+  list-style: none;
+  padding-left: 0;
+}
+
+/* ---------- Gesprächsfenster unten ---------- */
+.gespraech {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: min(640px, calc(100% - 24px));
+  max-height: 60%;
+  overflow-y: auto;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid #8a7550;
+  background: rgba(241, 234, 219, 0.97);
+  color: #231d15;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  z-index: 15;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.gespraech[hidden] {
+  display: none;
+}
+.gespraech-name {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: #5a4a32;
+}
+.gespraech-text {
+  margin: 0 0 10px;
+}
+.gespraech-fragen {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+/* Auf breiten Bildschirmen zwei Spalten, damit das Fenster nicht zu hoch wird */
+@media (min-width: 700px) {
+  .gespraech-fragen {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.gespraech-frage {
+  font: inherit;
+  text-align: left;
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: 5px;
+  border: 1px solid #6b5a40;
+  background: #3a2f22;
+  color: #f1eadb;
+  cursor: pointer;
+}
+.gespraech-frage.gestellt {
+  background: #e4dac4;
+  color: #5a4a32;
+}
+.gespraech-frage.abschied {
+  background: transparent;
+  color: #3a2f22;
+}
+.gespraech-frage:focus-visible {
+  outline: 2px solid #b08d3e;
+  outline-offset: 2px;
+}
