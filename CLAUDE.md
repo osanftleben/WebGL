@@ -37,6 +37,7 @@ tools/                      ← nicht im Git: glslang (bin/), three.js-Vorrat (v
 - Fehler nicht einzeln flicken: Beim zweiten Fehler mit derselben Ursache das Verfahren überdenken und dem Nutzer vorlegen.
 
 ## Sitzungen und Token sparen
+- Aufgaben mit `/auftrag` beginnen (Ziel, Abnahme, Runden) und mit `/abschluss` beenden.
 - **Eine Aufgabe pro Sitzung.** Ist eine Aufgabe fertig (oder der Verlauf lang), Arbeitsstand in den Projektnotizen festhalten und eine neue Sitzung vorschlagen.
 - Automatisch geladene Projektnotizen (`.claude/rules/projekte/*.md`) kurz halten (Ziel ≤ 5 KB): nur Arbeitsstand, gültige Regeln, Rundgang. Einzelheiten, Verlauf, Quellen, Fall-Entwürfe nach `.claude/notizen/` – nur lesen, wenn die Aufgabe sie braucht.
 - Dateien nur ausschnittsweise lesen (`grep`, `offset/limit`), lange Ausgaben kürzen (`tail`, Filter).

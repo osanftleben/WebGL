@@ -58,6 +58,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/lange_rechnung.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
