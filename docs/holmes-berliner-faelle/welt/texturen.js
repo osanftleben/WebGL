@@ -125,6 +125,27 @@ export function heizkoerperTextur() {
   return alsTextur(canvas);
 }
 
+/**
+ * Glasscheibe: ganz leicht grünlich getönte Fläche, zur Kante hin etwas kräftiger
+ * (durch die Kante blickt man durch mehr Glas). Spiegelungen kommen aus der Spiegelschicht.
+ * Der Alphakanal bestimmt, wie stark die Scheibe sichtbar ist.
+ * @returns {THREE.CanvasTexture}
+ */
+export function glasTextur() {
+  const { canvas, ctx } = leinwand(256, 256);
+  ctx.fillStyle = 'rgba(205,228,218,0.09)';
+  ctx.fillRect(0, 0, 256, 256);
+  // Kante: nach außen kräftiger grünlich
+  for (let i = 0; i < 4; i++) {
+    ctx.strokeStyle = `rgba(150,190,172,${0.12 + i * 0.1})`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(7 - i * 2, 7 - i * 2, 242 + i * 4, 242 + i * 4);
+  }
+  const textur = new THREE.CanvasTexture(canvas);
+  textur.colorSpace = THREE.SRGBColorSpace;
+  return textur;
+}
+
 /** Raster des Nummern-Atlas: 8 × 8 Felder für die Nummern 1 … 64 */
 export const NUMMERN_RASTER = 8;
 

@@ -12,6 +12,7 @@
 // Koordinaten: x zeigt zur Behrenstraße (Norden), z zur Friedrichstraße (Osten), Meter.
 import * as THREE from 'three';
 import { verschmelze } from './verschmelzen.js';
+import { aktiviereSchatten, schattenLicht, bodenAbdunkelung, zweiteUV } from './licht.js';
 import { alsHindernis } from 'steuerung/kollision.js';
 import {
   erstelleMaterialien, wand, flaeche, box, heizkoerper, buesteAufSockel, schwertTafel,
@@ -70,6 +71,7 @@ export function baueEtage3(scene) {
   // ---------- Boden und Decke ----------
   const boden = flaeche(9, 27.5, m.dielen, 1.6);
   boden.position.set(4.5, 0, 13.75);
+  zweiteUV(boden.geometry, 9 / 1.6, 27.5 / 1.6);
   gruppe.add(boden);
   const decke = flaeche(9, 27.5, m.decke, 2, true);
   decke.position.set(4.5, H, 13.75);
@@ -310,21 +312,39 @@ export function baueEtage3(scene) {
   gruppe.add(lampe);
 
   // ---------- Licht: Tageslicht durch die Fenster (bedeckt, ohne direkte Sonne – Wetter unbelegt) ----------
-  const himmel = new THREE.HemisphereLight(0xdde3e8, 0x8a7b6a, 1.3);
+  const himmel = new THREE.HemisphereLight(0xe2e4e2, 0xb3a48e, 1.1);
   gruppe.add(himmel);
-  const fensterLicht = new THREE.DirectionalLight(0xe8ecef, 0.9);
-  fensterLicht.position.set(30, 10, 10);
+  const fensterLicht = new THREE.DirectionalLight(0xf0f0ec, 2.4);
+  // Himmelslicht fällt steiler ein (etwa 35°) – weniger Schattenfehler auf flachen Flächen
+  fensterLicht.position.set(30, 18, 10);
   fensterLicht.target.position.set(4.5, 0, 12);
+  schattenLicht(fensterLicht, 16);
   gruppe.add(fensterLicht, fensterLicht.target);
-  const ostLicht = new THREE.DirectionalLight(0xe8ecef, 0.35);
-  ostLicht.position.set(4, 8, 60);
+  // Seitliche Aufhellung von der Fensterseite (Behrenstraße, +x), ohne Schatten: Fenster geben
+  // Licht aus vielen Winkeln, auch flach. Die dem Fenster zugewandte Seite von Figuren und
+  // Gegenständen ist dadurch heller als die abgewandte – auch tief im Raum, wo das steile
+  // Fensterlicht (oben) wegen der Wand über den Fenstern nicht mehr hinkommt.
+  const fensterSeite = new THREE.DirectionalLight(0xe6ebef, 1.5);
+  fensterSeite.position.set(20, 4, 12);
+  fensterSeite.target.position.set(4.5, 0.5, 12);
+  gruppe.add(fensterSeite, fensterSeite.target);
+  // Himmelslicht durch die Fenster zur Friedrichstraße (Werkstatt), ebenfalls mit Schatten,
+  // damit auch dort Lichtbahnen entstehen (sonst erhellte es die ganze Etage durch die Wände)
+  const ostLicht = new THREE.DirectionalLight(0xf0f0ec, 1.8);
+  ostLicht.position.set(4.5, 14, 42);
   ostLicht.target.position.set(4.5, 0, 22);
+  schattenLicht(ostLicht, 10, 1024);
   gruppe.add(ostLicht, ostLicht.target);
 
   // ---------- Hindernisse berechnen, dann statische Teile verschmelzen ----------
   gruppe.updateWorldMatrix(true, true);
   const hindernisse = [...kollision.map((o) => alsHindernis(o)), ...handHindernisse];
+  // Boden an Wänden und unter Möbeln abdunkeln (wirkt auf das Umgebungslicht)
+  m.dielen.aoMap = bodenAbdunkelung(hindernisse, 9, 27.5);
+  m.dielen.aoMapIntensity = 1;
+  m.dielen.needsUpdate = true;
   const verdecker = verschmelze(gruppe);
+  aktiviereSchatten(gruppe);
 
   return { gruppe, hindernisse, verdecker, start: { x: 6.5, z: 1.3, blick: Math.PI }, materialien: m };
 }

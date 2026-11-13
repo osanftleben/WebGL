@@ -1,7 +1,7 @@
 // Bauteile für Innenräume: Wände mit Öffnungen, Möbel, Ausstellungsstücke.
 // Alles stilisiert aus einfachen Formen; Maße in Metern.
 import * as THREE from 'three';
-import { dielenTextur, putzTextur, holzTextur, heizkoerperTextur, nummernAtlas, NUMMERN_RASTER, skaliereUV, zufall } from './texturen.js';
+import { dielenTextur, putzTextur, holzTextur, heizkoerperTextur, nummernAtlas, glasTextur, NUMMERN_RASTER, skaliereUV, zufall } from './texturen.js';
 
 /** @type {Map<number, THREE.BufferGeometry>} Vorhang-Geometrien je Höhe (werden geteilt) */
 const vorhangCache = new Map();
@@ -25,10 +25,41 @@ function vorhangGeometrie(hoehe) {
 /** @typedef {ReturnType<typeof erstelleMaterialien>} Materialien */
 
 /**
+ * Markiert ein durchsichtiges Material als zusammenfassbar (siehe verschmelzen.js) –
+ * nur für Flächen, die sich nicht überlappen (z. B. Fensterscheiben).
+ * @template {THREE.Material} M
+ * @param {M} material
+ * @returns {M} dasselbe Material
+ */
+function verschmelzbar(material) {
+  material.userData.verschmelzbar = true;
+  return material;
+}
+
+/**
+ * Unterdrückt bei einem MeshStandardMaterial das direkte Glanzlicht der Lichtquellen;
+ * Spiegelungen der Umgebung bleiben erhalten.
+ * @param {THREE.MeshStandardMaterial} material
+ * @returns {THREE.MeshStandardMaterial} dasselbe Material
+ */
+function ohneDirektenGlanz(material) {
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <lights_fragment_end>',
+      '#include <lights_fragment_end>\n\treflectedLight.directSpecular = vec3( 0.0 );',
+    );
+  };
+  material.customProgramCacheKey = () => 'ohneDirektenGlanz';
+  return material;
+}
+
+/**
  * Legt alle gemeinsam genutzten Materialien einmal an.
  */
 export function erstelleMaterialien() {
   const lambert = (/** @type {THREE.MeshLambertMaterialParameters} */ p) => new THREE.MeshLambertMaterial(p);
+  // Glänzende Oberflächen (Feinschliff B): spiegeln die Umgebung (scene.environment)
+  const glanz = (/** @type {THREE.MeshStandardMaterialParameters} */ p) => new THREE.MeshStandardMaterial(p);
   return {
     dielen: lambert({ map: dielenTextur() }),
     // Säle hell (Werbeblatt 1888: „weit, bequem und hell“, Rokoko-Schmuck); Farbton angenommen
@@ -39,29 +70,43 @@ export function erstelleMaterialien() {
     emaille: lambert({ color: 0x2f4637, side: THREE.DoubleSide }),
     gesims: lambert({ color: 0xe8e2d4 }),
     fussleiste: lambert({ map: holzTextur([58, 38, 24], 21) }),
-    holzDunkel: lambert({ map: holzTextur([66, 44, 28], 31) }),
+    holzDunkel: glanz({ map: holzTextur([66, 44, 28], 31), roughness: 0.55, metalness: 0, envMapIntensity: 0.3 }),
     holzHell: lambert({ map: holzTextur([150, 112, 72], 41) }),
     fensterRahmen: lambert({ color: 0xe9e5db }),
     // Mattes Tageslicht hinter den Scheiben (bewusst ohne Außenansicht)
-    fensterGlas: new THREE.MeshBasicMaterial({ color: 0xd8dde0 }),
+    fensterGlas: new THREE.MeshBasicMaterial({ color: 0xe4e8ea, toneMapped: false }),
     // Vorhangstoff (Farbe angenommen) und Nummerntafeln (eine gemeinsame Textur für alle Nummern)
     vorhang: lambert({ color: 0x5c2a26 }),
     nummern: lambert({ map: nummernAtlas() }),
-    gold: lambert({ color: 0xb08d3e }),
-    messing: lambert({ color: 0xa7863f }),
+    gold: glanz({ color: 0xd8ae52, metalness: 1, roughness: 0.22, envMapIntensity: 1.6 }),
+    messing: glanz({ color: 0xc9a058, metalness: 1, roughness: 0.25, envMapIntensity: 1.5 }),
+    // Säulenschäfte (Marmor angenommen; Marmortreppen im Haus belegt)
+    marmor: glanz({ color: 0xece6da, metalness: 0, roughness: 0.15, envMapIntensity: 1.0 }),
     stoffRot: lambert({ color: 0x6e1d1d }),
     podest: lambert({ color: 0x3b1f1a }),
-    metall: lambert({ color: 0xa2a6aa }),
-    eisen: lambert({ color: 0x2c2c2e }),
-    wachs: lambert({ color: 0xd8b597 }),
-    wachsBlass: lambert({ color: 0xe6dac4 }),
+    metall: glanz({ color: 0xc8ccd0, metalness: 1, roughness: 0.14, envMapIntensity: 1.6 }),
+    eisen: glanz({ color: 0x2e2e30, metalness: 0.6, roughness: 0.6, envMapIntensity: 0.3 }),
+    // Wachs hat einen leichten, weichen Schimmer
+    wachs: glanz({ color: 0xd8b597, metalness: 0, roughness: 0.42, envMapIntensity: 0.5 }),
+    wachsBlass: glanz({ color: 0xe6dac4, metalness: 0, roughness: 0.48, envMapIntensity: 0.4 }),
     haar: lambert({ color: 0x2a211b }),
-    kleidDunkel: lambert({ color: 0x23211e }),
+    // Dunkle Stoffe nicht zu dunkel wählen, damit Licht und Schatten darauf sichtbar bleiben
+    kleidDunkel: lambert({ color: 0x38332d }),
     kleidBraun: lambert({ color: 0x4b3a2b }),
     kleidGrau: lambert({ color: 0x55565a }),
     leinen: lambert({ color: 0xcfc6b2 }),
     gips: lambert({ color: 0xe9e6de }),
-    glas: lambert({ color: 0xcfe0e4, transparent: true, opacity: 0.14, depthWrite: false }),
+    // Glas: leicht getönt mit Lichtstreifen (Textur) und Spiegelungen; Sichtbarkeit über den Alphakanal
+    // Spiegelschicht über dem Glas: schwarze Grundfarbe, nur die Spiegelung wird hinzuaddiert
+    // (am Rand und bei flachem Blick stärker – wie bei echtem Glas)
+    // Spiegelschicht des Glases: schwarz, additiv, nur Spiegelung des Raums (leicht weich, mit
+    // physikalischem Randeffekt). Das direkte Glanzlicht der Lichtquelle wird unterdrückt
+    // (es wirkte wie eine Lampe), siehe ohneDirektenGlanz().
+    glasSpiegel: ohneDirektenGlanz(glanz({ color: 0x000000, metalness: 0, roughness: 0.1, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, envMapIntensity: 2.2 })),
+    // Fensterscheiben: ganz schwache Spiegelung des Raums (tagsüber überstrahlt das Licht von draußen fast alles);
+    // darf trotz Durchsichtigkeit zusammengefasst werden (Scheiben überlappen nicht)
+    fensterSpiegel: verschmelzbar(ohneDirektenGlanz(glanz({ color: 0x000000, metalness: 0, roughness: 0.06, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, envMapIntensity: 1.8 }))),
+    glas: glanz({ map: glasTextur(), color: 0xffffff, metalness: 0, roughness: 0.03, transparent: true, opacity: 1, depthWrite: false, envMapIntensity: 1.2, side: THREE.DoubleSide }),
     heizung: lambert({ map: heizkoerperTextur() }),
   };
 }
@@ -145,6 +190,11 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
       const licht = new THREE.Mesh(new THREE.PlaneGeometry(o.breite + 0.8, o.hoehe + 0.8), m.fensterGlas);
       licht.position.set(o.pos, unten + o.hoehe / 2, -dicke - 0.35);
       gruppe.add(licht);
+      // Scheibe mit ganz schwacher Spiegelung (Raumseite)
+      const scheibe = new THREE.Mesh(new THREE.PlaneGeometry(o.breite - 0.1, o.hoehe - 0.1), m.fensterSpiegel);
+      scheibe.position.set(o.pos, unten + o.hoehe / 2, -dicke * 0.7 + 0.04);
+      scheibe.renderOrder = 3;
+      gruppe.add(scheibe);
       const r = 0.07;
       const zr = -dicke * 0.7;
       gruppe.add(box(o.breite, r, r, o.pos, unten + r / 2, zr, m.fensterRahmen));
@@ -343,13 +393,19 @@ export function vitrine(m, breite, tiefe) {
     g.add(teil);
   }
   // Glashaube mit Kanten
-  const haube = box(breite, 0.4, tiefe, 0, 1.08, 0, m.glas);
+  // Glashaube knapp über dem Tuch (Unterseite bei 0,89 m): lag sie genau auf dem Tuch,
+  // flimmerten beide Flächen als Streifenmuster (gleiche Höhe)
+  const haube = box(breite - 0.01, 0.38, tiefe - 0.01, 0, 1.08, 0, m.glas);
   haube.renderOrder = 2;
-  g.add(haube);
+  g.add(haube, spiegelschicht(haube, m));
   for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
     g.add(box(0.025, 0.4, 0.025, sx * (breite / 2), 1.08, sz * (tiefe / 2), m.messing));
   }
-  g.add(box(breite, 0.025, tiefe, 0, 1.28, 0, m.messing));
+  // Messingrahmen der Glashaube oben (nur Kanten, die Haube bleibt durchsichtig)
+  g.add(box(breite, 0.025, 0.025, 0, 1.28, -tiefe / 2, m.messing));
+  g.add(box(breite, 0.025, 0.025, 0, 1.28, tiefe / 2, m.messing));
+  g.add(box(0.025, 0.025, tiefe, -breite / 2, 1.28, 0, m.messing));
+  g.add(box(0.025, 0.025, tiefe, breite / 2, 1.28, 0, m.messing));
   return g;
 }
 
@@ -682,7 +738,7 @@ export function kopfschrank(m, breite, saat) {
   // Glasfront mit Messingrahmen
   const glas = box(breite - 0.05, hoehe - 0.4, 0.01, 0, 0.35 + (hoehe - 0.4) / 2, tiefe, m.glas);
   glas.renderOrder = 2;
-  g.add(glas);
+  g.add(glas, spiegelschicht(glas, m));
   g.add(box(0.03, hoehe - 0.4, 0.02, 0, 0.35 + (hoehe - 0.4) / 2, tiefe + 0.005, m.messing));
   return g;
 }
@@ -694,7 +750,7 @@ export function kopfschrank(m, breite, saat) {
 export function saeule(m, hoehe) {
   const g = new THREE.Group();
   g.add(box(0.42, 0.2, 0.42, 0, 0.1, 0, m.gesims));
-  const schaft = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, hoehe - 0.55, 20), m.gesims);
+  const schaft = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, hoehe - 0.55, 24), m.marmor);
   schaft.position.y = 0.2 + (hoehe - 0.55) / 2;
   g.add(schaft);
   const kapitell = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.15, 0.22, 20), m.gold);
@@ -723,4 +779,17 @@ export function nummernTafel(m, nummer) {
   for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) ? u1 : u0, uv.getY(i) ? v1 : v0);
   uv.needsUpdate = true;
   return new THREE.Mesh(geo, m.nummern);
+}
+
+/**
+ * Zweite Schicht über einer Glasscheibe, die nur Spiegelungen hinzufügt (additiv).
+ * Bei normalem durchsichtigem Material würden Spiegelungen mit der Durchsichtigkeit mit ausgeblendet.
+ * @param {THREE.Mesh} glas
+ * @param {Materialien} m
+ */
+export function spiegelschicht(glas, m) {
+  const schicht = glas.clone();
+  schicht.material = m.glasSpiegel;
+  schicht.renderOrder = 3;
+  return schicht;
 }

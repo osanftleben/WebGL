@@ -16,6 +16,7 @@ import { baueSchutzmann } from './welt/personen.js';
 import { GESPRAECH_KRANICH } from './fall1/gespraech-kranich.js';
 import { ladeSpielstand, speichereSpielstand, loescheSpielstand, ladeTonAn, speichereTonAn } from './fall1/spielstand.js';
 import { erstelleKlaenge } from './ton/klaenge.js';
+import { richteRendererEin, aktiviereSchatten, schattenNeu, erzeugeUmgebung, fensterLichtAbfall } from './welt/licht.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101014);
@@ -23,6 +24,7 @@ scene.background = new THREE.Color(0x101014);
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 60);
 
 const { renderer } = erstelleRenderer({ kamera: camera });
+richteRendererEin(renderer);
 
 // ---- Ort und Fundstücke ----
 const etage = baueEtage3(scene);
@@ -33,6 +35,14 @@ const kranich = baueSchutzmann();
 kranich.position.set(5.3, 0, 15.6);
 kranich.rotation.y = Math.PI;
 scene.add(kranich);
+aktiviereSchatten(funde.gruppe);
+aktiviereSchatten(kranich);
+// Weniger Tageslicht, je weiter von den Fenstern entfernt; fensterzugewandte Flächen heller
+fensterLichtAbfall(scene);
+// Spiegelungen aus dem echten Raum, nur für glänzende Materialien (Gold, Messing, Glas, Holz, Wachs)
+// Aufnahmepunkt frei im Raum A, mit Abstand zu Vitrine und Kronleuchter (nahe Gegenstände
+// erscheinen in der Spiegelung sonst übergroß, z. B. die Messingkanten der Vitrine)
+erzeugeUmgebung(renderer, scene, new THREE.Vector3(4.5, 2.4, 2.4));
 const kranichHindernis = { minX: 5.0, maxX: 5.6, minZ: 15.3, maxZ: 15.9 };
 
 // ---- Anzeige auf der Seite ----
@@ -43,6 +53,11 @@ hilfe.textContent = istTouch
   ? 'Links: Daumen zum Laufen · Rechts: wischen zum Umsehen · Auffälliges antippen'
   : 'Ins Bild klicken · W/A/S/D laufen · Maus: umsehen · Klick: untersuchen · N: Notizbuch · Esc: Maus frei';
 document.body.appendChild(hilfe);
+
+// Sanfte Abdunkelung zum Bildrand (reines CSS, kostet keine Rechenleistung)
+const vignette = document.createElement('div');
+vignette.className = 'vignette';
+document.body.appendChild(vignette);
 
 // Knopfleiste oben rechts: Ton an/aus und Notizbuch
 const knopfleiste = document.createElement('div');
@@ -141,6 +156,7 @@ function aktualisiereWendung(delta) {
   } else {
     person.rotation.y += Math.sign(rest) * schritt;
   }
+  schattenNeu(renderer);
 }
 
 const antippen = erstelleAntippen({

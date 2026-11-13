@@ -24,7 +24,8 @@ export function verschmelze(gruppe) {
       return;
     }
     const material = /** @type {THREE.Material} */ (mesh.material);
-    if (material.transparent) return;
+    // Durchsichtiges bleibt einzeln (Sortierung), außer es ist ausdrücklich als verschmelzbar markiert
+    if (material.transparent && !material.userData.verschmelzbar) return;
     const geo = mesh.geometry.clone();
     geo.applyMatrix4(mesh.matrixWorld);
     if (!jeMaterial.has(material)) jeMaterial.set(material, []);

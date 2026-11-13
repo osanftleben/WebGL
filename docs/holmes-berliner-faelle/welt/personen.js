@@ -24,13 +24,14 @@ function teil(geo, mat, x, y, z) {
  */
 export function baueSchutzmann() {
   const lambert = (/** @type {number} */ farbe) => new THREE.MeshLambertMaterial({ color: farbe });
-  const rock = lambert(0x1f2638);
-  const hose = lambert(0x1b1f2a);
-  const leder = lambert(0x141414);
-  const messing = lambert(0xb08d3e);
+  // Dunkelblau, aber nicht fast schwarz – sonst sind Licht und Schatten auf dem Stoff kaum zu sehen
+  const rock = lambert(0x34405f);
+  const hose = lambert(0x2a3042);
+  const leder = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.38, metalness: 0, envMapIntensity: 0.8 });
+  const messing = new THREE.MeshStandardMaterial({ color: 0xc8a050, roughness: 0.22, metalness: 1, envMapIntensity: 1.5 });
   const haut = lambert(0xd9b49a);
   const haar = lambert(0x4a3524);
-  const stahl = lambert(0x8e9398);
+  const stahl = new THREE.MeshStandardMaterial({ color: 0xb4b9be, roughness: 0.15, metalness: 1, envMapIntensity: 1.5 });
 
   const koerper = new THREE.Group();
   // Beine und Stiefel
