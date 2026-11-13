@@ -18,6 +18,8 @@ Verfahren (Strahlverfolgung, Monte Carlo):
     zurückgeworfenes Licht (Albedo · Bestrahlungsstärke / π) aus dem vorigen Durchgang mit.
     Mehrere Durchgänge = mehrfache Reflexion; leicht geglättet gegen Rauschen.
   - Gespeichert wird je Gitterpunkt die Bestrahlungsstärke aus 6 Richtungen (+x, −x, +y, −y, +z, −z).
+  - Deckenkarte (licht-etage3-decke.png): 10-cm-Raster direkt auf den nach unten zeigenden Flächen
+    unter der Decke (Decke, Gesims-Unterseiten); dort ist das 0,4-m-Gitter zu grob.
 """
 
 from __future__ import annotations
@@ -41,6 +43,9 @@ HIMMEL = (0.92, 0.96, 1.0)    # Farbe des bedeckten Himmels (Annahme)
 BODEN_AUSSEN = (0.80, 0.78, 0.72)
 BODEN_REFLEXION = 0.2  # Anteil reflektierten Lichts von Straße/Gebäuden draußen (Annahme)
 GROSS_AB = 1.5        # Bauteile ab dieser größten Kantenlänge (m) zählen im Lichtgitter
+DECKE_SCHRITT = 0.1   # Rasterabstand der Deckenkarte
+DECKE_AB = 3.7        # Deckenkarte gilt für nach unten zeigende Flächen oberhalb dieser Höhe
+DECKE_STRAHLEN = 128  # Strahlen je Punkt der Deckenkarte (untere Halbkugel)
 
 
 # ---------------------------------------------------------------- Empfangen
@@ -148,9 +153,20 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
         return np.where((sinus >= 0)[:, None], h, b[None, :])
 
     # ---------- 1. Direktes Himmelslicht: Fensterflächen gezielt abtasten (glatt, ohne Zufallsflecken)
-    direkt = np.zeros((anzahl, 6, 3), dtype=np.float32)
+    def direkt_licht(pkte: np.ndarray, melden: bool = True) -> np.ndarray:
+        """Direktes Himmelslicht durch die Fenster je Punkt, aufgeteilt auf die 6 Richtungen."""
+        erg = np.zeros((len(pkte), 6, 3), dtype=np.float32)
+        for nr, f in enumerate(fenster):
+            erg += fenster_licht(pkte, f)
+            if melden:
+                print(f"  Fenster {nr + 1}/{len(fenster)} abgetastet")
+        return erg
+
     PRO_FENSTER = (8, 6)
-    for nr, f in enumerate(fenster):
+
+    def fenster_licht(pkte: np.ndarray, f: dict) -> np.ndarray:
+        """Beitrag eines Fensters (Himmel bzw. Boden draußen) je Punkt und Richtung."""
+        erg = np.zeros((len(pkte), 6, 3), dtype=np.float32)
         su, sv = PRO_FENSTER
         u = (np.arange(su) + 0.5) / su
         v = (np.arange(sv) + 0.5) / sv
@@ -169,9 +185,8 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
             proben = np.stack([pu, pv, np.full_like(pu, f["ebene"])], 1).astype(np.float32)
             n_f = np.array([0, 0, 1], dtype=np.float32)
         stueck = max(1, 8000 // len(proben))
-        for s in range(0, len(idx), stueck):
-            teil = idx[s:s + stueck]
-            o = punkte[teil]
+        for s in range(0, len(pkte), stueck):
+            o = pkte[s:s + stueck]
             d = proben[None, :, :] - o[:, None, :]
             r = np.linalg.norm(d, axis=2)
             w = d / r[..., None]
@@ -183,9 +198,11 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
             raumwinkel = flaeche * np.clip(cos_f.reshape(-1), 0, None) / np.maximum(r.reshape(-1), 0.05) ** 2
             L = himmel(w2) * (raumwinkel * frei)[:, None]
             gew = np.clip(w2 @ achsen.T, 0, None)
-            beitrag = np.einsum("ka,kc->kac", gew, L).reshape(len(teil), len(proben), 6, 3).sum(axis=1)
-            direkt[teil] += beitrag
-        print(f"  Fenster {nr + 1}/{len(fenster)} abgetastet")
+            erg[s:s + stueck] = np.einsum("ka,kc->kac", gew, L).reshape(len(o), len(proben), 6, 3).sum(axis=1)
+        return erg
+
+    direkt = np.zeros((anzahl, 6, 3), dtype=np.float32)
+    direkt[idx] = direkt_licht(punkte[idx])
 
     # ---------- 2. Zurückgeworfenes Licht: Strahlen in alle Richtungen, Treffer auf Flächen
     k = np.arange(STRAHLEN) + 0.5
@@ -302,6 +319,103 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
         feld = direkt + indirekt
         print(f"Durchgang {durchgang + 1}: mittlere Helligkeit {feld[gueltig].mean():.4f}")
 
+    # ---------- 3. Deckenkarte: feines Raster direkt auf den nach unten zeigenden Flächen unter der Decke
+    # (Decke, Gesims- und Leisten-Unterseiten). Das 0,4-m-Gitter mischt dort Werte von knapp über den
+    # Fenstern ein, die viel Licht von unten sehen – an der Gesims-Unterseite entstand ein helles Band.
+    dnx = int(round((rmax[0] - rmin[0]) / DECKE_SCHRITT))
+    dnz = int(round((rmax[2] - rmin[2]) / DECKE_SCHRITT))
+    kx, kz = np.meshgrid(np.arange(dnx), np.arange(dnz), indexing="ij")
+    start = np.stack([
+        rmin[0] + (kx.ravel() + 0.5) * DECKE_SCHRITT,
+        np.full(dnx * dnz, DECKE_AB),
+        rmin[2] + (kz.ravel() + 0.5) * DECKE_SCHRITT,
+    ], 1).astype(np.float32)
+    # Von DECKE_AB senkrecht nach oben: die erste getroffene Unterseite ist die Fläche dieses Rasterpunkts.
+    # Startpunkte in Wänden, Säulen usw. sind ungültig und werden aus Nachbarn aufgefüllt.
+    d_innen = np.zeros(len(start), dtype=bool)
+    for i in range(len(q)):
+        d_innen |= np.all((start > bmin[i]) & (start < bmax[i]), axis=1)
+    hoch = np.tile(np.array([0, 1, 0], dtype=np.float32), (len(start), 1))
+    t_hoch = np.full(len(start), np.inf, dtype=np.float32)
+    for s in range(0, len(start), 2000):
+        t_hoch[s:s + 2000], _, _ = schnitt(start[s:s + 2000], hoch[s:s + 2000])
+    d_ok = ~d_innen & np.isfinite(t_hoch)
+    di = np.nonzero(d_ok)[0]
+    pk = start[di].copy()
+    pk[:, 1] += t_hoch[di] - 0.01
+    print(f"Deckenkarte {dnx} × {dnz} = {len(start)} Punkte ({len(di)} gültig)")
+
+    e_direkt = direkt_licht(pk, melden=False)[:, 3]
+    print(f"  direktes Licht: mittlere Helligkeit {e_direkt.mean():.4f}")
+
+    # Zurückgeworfenes Licht: Strahlen in die untere Halbkugel; Licht der getroffenen Flächen aus dem Gitter
+    ganz = 2 * DECKE_STRAHLEN
+    k2 = np.arange(ganz) + 0.5
+    phi2 = np.arccos(1 - 2 * k2 / ganz)
+    theta2 = np.pi * (1 + 5 ** 0.5) * k2
+    kugel = np.stack([np.cos(theta2) * np.sin(phi2), np.cos(phi2), np.sin(theta2) * np.sin(phi2)], -1).astype(np.float32)
+    unten = kugel[kugel[:, 1] < 0]
+    e_indirekt = np.zeros((len(pk), 3), dtype=np.float32)
+    stueck = max(1, 6000 // len(unten))
+    for s in range(0, len(pk), stueck):
+        o = pk[s:s + stueck]
+        m = len(o)
+        w = rng.uniform(0, 2 * np.pi, m).astype(np.float32)
+        c, si = np.cos(w), np.sin(w)
+        d = np.empty((m, len(unten), 3), dtype=np.float32)
+        d[..., 0] = c[:, None] * unten[None, :, 0] - si[:, None] * unten[None, :, 2]
+        d[..., 1] = unten[None, :, 1]
+        d[..., 2] = si[:, None] * unten[None, :, 0] + c[:, None] * unten[None, :, 2]
+        o2 = np.repeat(o, len(unten), axis=0)
+        d2 = d.reshape(-1, 3)
+        t, beste, normale = schnitt(o2, d2)
+        g = np.isfinite(t)
+        L = np.zeros((len(o2), 3), dtype=np.float32)
+        if g.any():
+            p = o2[g] + d2[g] * t[g][:, None]
+            E = nachschlagen(feld, p + normale[g] * (SCHRITT * 0.5), normale[g])
+            L[g] = albedo[beste[g]] * E / np.pi
+        gew = -d2[:, 1] * (4 * np.pi / ganz)
+        e_indirekt[s:s + m] = (L * gew[:, None]).reshape(m, len(unten), 3).sum(axis=1)
+    print(f"  zurückgeworfenes Licht: mittlere Helligkeit {e_indirekt.mean():.4f}")
+
+    def fuelle2(karte: np.ndarray, ok: np.ndarray, runden: int = 40) -> np.ndarray:
+        """Ungültige Rasterpunkte der Deckenkarte aus gültigen Nachbarn auffüllen."""
+        f = karte.copy()
+        ok = ok.copy()
+        for _ in range(runden):
+            if ok.all():
+                break
+            summe = np.zeros_like(f)
+            zahl = np.zeros(ok.shape, dtype=np.float32)
+            for ax in range(2):
+                for sch in (-1, 1):
+                    summe += schiebe(f * ok[..., None], sch, ax)
+                    zahl += schiebe(ok, sch, ax).astype(np.float32)
+            neu = (~ok) & (zahl > 0)
+            f[neu] = summe[neu] / zahl[neu][..., None]
+            ok |= neu
+        return f
+
+    def glaette2(karte: np.ndarray, ok: np.ndarray) -> np.ndarray:
+        """Zurückgeworfenes Licht leicht glätten (gegen Zufallsrauschen), nur über gültige Nachbarn."""
+        okf = ok.astype(np.float32)
+        summe = karte * okf[..., None] * 2.0
+        zahl = okf * 2.0
+        for ax in range(2):
+            for sch in (-1, 1):
+                summe += schiebe(karte * okf[..., None], sch, ax)
+                zahl += schiebe(okf, sch, ax)
+        return np.where(zahl[..., None] > 0, summe / np.maximum(zahl, 1e-6)[..., None], karte)
+
+    ok2 = d_ok.reshape(dnx, dnz)
+    ind2 = np.zeros((dnx * dnz, 3), dtype=np.float32)
+    ind2[di] = e_indirekt
+    ind2 = glaette2(glaette2(ind2.reshape(dnx, dnz, 3), ok2), ok2)
+    dir2 = np.zeros((dnx * dnz, 3), dtype=np.float32)
+    dir2[di] = e_direkt
+    decke = fuelle2(dir2.reshape(dnx, dnz, 3) + ind2, ok2)
+
     # Speichern: Breite nx·6 (Richtungen nebeneinander), Höhe ny·nz (Schichten entlang z untereinander)
     hoechstwert = float(feld.max())
     werte = np.clip(feld / hoechstwert, 0, 1) ** (1 / 2.2)
@@ -312,10 +426,19 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
             bild[z * ny:(z + 1) * ny, a * nx:(a + 1) * nx] = F[:, :, z, a].transpose(1, 0, 2)
     ziel.mkdir(parents=True, exist_ok=True)
     Image.fromarray(bild, "RGB").save(ziel / "licht-etage3.png", optimize=True)
+    # Deckenkarte: Zeile = z, Spalte = x
+    decke_max = float(decke.max())
+    dbild = (np.clip(decke / decke_max, 0, 1) ** (1 / 2.2) * 255 + 0.5).astype(np.uint8).transpose(1, 0, 2)
+    Image.fromarray(np.ascontiguousarray(dbild), "RGB").save(ziel / "licht-etage3-decke.png", optimize=True)
     info = {
         "nx": nx, "ny": ny, "nz": nz, "schritt": SCHRITT, "ursprung": list(RAUM_MIN),
         "hoechstwert": hoechstwert, "gamma": 2.2,
         "richtungen": ["+x", "-x", "+y", "-y", "+z", "-z"],
+        # Licht von unten auf nach unten zeigende Flächen oberhalb von „ab“ (Decke, Gesims-Unterseiten)
+        "decke": {
+            "datei": "licht-etage3-decke.png", "nx": dnx, "nz": dnz, "schritt": DECKE_SCHRITT,
+            "ursprung": [RAUM_MIN[0], RAUM_MIN[2]], "ab": DECKE_AB, "hoechstwert": decke_max,
+        },
         "hinweis": "Vorab berechnet mit .claude/scripts/holmes_licht.py (bedeckter Himmel, Annahmen siehe dort)",
     }
     (ziel / "licht-etage3.json").write_text(json.dumps(info, indent=2), encoding="utf-8")

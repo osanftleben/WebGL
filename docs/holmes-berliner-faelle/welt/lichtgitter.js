@@ -6,7 +6,9 @@ import * as THREE from 'three';
 /**
  * @typedef {object} Lichtgitter
  * @property {THREE.Data3DTexture} textur
- * @property {{ nx: number, ny: number, nz: number, schritt: number, ursprung: number[], hoechstwert: number, gamma: number }} info
+ * @property {{ nx: number, ny: number, nz: number, schritt: number, ursprung: number[], hoechstwert: number, gamma: number,
+ *   decke?: { datei: string, nx: number, nz: number, schritt: number, ursprung: number[], ab: number, hoechstwert: number } }} info
+ * @property {THREE.DataTexture | null} decke Deckenkarte (Licht von unten auf Decke und Gesims-Unterseiten)
  */
 
 /**
@@ -36,7 +38,27 @@ export async function ladeLichtgitter(ordner) {
   textur.magFilter = THREE.LinearFilter;
   textur.unpackAlignment = 1;
   textur.needsUpdate = true;
-  return { textur, info };
+
+  // Deckenkarte (feines Raster für Decke und Gesims-Unterseiten), falls vorhanden
+  /** @type {THREE.DataTexture | null} */
+  let decke = null;
+  if (info.decke) {
+    const dbild = new Image();
+    dbild.src = new URL(info.decke.datei, ordner).href;
+    await dbild.decode();
+    const dc = document.createElement('canvas');
+    dc.width = dbild.width;
+    dc.height = dbild.height;
+    const dctx = /** @type {CanvasRenderingContext2D} */ (dc.getContext('2d', { willReadFrequently: true }));
+    dctx.drawImage(dbild, 0, 0);
+    // Bildzeile = z, Spalte = x; Zeile 0 der Daten = oberste Bildzeile = kleinstes z
+    const ddaten = new Uint8Array(dctx.getImageData(0, 0, dc.width, dc.height).data.buffer);
+    decke = new THREE.DataTexture(ddaten, dc.width, dc.height, THREE.RGBAFormat, THREE.UnsignedByteType);
+    decke.minFilter = THREE.LinearFilter;
+    decke.magFilter = THREE.LinearFilter;
+    decke.needsUpdate = true;
+  }
+  return { textur, info, decke };
 }
 
 /**
@@ -56,6 +78,16 @@ export function wendeLichtgitterAn(wurzel, gitter, staerke) {
     lgMax: { value: info.hoechstwert },
     lgGamma: { value: info.gamma },
     lgStaerke: { value: staerke },
+    // Deckenkarte: Bereich (x0, z0, Breite, Tiefe), gilt oberhalb lgDeckeAb für nach unten zeigende Flächen
+    lgDecke: { value: gitter.decke },
+    lgDeckeAn: { value: gitter.decke && info.decke ? 1 : 0 },
+    lgDeckeBereich: {
+      value: info.decke
+        ? new THREE.Vector4(info.decke.ursprung[0], info.decke.ursprung[1], info.decke.nx * info.decke.schritt, info.decke.nz * info.decke.schritt)
+        : new THREE.Vector4(0, 0, 1, 1),
+    },
+    lgDeckeAb: { value: info.decke ? info.decke.ab : 1e4 },
+    lgDeckeMax: { value: info.decke ? info.decke.hoechstwert : 0 },
   };
   /** @type {Set<THREE.Material>} */
   const erledigt = new Set();
@@ -85,6 +117,11 @@ uniform vec3 lgN;
 uniform float lgMax;
 uniform float lgGamma;
 uniform float lgStaerke;
+uniform sampler2D lgDecke;
+uniform float lgDeckeAn;
+uniform vec4 lgDeckeBereich;
+uniform float lgDeckeAb;
+uniform float lgDeckeMax;
 vec3 lgWert( vec3 g, float richtung ) {
 	vec3 c = clamp( g, vec3( 0.5 ), lgN - 0.5 );
 	vec3 uvw = vec3( ( richtung * lgN.x + c.x ) / ( 6.0 * lgN.x ), c.y / lgN.y, c.z / lgN.z );
@@ -101,6 +138,11 @@ vec3 lgBestrahlung( vec3 p, vec3 n ) {
 	{
 		vec3 lgNormale = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz );
 		vec3 lgE = lgBestrahlung( vLgWelt + lgNormale * 0.15, lgNormale );
+		// Decke und Gesims-Unterseiten: feine Deckenkarte statt des groben Gitters
+		if ( lgDeckeAn > 0.5 && lgNormale.y < -0.9 && vLgWelt.y > lgDeckeAb ) {
+			vec2 lgUv = ( vLgWelt.xz - lgDeckeBereich.xy ) / lgDeckeBereich.zw;
+			lgE = pow( texture2D( lgDecke, lgUv ).rgb, vec3( lgGamma ) ) * lgDeckeMax;
+		}
 		reflectedLight.indirectDiffuse = lgE * BRDF_Lambert( material.diffuseColor ) * lgStaerke;
 	}`);
     };

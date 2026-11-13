@@ -18,5 +18,17 @@
     "+z",
     "-z"
   ],
+  "decke": {
+    "datei": "licht-etage3-decke.png",
+    "nx": 90,
+    "nz": 275,
+    "schritt": 0.1,
+    "ursprung": [
+      0.0,
+      0.0
+    ],
+    "ab": 3.7,
+    "hoechstwert": 0.04542669281363487
+  },
   "hinweis": "Vorab berechnet mit .claude/scripts/holmes_licht.py (bedeckter Himmel, Annahmen siehe dort)"
 }
