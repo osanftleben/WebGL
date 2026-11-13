@@ -16,7 +16,9 @@ import { baueSchutzmann } from './welt/personen.js';
 import { GESPRAECH_KRANICH } from './fall1/gespraech-kranich.js';
 import { ladeSpielstand, speichereSpielstand, loescheSpielstand, ladeTonAn, speichereTonAn } from './fall1/spielstand.js';
 import { erstelleKlaenge } from './ton/klaenge.js';
-import { richteRendererEin, aktiviereSchatten, schattenNeu, erzeugeUmgebung, fensterLichtAbfall } from './welt/licht.js';
+import { richteRendererEin, aktiviereSchatten, schattenNeu, erzeugeUmgebung, fensterLichtAbfall, bodenAbdunkelung } from './welt/licht.js';
+import { ladeLichtgitter, wendeLichtgitterAn } from './welt/lichtgitter.js';
+import { bodenGlanz } from './welt/bodenglanz.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101014);
@@ -37,13 +39,35 @@ kranich.rotation.y = Math.PI;
 scene.add(kranich);
 aktiviereSchatten(funde.gruppe);
 aktiviereSchatten(kranich);
+const kranichHindernis = { minX: 5.0, maxX: 5.6, minZ: 15.3, maxZ: 15.9 };
 // Weniger Tageslicht, je weiter von den Fenstern entfernt; fensterzugewandte Flächen heller
-fensterLichtAbfall(scene);
+// Umgebungslicht aus dem vorab berechneten Lichtgitter (Strahlverfolgung); fehlt es, gilt die Näherung
+/** @type {any} */
+let lichtgitterWerte = null;
+/** @type {any} */
+let bodenGlanzWerte = null;
+try {
+  const gitter = await ladeLichtgitter(new URL('./licht/', import.meta.url));
+  // Helligkeitsfaktor: das Gitter rechnet mit Himmelsleuchtdichte 1, im Innenraum kommen nur wenige Prozent an
+  lichtgitterWerte = wendeLichtgitterAn(scene, gitter, 22);
+  // Das Gitter enthält das ganze Tageslicht: Lampen und Schattenkarten werden nicht mehr gebraucht
+  // (die schattenwerfenden Fensterlichter zeichneten sonnenartige Lichtbahnen, unpassend bei bedecktem Himmel)
+  etage.direktLichter.forEach((l) => (l.visible = false));
+  renderer.shadowMap.enabled = false;
+  // Weiche Bodenabdunkelung auch unter Fundstücken und Kranich (vorher kam ihr Schatten vom Fensterlicht)
+  etage.materialien.dielen.aoMap?.dispose();
+  etage.materialien.dielen.aoMap = bodenAbdunkelung([...etage.hindernisse, ...funde.hindernisse, kranichHindernis], 9, 27.5);
+  etage.materialien.dielen.needsUpdate = true;
+  // Gewachste Dielen spiegeln die hellen Fenster weich (nur mit Lichtgitter abgestimmt)
+  bodenGlanzWerte = bodenGlanz(etage.materialien.dielen, etage.lichtFenster, etage.raeumeZ, { wandDicke: 0.5 });
+} catch (fehler) {
+  console.warn('Lichtgitter nicht geladen, verwende Näherung:', fehler);
+  fensterLichtAbfall(scene);
+}
 // Spiegelungen aus dem echten Raum, nur für glänzende Materialien (Gold, Messing, Glas, Holz, Wachs)
 // Aufnahmepunkt frei im Raum A, mit Abstand zu Vitrine und Kronleuchter (nahe Gegenstände
 // erscheinen in der Spiegelung sonst übergroß, z. B. die Messingkanten der Vitrine)
 erzeugeUmgebung(renderer, scene, new THREE.Vector3(4.5, 2.4, 2.4));
-const kranichHindernis = { minX: 5.0, maxX: 5.6, minZ: 15.3, maxZ: 15.9 };
 
 // ---- Anzeige auf der Seite ----
 const istTouch = matchMedia('(pointer: coarse)').matches;
@@ -229,7 +253,16 @@ document.addEventListener('visibilitychange', () => {
 // Nur lokal: window.__debug für Prüfungen (/perf-check); weitere Objekte für Tests
 stelleBereit({ renderer, scene, camera });
 if (/** @type {any} */ (window).__debug) {
-  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere });
+  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere, lichtgitterWerte, bodenGlanzWerte });
+  // Nur lokal: Raummodell an das Lichtberechnungs-Programm schicken (python .claude/scripts/holmes_licht.py empfange)
+  /** @type {any} */ (window).__debug.sendeLichtModell = () =>
+    // Gleicher Rechner wie die Vorschau, anderer Anschluss (8765); nur lokal aktiv
+    fetch(`${location.protocol}//${location.hostname}:8765/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // je Quader: min (3), max (3), Albedo (3), Mauerwerk (1 = immer berücksichtigen)
+      body: JSON.stringify({ quader: etage.lichtModell.map((b) => [...b.min, ...b.max, ...b.albedo, b.mauerwerk ? 1 : 0]), fenster: etage.lichtFenster }),
+    }).then((r) => r.text());
 }
 
 // Schritte: alle ~0,7 m ein Schrittgeräusch

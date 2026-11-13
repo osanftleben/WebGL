@@ -1,0 +1,22 @@
+{
+  "nx": 23,
+  "ny": 10,
+  "nz": 69,
+  "schritt": 0.4,
+  "ursprung": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "hoechstwert": 1.0205154418945312,
+  "gamma": 2.2,
+  "richtungen": [
+    "+x",
+    "-x",
+    "+y",
+    "-y",
+    "+z",
+    "-z"
+  ],
+  "hinweis": "Vorab berechnet mit .claude/scripts/holmes_licht.py (bedeckter Himmel, Annahmen siehe dort)"
+}

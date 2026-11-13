@@ -167,6 +167,7 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
   const pfeiler = (/** @type {number} */ von, /** @type {number} */ bis) => {
     if (bis - von < 0.01) return;
     const teil = box(bis - von, hoehe, dicke, (von + bis) / 2, hoehe / 2, zMitte, material, true);
+    teil.userData.mauerwerk = true;
     gruppe.add(teil);
     hindernisse.push(teil);
   };
@@ -178,11 +179,17 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
     pfeiler(x, links);
     // Sturz über der Öffnung
     const oben = unten + o.hoehe;
-    if (hoehe - oben > 0.01) gruppe.add(box(o.breite, hoehe - oben, dicke, o.pos, (oben + hoehe) / 2, zMitte, material, true));
+    if (hoehe - oben > 0.01) {
+      const sturz = box(o.breite, hoehe - oben, dicke, o.pos, (oben + hoehe) / 2, zMitte, material, true);
+      // Mauerwerk zählt in der Lichtberechnung immer, auch wenn es kleiner als 1,5 m ist
+      sturz.userData.mauerwerk = true;
+      gruppe.add(sturz);
+    }
 
     if (o.art === 'fenster') {
       if (unten > 0.01) {
         const bruestung = box(o.breite, unten, dicke, o.pos, unten / 2, zMitte, material, true);
+        bruestung.userData.mauerwerk = true;
         gruppe.add(bruestung);
         hindernisse.push(bruestung);
       }
