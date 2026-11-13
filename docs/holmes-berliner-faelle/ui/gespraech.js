@@ -15,6 +15,7 @@
  *   schliesse: () => void,
  *   istOffen: () => boolean,
  *   gestellt: () => string[],
+ *   setzeGestellt: (ids: string[]) => void,
  * }}
  */
 export function erstelleGespraech({ beiAenderung }) {
@@ -105,5 +106,8 @@ export function erstelleGespraech({ beiAenderung }) {
     schliesse,
     istOffen: () => !fenster.hidden,
     gestellt: () => [...gestellteIds],
+    setzeGestellt(ids) {
+      for (const id of ids) gestellteIds.add(id);
+    },
   };
 }

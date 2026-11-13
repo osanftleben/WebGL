@@ -14,6 +14,8 @@ import { erstelleNotizbuch } from './ui/notizbuch.js';
 import { erstelleGespraech } from './ui/gespraech.js';
 import { baueSchutzmann } from './welt/personen.js';
 import { GESPRAECH_KRANICH } from './fall1/gespraech-kranich.js';
+import { ladeSpielstand, speichereSpielstand, loescheSpielstand, ladeTonAn, speichereTonAn } from './fall1/spielstand.js';
+import { erstelleKlaenge } from './ton/klaenge.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101014);
@@ -42,6 +44,29 @@ hilfe.textContent = istTouch
   : 'Ins Bild klicken · W/A/S/D laufen · Maus: umsehen · Klick: untersuchen · N: Notizbuch · Esc: Maus frei';
 document.body.appendChild(hilfe);
 
+// Knopfleiste oben rechts: Ton an/aus und Notizbuch
+const knopfleiste = document.createElement('div');
+knopfleiste.className = 'knopfleiste';
+document.body.appendChild(knopfleiste);
+const klaenge = erstelleKlaenge({ an: ladeTonAn() });
+const tonKnopf = document.createElement('button');
+tonKnopf.type = 'button';
+tonKnopf.className = 'ton-knopf';
+function zeigeTonZustand() {
+  tonKnopf.textContent = klaenge.istAn() ? 'Ton: an' : 'Ton: aus';
+  tonKnopf.setAttribute('aria-pressed', String(klaenge.istAn()));
+}
+tonKnopf.addEventListener('click', () => {
+  klaenge.starte();
+  klaenge.setzeAn(!klaenge.istAn());
+  speichereTonAn(klaenge.istAn());
+  zeigeTonZustand();
+});
+zeigeTonZustand();
+knopfleiste.appendChild(tonKnopf);
+// Browser erlauben Ton erst nach einer Nutzeraktion: bei der ersten Berührung/Taste starten
+for (const art of ['pointerdown', 'keydown']) window.addEventListener(art, () => klaenge.starte(), { once: true });
+
 // ---- Steuerung ----
 const steuerung = erstelleIchSteuerung({
   kamera: camera,
@@ -62,9 +87,16 @@ const notizbuch = erstelleNotizbuch({
   hinweise: HINWEISE,
   beiOeffnen: () => {
     if (karte.istOffen()) karte.schliesse();
+    klaenge.papier();
     aktualisiereSpielAktiv();
   },
   beiSchliessen: () => aktualisiereSpielAktiv(),
+  beiNeustart: () => {
+    neustartLaeuft = true;
+    loescheSpielstand();
+    location.reload();
+  },
+  knopfContainer: knopfleiste,
 });
 const gespraech = erstelleGespraech({ beiAenderung: () => aktualisiereSpielAktiv() });
 
@@ -124,6 +156,7 @@ const antippen = erstelleAntippen({
         istFrei: (frage) => !frage.braucht || notizbuch.hat(frage.braucht),
         beiFrage: (frage) => {
           if (frage.aussage) notizbuch.fuegeAussageHinzu(frage.aussage);
+          speichere();
         },
       });
       return;
@@ -131,7 +164,9 @@ const antippen = erstelleAntippen({
     const hinweis = findeHinweis(objekt.userData.hinweisId);
     if (!hinweis) return;
     const neu = notizbuch.fuegeHinzu(hinweis.id);
+    klaenge.papier();
     karte.zeige(hinweis, neu);
+    if (neu) speichere();
     aktualisiereSpielAktiv();
   },
   beiZielWechsel: (neu, alt) => {
@@ -140,14 +175,64 @@ const antippen = erstelleAntippen({
   },
 });
 
+// ---- Spielstand ----
+let neustartLaeuft = false;
+/** Alle Aussagen des Falls nach Kennung (zum Wiederherstellen) */
+const aussagenNachId = new Map(
+  GESPRAECH_KRANICH.fragen.filter((f) => f.aussage).map((f) => [/** @type {any} */ (f.aussage).id, f.aussage]),
+);
+
+function speichere() {
+  if (neustartLaeuft) return;
+  speichereSpielstand({
+    hinweise: notizbuch.gefunden(),
+    aussagen: notizbuch.aussagenIds(),
+    fragen: gespraech.gestellt(),
+    ort: { x: camera.position.x, z: camera.position.z, blick: camera.rotation.y },
+  });
+}
+
+const stand = ladeSpielstand();
+if (stand) {
+  for (const id of stand.hinweise) if (findeHinweis(id)) notizbuch.fuegeHinzu(id);
+  for (const id of stand.aussagen) {
+    const aussage = aussagenNachId.get(id);
+    if (aussage) notizbuch.fuegeAussageHinzu(aussage);
+  }
+  gespraech.setzeGestellt(stand.fragen);
+  // Standort nur übernehmen, wenn er innerhalb der Etage liegt
+  const o = stand.ort;
+  if (o && o.x > 0 && o.x < 9 && o.z > 0 && o.z < 27.5) steuerung.setzePosition(o.x, o.z, o.blick);
+}
+setInterval(speichere, 5000);
+window.addEventListener('pagehide', speichere);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') speichere();
+});
+
 // Nur lokal: window.__debug für Prüfungen (/perf-check); weitere Objekte für Tests
 stelleBereit({ renderer, scene, camera });
 if (/** @type {any} */ (window).__debug) {
-  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, funde, notizbuch, karte, gespraech, kranich });
+  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere });
 }
+
+// Schritte: alle ~0,7 m ein Schrittgeräusch
+const letzterOrt = camera.position.clone();
+let wegSeitSchritt = 0;
 
 starteSchleife(renderer, ({ delta }) => {
   steuerung.aktualisiere(delta);
+  const weg = Math.hypot(camera.position.x - letzterOrt.x, camera.position.z - letzterOrt.z);
+  letzterOrt.copy(camera.position);
+  if (weg > 0 && weg < 0.5) {
+    wegSeitSchritt += weg;
+    if (wegSeitSchritt >= 0.7) {
+      wegSeitSchritt = 0;
+      klaenge.schritt();
+    }
+  }
+  // Straßenlärm lauter nahe den Fenstern (Behrenstraße bei x = 9, Friedrichstraße bei z = 27,5)
+  klaenge.setzeStrassenNaehe(Math.max((camera.position.x - 4) / 5, (camera.position.z - 22) / 5));
   aktualisiereWendung(delta);
   antippen.aktualisiere();
   renderer.render(scene, camera);

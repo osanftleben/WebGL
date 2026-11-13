@@ -11,17 +11,20 @@
  * @param {Hinweis[]} optionen.hinweise Alle Hinweise des Falls (für die Gesamtzahl).
  * @param {() => void} optionen.beiOeffnen
  * @param {() => void} optionen.beiSchliessen
+ * @param {() => void} [optionen.beiNeustart] Wird nach Bestätigung von „Fall neu beginnen“ gerufen.
+ * @param {HTMLElement} [optionen.knopfContainer=document.body] Wohin der Notizbuch-Knopf gehängt wird.
  * @returns {{
  *   fuegeHinzu: (id: string) => boolean,
  *   fuegeAussageHinzu: (aussage: { id: string, titel: string, text: string }) => boolean,
  *   hat: (id: string) => boolean,
+ *   aussagenIds: () => string[],
  *   gefunden: () => string[],
  *   oeffne: () => void,
  *   schliesse: () => void,
  *   istOffen: () => boolean,
  * }}
  */
-export function erstelleNotizbuch({ hinweise, beiOeffnen, beiSchliessen }) {
+export function erstelleNotizbuch({ hinweise, beiOeffnen, beiSchliessen, beiNeustart, knopfContainer = document.body }) {
   /** @type {string[]} */
   const gefundenIds = [];
   /** @type {{ id: string, titel: string, text: string }[]} Zeugenaussagen aus Gesprächen */
@@ -31,7 +34,7 @@ export function erstelleNotizbuch({ hinweise, beiOeffnen, beiSchliessen }) {
   knopf.type = 'button';
   knopf.className = 'notizbuch-knopf';
   knopf.setAttribute('aria-label', 'Notizbuch öffnen');
-  document.body.appendChild(knopf);
+  knopfContainer.appendChild(knopf);
 
   const huelle = document.createElement('div');
   huelle.className = 'ueberlagerung';
@@ -43,12 +46,32 @@ export function erstelleNotizbuch({ hinweise, beiOeffnen, beiSchliessen }) {
       <ol class="notizbuch-liste"></ol>
       <h3 class="notizbuch-abschnitt">Aussagen</h3>
       <ul class="notizbuch-liste notizbuch-aussagen"></ul>
-      <button type="button" class="knopf">Schließen</button>
+      <div class="notizbuch-unten">
+        <button type="button" class="knopf">Schließen</button>
+        <button type="button" class="knopf-leise neustart">Fall neu beginnen</button>
+      </div>
+      <div class="neustart-frage" hidden>
+        <p>Wirklich neu beginnen? Alle Funde, Aussagen und Fragen gehen verloren.</p>
+        <button type="button" class="knopf neustart-ja">Ja, neu beginnen</button>
+        <button type="button" class="knopf-leise neustart-nein">Abbrechen</button>
+      </div>
     </section>`;
   document.body.appendChild(huelle);
   const liste = /** @type {HTMLOListElement} */ (huelle.querySelector('ol.notizbuch-liste'));
   const aussagenListe = /** @type {HTMLUListElement} */ (huelle.querySelector('.notizbuch-aussagen'));
-  const schliessenKnopf = /** @type {HTMLButtonElement} */ (huelle.querySelector('.knopf'));
+  const schliessenKnopf = /** @type {HTMLButtonElement} */ (huelle.querySelector('.notizbuch-unten .knopf'));
+  const neustartKnopf = /** @type {HTMLButtonElement} */ (huelle.querySelector('.neustart'));
+  const neustartFrage = /** @type {HTMLElement} */ (huelle.querySelector('.neustart-frage'));
+  if (!beiNeustart) neustartKnopf.hidden = true;
+  neustartKnopf.addEventListener('click', () => {
+    neustartFrage.hidden = false;
+    /** @type {HTMLButtonElement} */ (neustartFrage.querySelector('.neustart-nein')).focus();
+  });
+  /** @type {HTMLButtonElement} */ (neustartFrage.querySelector('.neustart-nein')).addEventListener('click', () => {
+    neustartFrage.hidden = true;
+    neustartKnopf.focus();
+  });
+  /** @type {HTMLButtonElement} */ (neustartFrage.querySelector('.neustart-ja')).addEventListener('click', () => beiNeustart?.());
 
   function aktualisiereKnopf() {
     knopf.textContent = `Notizbuch ${gefundenIds.length}/${hinweise.length}`;
@@ -97,6 +120,7 @@ export function erstelleNotizbuch({ hinweise, beiOeffnen, beiSchliessen }) {
   function oeffne() {
     if (!huelle.hidden) return;
     zeichneListe();
+    neustartFrage.hidden = true;
     huelle.hidden = false;
     beiOeffnen();
     schliessenKnopf.focus();
@@ -141,6 +165,7 @@ export function erstelleNotizbuch({ hinweise, beiOeffnen, beiSchliessen }) {
       return true;
     },
     hat: (id) => gefundenIds.includes(id),
+    aussagenIds: () => aussagen.map((a) => a.id),
     gefunden: () => [...gefundenIds],
     oeffne,
     schliesse,

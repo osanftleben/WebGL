@@ -108,12 +108,17 @@ body {
   outline-offset: 2px;
 }
 
-/* Knopf oben rechts (am Handy gut mit dem Daumen erreichbar) */
-.notizbuch-knopf {
+/* Knopfleiste oben rechts (Ton, Notizbuch) – am Handy gut mit dem Daumen erreichbar */
+.knopfleiste {
   position: fixed;
   top: 8px;
   right: 8px;
   z-index: 6;
+  display: flex;
+  gap: 6px;
+}
+.notizbuch-knopf,
+.ton-knopf {
   font: 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
   padding: 10px 12px;
   min-height: 44px;
@@ -141,11 +146,12 @@ body {
   color: #8a7a62;
 }
 
-/* Hilfe links oben, damit sie den Notizbuch-Knopf rechts nicht verdeckt */
+/* Hilfe links oben unter der Knopfleiste, damit sie die Knöpfe nicht verdeckt */
 .hilfe {
+  top: 60px;
   left: 8px;
   transform: none;
-  max-width: calc(100% - 170px);
+  max-width: calc(100% - 16px);
   text-align: left;
 }
 
@@ -225,4 +231,36 @@ body {
 .gespraech-frage:focus-visible {
   outline: 2px solid #b08d3e;
   outline-offset: 2px;
+}
+
+/* ---------- Neustart im Notizbuch ---------- */
+.notizbuch-unten {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.knopf-leise {
+  font: inherit;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: #6b3a2a;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.neustart-frage {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #b5866a;
+  border-radius: 5px;
+  background: #f7e9dc;
+}
+.neustart-frage[hidden] {
+  display: none;
+}
+.neustart-frage p {
+  margin: 0 0 8px;
 }
