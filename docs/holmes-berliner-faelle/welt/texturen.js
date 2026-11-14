@@ -216,10 +216,12 @@ export function zellenUV(zelle, u, v) {
 /**
  * @typedef {{ grund: number[], auge?: string, braue: string, brauDicke: number, lippe: number[], roete: number,
  *   bart: number, alter?: number, falte?: boolean, geschlossen?: boolean, ringe?: number,
- *   augAbst?: number, augGr?: number, brauWinkel?: number, mund?: number, mal?: number[] | null }} Gesicht
+ *   augAbst?: number, augGr?: number, brauWinkel?: number, mund?: number, mal?: number[] | null,
+ *   stufe?: number, bartFarbe?: number[] }} Gesicht
  * grund: Hautton (sRGB); auge: Irisfarbe; braue: Farbe, brauDicke: Stärke; lippe: Lippenfarbe; roete: Wangenröte;
  * bart: Bartschatten; alter: Falten; falte: Zornesfalte; geschlossen: Augen zu; ringe: Augenringe;
- * augAbst: Augenmitte (U), augGr: Augengröße, brauWinkel: Neigung der Brauen außen, mund: Mundbreite, mal: Muttermal [U, D]
+ * augAbst: Augenmitte (U), augGr: Augengröße, brauWinkel: Neigung der Brauen außen, mund: Mundbreite, mal: Muttermal [U, D];
+ * stufe: Altersstufe der Besetzung (0 jung, 1 mittel, 2 alt; fehlt = alte Malweise); bartFarbe: Farbe des Bartschattens
  */
 
 const AUGEN = ['#4d6d8c', '#5a3d26', '#6c767c', '#3b2b1f', '#56718b', '#6e5e3e', '#4a5a4c'];
@@ -253,9 +255,30 @@ function wachsGesichter() {
   });
 }
 
+/**
+ * Besetzung: Altersstufe und Brauenfarbe (passend zur Haarfarbe) der Wachsgesichter 1–11.
+ * Zelle 0 bleibt unverändert – sie trägt auch die Originalfigur im Atelier.
+ * Zellen nach Stufe: jung 0, 1, 4, 8 · mittel 3, 5, 9, 11 · alt 2, 6, 7, 10.
+ * Brauen: 1 blond, 4 rot, 5 dunkelblond, 8 schwarz, 9 meliert, 11 rot, 3 dunkel, 2/6/7/10 grau bis weiß.
+ * @type {Record<number, Partial<Gesicht>>}
+ */
+const UEBERARBEITUNG = {
+  1: { stufe: 0, braue: '#a07e4c', bart: 0.1, bartFarbe: [120, 96, 70], roete: 0.1 },
+  2: { stufe: 2, alter: 1, braue: '#d0cac0', brauDicke: 1.9 },
+  3: { stufe: 1, braue: '#2a1d14' },
+  4: { stufe: 0, braue: '#8e4c2a', bart: 0.12, bartFarbe: [130, 80, 56], roete: 0.12 },
+  5: { stufe: 1, braue: '#86683f', bartFarbe: [110, 90, 66] },
+  6: { stufe: 2, alter: 1, braue: '#a29c92', brauDicke: 1.8 },
+  7: { stufe: 2, alter: 1, braue: '#c8c2b6', brauDicke: 2.0 },
+  8: { stufe: 0, braue: '#1e1612', roete: 0.08 },
+  9: { stufe: 1, braue: '#5c524a' },
+  10: { stufe: 2, alter: 1, braue: '#b8b2a8', brauDicke: 1.7 },
+  11: { stufe: 1, braue: '#7a3e20', bartFarbe: [120, 72, 50] },
+};
+
 /** @type {Gesicht[]} */
 const GESICHTER = [
-  ...wachsGesichter(),
+  ...wachsGesichter().map((f, k) => ({ ...f, ...(UEBERARBEITUNG[k] ?? {}) })),
   { grund: [205, 196, 182], braue: '#4e4236', brauDicke: 1.5, lippe: [146, 128, 126], roete: 0, bart: 0.26, geschlossen: true, ringe: 0.32 },
   { grund: [214, 172, 146], auge: '#4c6c90', braue: '#4a3524', brauDicke: 1.6, lippe: [172, 118, 102], roete: 0.16, bart: 0.24 },
 ];
@@ -266,6 +289,75 @@ const GESICHTER = [
  */
 export function gesichtIstAlt(zelle) {
   return Boolean(GESICHTER[zelle]?.alter);
+}
+
+/**
+ * Malt Altersspuren der Besetzung: Stufe 1 (mittel) leichte Stirn- und Augenfalten,
+ * Stufe 2 (alt) tiefe Stirnfalten, Krähenfüße, Tränensäcke, eingefallene Wangen,
+ * Falten von den Mundwinkeln abwärts und Altersflecken.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {(U: number, D: number) => [number, number]} P Bildpunkt zu (U, D)
+ * @param {Function} fleck weicher Fleck (Mitte, Radius, Farbe, Deckkraft, Stauchung)
+ * @param {Function} bogen Kurve durch drei Punkte
+ * @param {number} stufe 1 oder 2
+ * @param {() => number} z Zufallsfolge der Zelle
+ */
+function maleAlter(ctx, P, fleck, bogen, stufe, z) {
+  const alt = stufe >= 2;
+  const linie = (/** @type {number} */ a, /** @type {number} */ w) => {
+    ctx.strokeStyle = `rgba(104,58,42,${a})`;
+    ctx.lineWidth = w;
+  };
+  // Stirnfalten
+  linie(alt ? 0.26 : 0.12, alt ? 1.5 : 1.2);
+  for (const D of alt ? [0.33, 0.4, 0.47, 0.54] : [0.4, 0.48]) {
+    ctx.beginPath();
+    bogen(P(-0.4, D - 0.02), P(0, D + 0.012), P(0.4, D - 0.02));
+    ctx.stroke();
+  }
+  for (const s of [-1, 1]) {
+    // Krähenfüße am äußeren Augenwinkel
+    linie(alt ? 0.3 : 0.13, 1.1);
+    for (const w of alt ? [-0.06, 0, 0.06] : [-0.03, 0.03]) {
+      ctx.beginPath();
+      bogen(P(s * 0.61, 0.07 + w * 0.5), P(s * 0.66, 0.07 + w * 0.9), P(s * 0.71, 0.07 + w * 1.5));
+      ctx.stroke();
+    }
+    // Unterlid-/Tränensackfalte
+    linie(alt ? 0.32 : 0.14, 1.2);
+    ctx.beginPath();
+    bogen(P(s * 0.28, -0.03), P(s * 0.42, -0.085), P(s * 0.57, -0.03));
+    ctx.stroke();
+    if (!alt) continue;
+    fleck(P(s * 0.42, -0.06), 16, [110, 72, 60], 0.18, 0.5);
+    // eingefallene Wange unter dem Wangenknochen
+    fleck(P(s * 0.55, -0.34), 34, [96, 60, 46], 0.2, 1.3);
+    // Falten von den Mundwinkeln zum Kinn
+    linie(0.26, 1.4);
+    ctx.beginPath();
+    bogen(P(s * 0.33, -0.56), P(s * 0.36, -0.66), P(s * 0.34, -0.8));
+    ctx.stroke();
+    // Kieferlinie (Hängebacken)
+    linie(0.14, 1.6);
+    ctx.beginPath();
+    bogen(P(s * 0.5, -0.62), P(s * 0.58, -0.75), P(s * 0.52, -0.86));
+    ctx.stroke();
+  }
+  if (alt) {
+    // Altersflecken
+    for (let i = 0; i < 9; i++) {
+      const U = (z() * 2 - 1) * 0.7;
+      const D = 0.2 + z() * 0.45;
+      fleck(P(U, D), 3 + z() * 4, [128, 82, 52], 0.25 + z() * 0.2);
+    }
+    // Zornesfalte über der Nase
+    linie(0.22, 1.2);
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      bogen(P(s * 0.06, 0.26), P(s * 0.05, 0.2), P(s * 0.065, 0.14));
+      ctx.stroke();
+    }
+  }
 }
 
 /** @type {THREE.CanvasTexture | null} einmal gemalte Gesichtstafel (wird geteilt) */
@@ -333,15 +425,17 @@ function maleGesichtsTafel() {
       if (f.ringe) fleck(P(s * 0.4, 0.0), 22, [100, 88, 118], f.ringe, 0.8);
     }
     if (f.bart) {
-      fleck(P(0, -0.72), 74, [60, 60, 68], f.bart * 0.6, 0.6);
-      fleck(P(0, -0.44), 26, [60, 60, 68], f.bart * 0.45, 0.35);
+      const bs = f.bartFarbe ?? [60, 60, 68];
+      fleck(P(0, -0.72), 74, bs, f.bart * 0.6, 0.6);
+      fleck(P(0, -0.44), 26, bs, f.bart * 0.45, 0.35);
       for (let i = 0; i < 4200; i++) {
         const U = (z() * 2 - 1) * 0.8;
         const D = -0.36 - z() * 0.62;
         const au = Math.abs(U);
         if (D > -0.37 || (au > 0.3 && D > -0.5 + 0.3 * au) || (au > 0.55 && D < -0.85)) continue;
         const [px, py] = P(U, D);
-        ctx.fillStyle = `rgba(50,48,52,${f.bart * (0.25 + z() * 0.35)})`;
+        const bf = f.bartFarbe ?? [50, 48, 52];
+        ctx.fillStyle = `rgba(${bf[0]},${bf[1]},${bf[2]},${f.bart * (0.25 + z() * 0.35)})`;
         ctx.fillRect(px, py, 1, 1);
       }
     }
@@ -365,7 +459,7 @@ function maleGesichtsTafel() {
     fleck(P(0, -0.37), 11, [100, 55, 40], 0.16, 0.35);
     fleck(P(0, -0.24), 6, [255, 238, 226], 0.16);
     // Leichte Nasolabialfalten bei allen (wirken weniger glatt und jung)
-    ctx.strokeStyle = 'rgba(110,62,46,0.14)';
+    ctx.strokeStyle = f.stufe === 0 ? 'rgba(110,62,46,0.07)' : 'rgba(110,62,46,0.14)';
     ctx.lineWidth = 1.4;
     for (const s of [-1, 1]) {
       ctx.beginPath();
@@ -391,6 +485,7 @@ function maleGesichtsTafel() {
         ctx.stroke();
       }
     }
+    if (f.stufe) maleAlter(ctx, P, fleck, bogen, f.stufe, z);
     if (f.falte) {
       ctx.strokeStyle = 'rgba(100,58,42,0.3)';
       ctx.lineWidth = 1.2;
@@ -487,7 +582,7 @@ function maleGesichtsTafel() {
       }
     }
     // Lippen: Oberlippe mit Amorbogen, Unterlippe voller und heller, Mundspalte
-    const lip = f.lippe;
+    const lip = f.stufe === 2 ? f.lippe.map((c, i) => Math.round(c * 0.55 + f.grund[i] * 0.45)) : f.lippe;
     const mb = f.mund ?? 1;
     const PM = (/** @type {number} */ U, /** @type {number} */ D) => P(U * mb, D);
     ctx.fillStyle = rgba(lip, 0.9);

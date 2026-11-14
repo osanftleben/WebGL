@@ -19,7 +19,7 @@ import { alsHindernis } from 'steuerung/kollision.js';
 import {
   erstelleMaterialien, wand, flaeche, box, heizkoerper, buesteAufSockel, schwertTafel,
   vitrine, figur, holzgelaender, werkbank, regal, hocker, gipsform, wachstopf,
-  stuckdecke, kronleuchter, haengelampe, kopfschrank, saeule, nummernTafel,
+  stuckdecke, kronleuchter, haengelampe, kopfschrank, saeule, nummernTafel, BESETZUNG,
 } from './bauteile.js';
 
 /** Lichte Raumhöhe (Geschosshöhe 4,40 m belegt; Deckenstärke angenommen). */
@@ -168,7 +168,7 @@ export function baueEtage3(scene) {
     ziel.add(t);
   };
   for (let i = 0; i < 6; i++) {
-    const b = buesteAufSockel(m, i + 1);
+    const b = buesteAufSockel(m, BESETZUNG.buesten[i]);
     b.position.set(0.5, 0, 1.6 + i * 1.25);
     b.rotation.y = Math.PI / 2;
     tafelAn(b, 0, 0.95, 0.182);
@@ -176,7 +176,7 @@ export function baueEtage3(scene) {
     kollision.push(b);
   }
   for (let i = 0; i < 3; i++) {
-    const b = buesteAufSockel(m, i + 10);
+    const b = buesteAufSockel(m, BESETZUNG.buesten[6 + i]);
     b.position.set(6.75 + i * 0.85, 0, 9.2);
     b.rotation.y = Math.PI;
     tafelAn(b, 0, 0.95, 0.182);
@@ -203,15 +203,15 @@ export function baueEtage3(scene) {
   /**
    * Podest mit Figuren und Absperrung davor.
    * @param {number} x0 @param {number} z0 @param {number} b @param {number} t
-   * @param {Array<[THREE.Material, boolean, number, number]>} figuren Kleid, Hut, x-Versatz, z-Versatz
-   * @param {number} saat
+   * @param {Array<[import('./bauteile.js').Rolle, boolean, number, number, boolean?]>} figuren
+   *   Rolle, Hut, x-Versatz, z-Versatz, Quader-Schuhe (Standard ja; neue Figuren ohne, siehe figur())
    */
-  function figurengruppe(x0, z0, b, t, figuren, saat) {
+  function figurengruppe(x0, z0, b, t, figuren) {
     const g = new THREE.Group();
     g.position.set(x0, 0, z0);
     g.add(box(b, 0.25, t, b / 2, 0.125, t / 2, m.podest));
-    figuren.forEach(([kleid, hut, dx, dz], i) => {
-      const f = figur(m, kleid, { hut, saat: saat + i, armWinkel: 0.1 + i * 0.05 });
+    figuren.forEach(([rolle, hut, dx, dz, quaderSchuhe = true], i) => {
+      const f = figur(m, rolle, { hut, quaderSchuhe, armWinkel: 0.1 + i * 0.05 });
       f.position.set(dx, 0.25, dz);
       f.rotation.y = Math.PI / 2 + (i - 1) * 0.25;
       g.add(f);
@@ -225,19 +225,22 @@ export function baueEtage3(scene) {
     return g;
   }
   // Glasschränke mit Verbrecherköpfen an der Hofwand (Köpfe belegt, Schränke angenommen)
-  for (const [z, saat] of [[11.0, 21], [13.2, 22]]) {
-    const schrank = kopfschrank(m, 1.9, saat);
+  for (const [z, rollen] of /** @type {Array<[number, import('./bauteile.js').Rolle[]]>} */ ([[11.0, BESETZUNG.schrank[0]], [13.2, BESETZUNG.schrank[1]]])) {
+    const schrank = kopfschrank(m, 1.9, rollen);
     schrank.position.set(0.02, 0, z);
     schrank.rotation.y = Math.PI / 2;
     tafelAn(schrank, 0, 0.2, 0.501);
     gruppe.add(schrank);
     kollision.push(schrank);
   }
-  // Zweite Gruppe: rechts ein freier Platz (für Schritt 2: dort steht die Leiche im Kostüm)
+  // Zweite Gruppe: rechts ein freier Platz (für Schritt 2: dort steht die Leiche im Kostüm).
+  // Rollen aus der Besetzungsliste; die dritte Figur (Besetzung) steht hinten links, ohne Quader-Schuhe,
+  // damit das Lichtmodell unverändert bleibt.
   figurengruppe(0.6, 15.2, 3.0, 2.8, [
-    [m.kleidGrau, true, 0.9, 0.7],
-    [m.kleidDunkel, false, 1.6, 1.4],
-  ], 7);
+    [BESETZUNG.gruppe[0], true, 0.9, 0.7],
+    [BESETZUNG.gruppe[1], false, 1.6, 1.4],
+    [BESETZUNG.gruppe[2], false, 0.75, 2.05, false],
+  ]);
   const v2 = vitrine(m, 1.4, 0.7);
   v2.position.set(6.6, 0, 14.7);
   v2.rotation.y = Math.PI / 2;

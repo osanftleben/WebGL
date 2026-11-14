@@ -1,8 +1,8 @@
 // Bauteile für Innenräume: Wände mit Öffnungen, Möbel, Ausstellungsstücke.
 // Alles stilisiert aus einfachen Formen; Maße in Metern.
 import * as THREE from 'three';
-import { dielenTextur, putzTextur, holzTextur, heizkoerperTextur, nummernAtlas, glasTextur, gesichtsTafel, gesichtIstAlt, GESICHT, NUMMERN_RASTER, skaliereUV, zufall } from './texturen.js';
-import { kopf, hals, arm, oberkoerper } from './menschen.js';
+import { dielenTextur, putzTextur, holzTextur, heizkoerperTextur, nummernAtlas, glasTextur, gesichtsTafel, NUMMERN_RASTER, skaliereUV, zufall } from './texturen.js';
+import { kopf, hals, arm, oberkoerper, stoffTeil } from './menschen.js';
 
 /** @type {Map<number, THREE.BufferGeometry>} Vorhang-Geometrien je Höhe (werden geteilt) */
 const vorhangCache = new Map();
@@ -97,6 +97,8 @@ export function erstelleMaterialien() {
     kleidGrau: lambert({ color: 0x55565a }),
     leinen: lambert({ color: 0xcfc6b2 }),
     gips: lambert({ color: 0xe9e6de }),
+    // Haar und Kleidung der Wachsfiguren (Besetzung): Farbe je Punkt (Vertex-Farben), ein Material für alle
+    farbig: lambert({ color: 0xffffff, vertexColors: true }),
     // Glas: leicht getönt mit Lichtstreifen (Textur) und Spiegelungen; Sichtbarkeit über den Alphakanal
     // Spiegelschicht über dem Glas: schwarze Grundfarbe, nur die Spiegelung wird hinzuaddiert
     // (am Rand und bei flachem Blick stärker – wie bei echtem Glas)
@@ -304,56 +306,151 @@ export function heizkoerper(m, breite) {
 
 // ---------- Ausstellungsstücke ----------
 
+// ---------- Besetzung der Wachsfiguren ----------
+// Feste Rollen statt Zufall: Alter, Statur, Haar, Bart und Kleidung je Figur bewusst verteilt
+// (keine Namen, keine echten Personen). Farben laufen über Vertex-Farben auf `m.farbig`, daher
+// kosten weitere Farben keinen Draw-Call.
+
+/** Haarfarben (sRGB) */
+export const HAARFARBE = {
+  schwarz: 0x1d1a18, dunkelbraun: 0x3b2719, braun: 0x6a4527, dunkelblond: 0x8c6a3e, blond: 0xc19a5b,
+  rot: 0x8e3d1a, rotblond: 0xb0673a, meliert: 0x6e6862, grau: 0x9a9690, weiss: 0xe2ddd3,
+};
+/** Stofffarben (sRGB) */
+export const STOFF = {
+  schwarz: 0x2a2725, anthrazit: 0x38332d, grau: 0x55565a, hellgrau: 0x85837d, braun: 0x4b3a2b, tabak: 0x6b5136,
+  tweed: 0x6e6551, blau: 0x2c3550, gruen: 0x34402f, bordeaux: 0x55232a, beige: 0x9c8a68, creme: 0xd9cfb8,
+  weiss: 0xe9e6de, rot: 0x7a1f1f, horn: 0x2a221c, messing: 0xa8854a,
+};
+
 /**
- * Wählt aus der Saat Gesicht, Kopfform, Haar und Bart einer Wachsfigur.
- * @param {Materialien} m @param {() => number} z Zufallsfolge
- * @param {boolean} [fein=true]
- * @param {boolean} [mitHaar=true] false unter einem Hut (Bart bleibt)
+ * Rolle einer Wachsfigur. Gesicht = Zelle der Gesichtstafel passend zur Altersstufe
+ * (jung 0, 1, 4, 8 · mittel 3, 5, 9, 11 · alt 2, 6, 7, 10; Brauenfarbe siehe texturen.js), form = Kopfform 0–5.
+ * @typedef {object} Rolle
+ * @property {0 | 1 | 2} alter 0 jung, 1 mittel, 2 alt
+ * @property {number} gesicht
+ * @property {number} form
+ * @property {keyof typeof HAARFARBE | null} haar null = Glatze
+ * @property {import('./menschen.js').HaarStil} frisur
+ * @property {import('./menschen.js').BartStil} bart
+ * @property {keyof typeof HAARFARBE} [bartFarbe] sonst wie das Haar
+ * @property {'schmal' | 'mittel' | 'kraeftig'} [statur]
+ * @property {keyof typeof STOFF} [rock] @property {keyof typeof STOFF} [weste]
+ * @property {keyof typeof STOFF} [krawatte] @property {keyof typeof STOFF} [hose]
+ * @property {boolean} [frauPlatz] vorgesehen für eine Frauenfigur (Sitzung B); bis dahin steht hier ein Mann
  */
-function wachskopf(m, z, fein = true, mitHaar = true) {
-  // Eigene, gut durchmischte Zufallsfolge: Nachbarn mit fast gleicher Saat bekamen sonst dasselbe Gesicht
-  let h = Math.floor(z() * 2147483646) ^ 0x5bd1e995;
-  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  const r = zufall(((h ^ (h >>> 16)) >>> 0) % 2147483646 + 1);
-  const wahl = (/** @type {any[]} */ liste) => liste[Math.floor(r() * liste.length)];
-  const zelle = Math.floor(r() * GESICHT.wachsZellen);
-  const variante = Math.floor(r() * 6);
-  const alt = gesichtIstAlt(zelle);
-  // Haarfarbe: ältere Gesichter grau oder weiß, sonst schwarz oder dunkelbraun
-  // (nur Materialien, die an Büsten und Schrank schon gezeichnet werden – kleidBraun kostete einen Draw-Call)
-  const haarFarbe = alt ? wahl([m.kleidGrau, m.gips]) : wahl([m.haar, m.haar, m.kleidDunkel]);
-  /** @type {import('./menschen.js').HaarStil} */
-  const haarStil = alt ? wahl(['kranz', 'kranz', 'kurz']) : wahl(['voll', 'kurz', 'lang', 'voll', 'kurz', 'kranz']);
-  const b = r();
-  /** @type {import('./menschen.js').BartStil} */
-  const bart = b < 0.25 ? 'voll' : b < 0.55 ? 'schnurr' : b < 0.7 ? 'backen' : b < 0.82 ? 'kinn' : 'keiner';
-  const k = kopf({ haut: m.wachs, zelle, variante, fein, haar: mitHaar ? haarFarbe : null, bartMaterial: haarFarbe, haarStil, bart });
-  k.scale.set(0.93 + r() * 0.14, 0.94 + r() * 0.12, 0.95 + r() * 0.1);
+
+/**
+ * Kurzform für eine Rolle.
+ * @param {0 | 1 | 2} alter @param {number} gesicht @param {number} form @param {keyof typeof HAARFARBE | null} haar
+ * @param {import('./menschen.js').HaarStil} [frisur='voll'] @param {import('./menschen.js').BartStil} [bart='keiner']
+ * @param {Partial<Rolle>} [mehr]
+ * @returns {Rolle}
+ */
+const R = (alter, gesicht, form, haar, frisur = 'voll', bart = 'keiner', mehr = {}) => ({ alter, gesicht, form, haar, frisur, bart, ...mehr });
+
+/**
+ * Besetzungsliste. Reihenfolge = Aufstellung in etage3.js. Nachbarn unterscheiden sich in Alter,
+ * Haarfarbe und Frisur; jeder Blickpunkt zeigt drei Altersstufen und mindestens vier Haarfarben.
+ * `frauPlatz` markiert die Plätze für Frauenfiguren (Sitzung B).
+ */
+export const BESETZUNG = {
+  // Büsten in Raum A: 0–5 an der Hofwand (z 1,6 → 7,85), 6–8 an der Trennwand zu Raum B (x 6,75 → 8,45)
+  buesten: [
+    R(0, 1, 0, 'blond', 'scheitel', 'schnurr', { statur: 'schmal', rock: 'tabak', weste: 'creme', krawatte: 'blau' }),
+    R(2, 2, 4, 'weiss', 'kranz', 'voll', { rock: 'schwarz', weste: 'grau', krawatte: 'schwarz' }),
+    R(1, 11, 3, 'rot', 'ecken', 'backen', { statur: 'kraeftig', rock: 'gruen', weste: 'beige', krawatte: 'schwarz', frauPlatz: true }),
+    R(0, 8, 5, 'schwarz', 'locken', 'keiner', { statur: 'schmal', rock: 'blau', weste: 'hellgrau', krawatte: 'rot' }),
+    R(1, 9, 1, 'meliert', 'kurz', 'kinn', { statur: 'kraeftig', rock: 'grau', weste: 'schwarz', krawatte: 'bordeaux' }),
+    R(2, 6, 2, 'grau', 'licht', 'schnurr', { rock: 'braun', weste: 'beige', krawatte: 'schwarz' }),
+    R(0, 4, 2, 'rotblond', 'lang', 'keiner', { statur: 'schmal', rock: 'bordeaux', weste: 'schwarz', krawatte: 'schwarz' }),
+    R(2, 7, 0, null, 'voll', 'lang', { bartFarbe: 'weiss', statur: 'kraeftig', rock: 'schwarz', weste: 'hellgrau', krawatte: 'schwarz', frauPlatz: true }),
+    R(1, 5, 4, 'dunkelblond', 'scheitel', 'voll', { rock: 'tweed', weste: 'braun', krawatte: 'gruen' }),
+  ],
+  // Glasschränke in Raum B (z 11,0 und 13,2): je 12 Köpfe, Boden 0 (unten) bis 2, je Boden 4 Plätze
+  schrank: [
+    [
+      R(0, 8, 0, 'schwarz', 'voll'), R(2, 10, 4, 'weiss', 'kranz', 'voll'), R(1, 11, 1, 'rot', 'kurz', 'schnurr'), R(0, 1, 2, 'blond', 'scheitel'),
+      R(2, 7, 3, 'grau', 'licht', 'schnurr'), R(0, 0, 5, 'braun', 'lang', 'backen'), R(1, 9, 2, 'meliert', 'ecken', 'kinn'), R(2, 6, 0, 'weiss', 'kranz', 'backen'),
+      R(1, 3, 4, 'dunkelbraun', 'scheitel', 'voll', { frauPlatz: true }), R(0, 4, 1, 'rotblond', 'locken'), R(2, 2, 5, null, 'voll', 'lang', { bartFarbe: 'grau' }), R(1, 5, 3, 'dunkelblond', 'kurz', 'schnurr'),
+    ],
+    [
+      R(2, 6, 1, 'grau', 'ecken', 'voll'), R(1, 3, 0, 'schwarz', 'kurz', 'backen'), R(0, 4, 3, 'rot', 'scheitel'), R(1, 9, 5, 'meliert', 'licht', 'schnurr'),
+      R(0, 1, 4, 'blond', 'voll', 'kinn'), R(2, 10, 2, 'weiss', 'licht'), R(1, 5, 1, 'dunkelblond', 'ecken', 'voll', { frauPlatz: true }), R(0, 8, 3, 'schwarz', 'lang', 'schnurr'),
+      R(1, 11, 5, 'rotblond', 'kurz', 'backen'), R(0, 0, 2, 'dunkelbraun', 'scheitel'), R(2, 7, 4, null, 'voll', 'schnurr', { bartFarbe: 'weiss' }), R(2, 2, 0, 'grau', 'kranz', 'lang'),
+    ],
+  ],
+  // Figurengruppe in Raum B: 0 mit Hut, 1 ohne, 2 (neu) hinten links neben dem Platz der Leiche
+  gruppe: [
+    R(1, 11, 1, 'rot', 'kurz', 'voll', { statur: 'kraeftig', rock: 'grau', weste: 'anthrazit', krawatte: 'bordeaux', hose: 'anthrazit' }),
+    R(2, 10, 4, 'weiss', 'kranz', 'backen', { rock: 'anthrazit', weste: 'grau', krawatte: 'schwarz', hose: 'schwarz' }),
+    R(0, 8, 0, 'schwarz', 'scheitel', 'keiner', { statur: 'schmal', rock: 'tabak', weste: 'creme', krawatte: 'gruen', hose: 'braun', frauPlatz: true }),
+  ],
+};
+
+/** Statur: Breite und Tiefe des Rumpfs, Bauch (nur Ganzfiguren), Kopfmaße */
+const STATUR = {
+  schmal: { breite: 0.92, tiefe: 0.94, bauch: 0, kopf: [0.96, 1.03, 0.98] },
+  mittel: { breite: 1, tiefe: 1, bauch: 0, kopf: [1, 1, 1] },
+  kraeftig: { breite: 1.08, tiefe: 1.1, bauch: 0.03, kopf: [1.05, 0.98, 1.03] },
+};
+
+/**
+ * Farbe als Stoff auf dem Vertex-Farben-Material.
+ * @param {Materialien} m @param {number} hex sRGB
+ * @returns {import('./menschen.js').Stoff}
+ */
+const farbe = (m, hex) => ({ farbig: m.farbig, farbe: hex });
+
+/**
+ * Profil nach Statur verbreitern bzw. verschmälern; Bauch zwischen 0,9 und 1,3 m nach vorn.
+ * @param {number[][]} profil @param {typeof STATUR.mittel} st
+ */
+function profilNachStatur(profil, st) {
+  return profil.map(([y, hw, hd, zo, n]) => {
+    const b = st.bauch * Math.exp(-(((y - 1.1) / 0.14) ** 2));
+    return [y, hw * st.breite, hd * st.tiefe + b, zo + b * 0.8, n];
+  });
+}
+
+/**
+ * Wachskopf nach Rolle.
+ * @param {Materialien} m @param {Rolle} rolle
+ * @param {boolean} [fein=true]
+ * @param {boolean} [hut=false] unter einem Hut nur das Haar unter dem Hutrand
+ */
+function wachskopf(m, rolle, fein = true, hut = false) {
+  const haar = rolle.haar ? farbe(m, HAARFARBE[rolle.haar]) : null;
+  const bartFarbe = rolle.bartFarbe ? farbe(m, HAARFARBE[rolle.bartFarbe]) : haar;
+  const k = kopf({
+    haut: m.wachs, zelle: rolle.gesicht, variante: rolle.form, fein, alter: rolle.alter,
+    haar, haarStil: hut ? 'unterHut' : rolle.frisur, bart: rolle.bart, bartMaterial: bartFarbe,
+  });
+  k.scale.set(...STATUR[rolle.statur ?? 'mittel'].kopf);
   return k;
 }
 
-/** Schultern einer Büste (Profil: y, halbe Breite, halbe Tiefe, Versatz z) */
-const BUESTE = [[1.15, 0.165, 0.1, 0], [1.22, 0.18, 0.11, 0.005], [1.27, 0.186, 0.106, 0.003], [1.3, 0.165, 0.088, 0], [1.325, 0.105, 0.068, 0], [1.345, 0.062, 0.055, 0]];
+/** Schultern einer Büste (Profil: y, halbe Breite, halbe Tiefe, Versatz z, Rundlichkeit); schräge, runde Schultern */
+const BUESTE = [[1.15, 0.165, 0.1, 0, 2.6], [1.22, 0.177, 0.108, 0.005, 2.5], [1.26, 0.18, 0.104, 0.004, 2.35], [1.285, 0.167, 0.094, 0.002, 2.15],
+  [1.305, 0.138, 0.082, 0, 2.0], [1.325, 0.1, 0.07, 0, 2.0], [1.345, 0.063, 0.056, 0, 2.0]];
 
 /**
  * Wachskopf als Büste auf einem Sockel (Kopf eines Verbrechers – ohne Namen, stilisiert).
- * @param {Materialien} m @param {number} saat Variante
+ * @param {Materialien} m @param {Rolle} rolle aus BESETZUNG.buesten
  */
-export function buesteAufSockel(m, saat) {
-  const z = zufall(saat * 97 + 13);
+export function buesteAufSockel(m, rolle) {
   const g = new THREE.Group();
   g.add(box(0.36, 1.1, 0.36, 0, 0.55, 0, m.holzDunkel));
   g.add(box(0.42, 0.05, 0.42, 0, 1.125, 0, m.holzDunkel));
-  const rock = z() < 0.5 ? m.kleidDunkel : m.kleidBraun;
+  const st = STATUR[rolle.statur ?? 'mittel'];
   g.add(oberkoerper({
-    profil: BUESTE, rock, untenZu: true, kragen: m.gips,
-    ausschnitt: { unten: 1.2, breite: 0.055, weste: rock === m.kleidDunkel ? m.kleidGrau : m.kleidDunkel, hemd: m.gips, krawatte: z() < 0.5 ? m.kleidDunkel : m.stoffRot, knopf: m.eisen, rockKnoepfe: 0 },
+    profil: profilNachStatur(BUESTE, { ...st, bauch: 0 }), rock: farbe(m, STOFF[rolle.rock ?? 'anthrazit']), untenZu: true, kragen: farbe(m, STOFF.weiss), schnitt: 2,
+    ausschnitt: { unten: 1.2, breite: 0.055, weste: farbe(m, STOFF[rolle.weste ?? 'grau']), hemd: farbe(m, STOFF.weiss), krawatte: farbe(m, STOFF[rolle.krawatte ?? 'schwarz']), knopf: farbe(m, STOFF.horn), rockKnoepfe: 0 },
   }));
   const h = hals(m.wachs);
   h.position.set(0, 1.39, -0.012);
   g.add(h);
-  const k = wachskopf(m, z);
+  const k = wachskopf(m, rolle);
   k.position.y = 1.46;
   g.add(k);
   return g;
@@ -434,48 +531,70 @@ const krempeGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.015, 20);
 export const GEHROCK = [[0.6, 0.205, 0.15, -0.005], [0.8, 0.19, 0.135, 0], [0.98, 0.172, 0.118, 0], [1.06, 0.16, 0.11, 0], [1.2, 0.17, 0.118, 0.006],
   [1.33, 0.182, 0.122, 0.01], [1.4, 0.184, 0.112, 0.005], [1.44, 0.168, 0.1, 0.002], [1.47, 0.138, 0.085, 0], [1.5, 0.1, 0.07, 0], [1.52, 0.065, 0.058, 0]];
 
+/** Gehrock der Besetzung: wie GEHROCK, aber schräge, runde Schultern (5. Wert: Rundlichkeit) */
+const GEHROCK_RUND = [[0.6, 0.205, 0.15, -0.005, 2.6], [0.8, 0.19, 0.135, 0, 2.6], [0.98, 0.172, 0.118, 0, 2.6], [1.06, 0.16, 0.11, 0, 2.6],
+  [1.2, 0.17, 0.118, 0.006, 2.6], [1.33, 0.178, 0.12, 0.01, 2.5], [1.39, 0.18, 0.11, 0.005, 2.3], [1.425, 0.166, 0.098, 0.002, 2.1],
+  [1.455, 0.14, 0.086, 0, 2.0], [1.485, 0.104, 0.072, 0, 2.0], [1.52, 0.065, 0.058, 0, 2.0]];
+const schuhGeo = new THREE.SphereGeometry(1, 12, 8);
+
 /**
  * Lebensgroße, stilisierte Wachsfigur (etwa 1,75 m) im Gehrock mit Weste, Hemd und Krawatte.
  * Die Figur schaut nach +z.
  * @param {Materialien} m
- * @param {THREE.Material} kleid
+ * @param {Rolle} rolle aus BESETZUNG.gruppe
  * @param {object} [o]
  * @param {boolean} [o.hut=false]
  * @param {number} [o.armWinkel=0.12] Abspreizung der Arme
- * @param {number} [o.saat=1]
+ * @param {boolean} [o.quaderSchuhe=true] Schuhe als Quader (die zählen im Lichtmodell mit; nur die
+ *   beiden Figuren von Feinschliff C haben sie, neue Figuren bekommen runde Schuhe)
  */
-export function figur(m, kleid, { hut = false, armWinkel = 0.12, saat = 1 } = {}) {
-  const z = zufall(saat * 31 + 7);
+export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = true } = {}) {
   const g = new THREE.Group();
+  const st = STATUR[rolle.statur ?? 'mittel'];
+  const kleid = farbe(m, STOFF[rolle.rock ?? 'anthrazit']);
+  const weiss = farbe(m, STOFF.weiss);
   for (const s of [-1, 1]) {
-    const bein = new THREE.Mesh(beinGeo, m.kleidDunkel);
+    const bein = stoffTeil(beinGeo, farbe(m, STOFF[rolle.hose ?? 'anthrazit']));
+    bein.scale.set(st.breite, 1, st.breite);
     bein.position.set(s * 0.09, 0.41, 0);
     g.add(bein);
-    g.add(box(0.1, 0.06, 0.24, s * 0.09, 0.03, 0.05, m.eisen));
+    if (quaderSchuhe) {
+      g.add(box(0.1, 0.06, 0.24, s * 0.09, 0.03, 0.05, m.eisen));
+    } else {
+      const schuh = stoffTeil(schuhGeo, farbe(m, STOFF.horn));
+      schuh.scale.set(0.05, 0.035, 0.125);
+      schuh.position.set(s * 0.09, 0.03, 0.05);
+      g.add(schuh);
+    }
   }
   g.add(oberkoerper({
-    profil: GEHROCK, rock: kleid, kragen: m.gips,
-    ausschnitt: { unten: 1.28, breite: 0.07, weste: kleid === m.kleidGrau ? m.kleidDunkel : m.kleidGrau, hemd: m.gips, krawatte: z() < 0.5 ? m.kleidDunkel : m.stoffRot, knopf: m.eisen },
+    profil: profilNachStatur(GEHROCK_RUND, st), rock: kleid, kragen: weiss, schnitt: 2,
+    ausschnitt: { unten: 1.28, breite: 0.07, weste: farbe(m, STOFF[rolle.weste ?? 'grau']), hemd: weiss, krawatte: farbe(m, STOFF[rolle.krawatte ?? 'schwarz']), knopf: farbe(m, STOFF.horn) },
   }));
   const sw = Math.sin(armWinkel);
+  const b = st.breite;
   for (const s of [-1, 1]) {
     g.add(arm({
-      stoff: kleid, haut: m.wachs, zelle: 0, seite: s, manschette: m.gips,
-      schulter: [s * 0.158, 1.405, 0], ellbogen: [s * (0.195 + sw * 0.26), 1.14, 0.03], handgelenk: [s * (0.205 + sw * 0.5), 0.9, 0.05],
+      stoff: kleid, haut: m.wachs, zelle: 0, seite: s, manschette: weiss, kugel: 0.82,
+      schulter: [s * 0.156 * b, 1.39, 0], ellbogen: [s * (0.195 * b + sw * 0.26), 1.14, 0.03], handgelenk: [s * (0.205 * b + sw * 0.5), 0.9, 0.05],
     }).gruppe);
   }
+  // Alte Figuren: Kopf leicht nach vorn geneigt
+  const neigung = rolle.alter === 2 ? 0.14 : 0;
   const h = hals(m.wachs);
-  h.position.set(0, 1.555, -0.012);
+  h.position.set(0, 1.555, -0.012 + neigung * 0.05);
+  h.rotation.x = neigung * 0.6;
   g.add(h);
-  const k = wachskopf(m, z, true, !hut);
-  k.position.y = 1.635;
+  const k = wachskopf(m, rolle, true, hut);
+  k.position.set(0, 1.635 - neigung * 0.03, neigung * 0.16);
+  k.rotation.x = neigung;
   g.add(k);
   if (hut) {
-    const hh = new THREE.Mesh(hutGeo, m.kleidDunkel);
+    const hh = stoffTeil(hutGeo, farbe(m, STOFF.schwarz));
     hh.scale.set(0.85, 1, 1);
     hh.position.set(0, 1.787, -0.004);
     g.add(hh);
-    const kr = new THREE.Mesh(krempeGeo, m.kleidDunkel);
+    const kr = stoffTeil(krempeGeo, farbe(m, STOFF.schwarz));
     kr.scale.set(0.88, 1, 1);
     kr.position.set(0, 1.707, -0.004);
     g.add(kr);
@@ -697,9 +816,10 @@ export function holzgelaender(m, punkte) {
 
 /**
  * Glasschrank mit Wachsköpfen auf drei Böden (Darstellung angenommen). Rückseite bei z = 0, Front nach +z.
- * @param {Materialien} m @param {number} breite @param {number} saat
+ * @param {Materialien} m @param {number} breite
+ * @param {Rolle[]} rollen aus BESETZUNG.schrank, je Boden (unten zuerst) von links nach rechts
  */
-export function kopfschrank(m, breite, saat) {
+export function kopfschrank(m, breite, rollen) {
   const hoehe = 2.3;
   const tiefe = 0.5;
   const g = new THREE.Group();
@@ -709,7 +829,6 @@ export function kopfschrank(m, breite, saat) {
   g.add(box(breite + 0.1, 0.12, tiefe + 0.05, 0, hoehe + 0.06, tiefe / 2, m.holzDunkel));
   g.add(box(breite + 0.12, 0.03, 0.03, 0, hoehe + 0.02, tiefe + 0.04, m.gold));
   g.add(box(breite, 0.35, tiefe, 0, 0.175, tiefe / 2, m.holzDunkel));
-  const z = zufall(saat * 53 + 5);
   for (let boden = 0; boden < 3; boden++) {
     const y = 0.35 + boden * 0.62;
     g.add(box(breite, 0.03, tiefe - 0.04, 0, y, tiefe / 2, m.holzDunkel));
@@ -720,7 +839,7 @@ export function kopfschrank(m, breite, saat) {
       const h = hals(m.wachs);
       h.position.set(x, y + 0.09, tiefe / 2 - 0.012);
       g.add(h);
-      const wk = wachskopf(m, z, false);
+      const wk = wachskopf(m, rollen[(boden * anzahl + k) % rollen.length], false);
       wk.position.set(x, y + 0.235, tiefe / 2);
       g.add(wk);
     }
