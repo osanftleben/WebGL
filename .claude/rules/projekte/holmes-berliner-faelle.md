@@ -9,11 +9,12 @@ paths:
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/`.
 
 ## Arbeitsstand (zuletzt 14. 11. 2026)
-- **Sichtbarkeit + LOD Figuren** (Runde 1/2, Zahlen: Verlauf): Teil 1 (4eb7f01) 1-m-Zellen. Teil 2 LOD (`welt/stufen.js`, nicht committet): 40 Einheiten, 120 800 → 86 800 Dreiecke, 0 Flecken. Offen: Firefox, Bildrate; **Runde 2: Stufen je ≤ 50 % der vorigen, heutige ersetzen** (neue Sitzung). Protokoll: `notizen/protokolle/2026-11-14-holmes-lod.md`
-- Fertig (Einzelheiten: Verlauf): Lichtberechnung auf der Grafikkarte + Kontaktschatten (fcbfa13, Firefox ok), Augenanpassung (`belichtung-v1` 1.0.1, Firefox ok), Fensterausblick (d11b743; Restpunkt Laibungen fast weiß), Boden/Figuren heller (cea5718), Kranich-Helm (3ae345f), Besetzung (65f1767), Feinschliff C (e191cab). Firefox offen bei d11b743, cea5718, 3ae345f, e191cab. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben; zurückgestellt: Fenster-Überstrahlen.
-- **Als Nächstes:** **Sitzung B** (Frauenfiguren an `frauPlatz`), dann **Kranich neu** (Körper, Ausrüstung, Haltung; erst Uniform recherchieren; Helm 3ae345f bleibt).
+- **LOD zurückgestellt** bis viele Details oder Einbußen bei der Bildrate (spätestens Projektende). Fertig: Sichtbarkeit (4eb7f01), Stufen voll/sparsam (019022f, Firefox ok). Offen: Umbau nach 50-%-Regel.
+- Fertig (Verlauf): Licht auf der Grafikkarte + Kontaktschatten (fcbfa13), Augenanpassung (`belichtung-v1` 1.0.1), Fensterausblick (d11b743; Laibungen fast weiß), Boden/Figuren heller (cea5718), Kranich-Helm (3ae345f), Besetzung (65f1767), Feinschliff C (e191cab). Firefox offen bei d11b743, cea5718, 3ae345f, e191cab. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben; zurückgestellt: Fenster-Überstrahlen.
+- **B1 Frauenköpfe** fertig (nicht committet, abgenommen, Firefox offen): Büsten 2/7, Schrank 0 Pl. 8, Schrank 1 Pl. 6; Draw-Calls gleich, 60 Bilder/s. Restpunkte: Schrank 1 Pl. 6 im Glasspiegel, Strähnen kaum sichtbar (Verlauf).
+- **Als Nächstes:** **B2** (Ganzfigur Frau, Gruppe 2), dann **Kranich neu** (Körper, Ausrüstung, Haltung; erst Uniform recherchieren; Helm 3ae345f bleibt).
 - **Danach:** D (Stuck, Beschläge), dann weitere Inhalte von Fall 1 (siehe Ausbaustufen).
-- Prüfhilfen: Vorschau `webgl-vorschau` (Pane einblenden, sonst keine Bildschleife); Blickpunkte: „Rundgang“. `ERR_CONNECTION_REFUSED` (Port 8765) harmlos.
+- Prüfhilfen: Vorschau `webgl-vorschau` (Pane einblenden); Draw-Calls bei 736 × 630 vergleichen. `ERR_CONNECTION_REFUSED` (Port 8765) harmlos.
 
 ## Ziel und Rahmen (Kurzfassung; vollständig: `.claude/notizen/holmes-rahmen.md`)
 - Browserspiel (Deutsch, Erwachsene), Ich-Perspektive, Handy und PC; Sherlock Holmes als „Sigerson“, Berlin 1892, mehrere Fälle.
@@ -24,7 +25,6 @@ paths:
 - Feinschliff A (Licht), B (Glanz, Glas) und C (Wachsfiguren, `welt/menschen.js`) fertig; D (Stuck, Beschläge) offen.
 - Beleuchtung vorab berechnet (`.claude/scripts/holmes_licht.py`): Lichtkarte (10 cm) für statische Quader/Flächen, Lichtgitter (0,4 m) für den Rest; keine Lampen. Runde Teile verdecken nur mit `userData.lichtHuelle`.
 - **Nach jeder Änderung an Räumen, Möbeln, Fenstern neu berechnen:** `holmes_licht.py empfange` → im Spiel `await __debug.sendeLichtModell()` → `holmes_licht.py berechne` (über den Wächter; Grafikkarte ≈ 3 s, mit `--cpu` ≈ 100 s). Konsole beim Start: „Beleuchtung: Lichtkarte aktiv“.
-- Bodenglanz (`welt/bodenglanz.js`): Dielen spiegeln die Fenster weich.
 - Sichtbarkeit je 1-m-Zelle (`welt/sichtbarkeit.js`): statische Teile ordnet `verschmelze` selbst zu; eigene Objekte (Personen, Funde) mit `etage.sichtbarkeit.registriere()` anmelden. Neue offene Durchgänge dort eintragen, sonst fehlt der Nachbarraum.
 - Detailstufen (`welt/stufen.js`): jede neue Figur mit `alsStufe(teil, () => sparsam(bau), { abstand })` markieren (drehende: `beweglich: true`), vor dem Verschmelzen `baueStufen`; danach Fleckprüfung (Verlauf).
 
@@ -43,6 +43,7 @@ Im Browser: `__debug.steuerung.setzePosition(x, z, blick)` (Blick vorwärts = (�
 ## Ausbaustufen
 - **Grafik-Feinschliff** (stilisiert, selbst erzeugt, handytauglich; spielwichtige Gegenstände zuerst): A–C fertig, Besetzung läuft, D offen (Liste im Verlauf).
 - Schwierigkeitsstufen, Droschkenfahrt, Startmenü mit Grafikeinstellung
+- LOD nach 50-%-Regel (bei Bedarf, spätestens Projektende)
 - Hinweise verknüpfen, Auflösung (Wer/Wie/Warum)
 - übrige Orte von Fall 1, danach weitere Fälle (je eigenes Viertel)
 

@@ -331,6 +331,23 @@ export const STOFF = {
   // Besetzung A2 (Kleidung nach Stand)
   leinen: 0xb8ab90, grauweiss: 0xc9c3b5, kittelblau: 0x3b577c, loden: 0x4b5437, marine: 0x232a3d, senf: 0x8a6a2b,
   rostbraun: 0x6c3a24, nickel: 0x9d9b93,
+  // Frauen B1 (Farben nach den Bildquellen, siehe holmes-quellen.md: dunkle Taillen, rotes/lila Tuch, gelb-weiße Schürze)
+  blaugrau: 0x46505c, tuchrot: 0x8a2c24, lila: 0x5c3d5c, gelbweiss: 0xd6cba0, dunkelgruen: 0x26332a,
+};
+
+/**
+ * Frauenrollen (Sitzung B1; Gestaltung nach den Quellen, ungepflegt wie die Männer): Taille (eng
+ * anliegendes, hochgeschlossenes Oberteil mit Stehkragen und Knopfreihe), wahlweise Latzschürze und
+ * Schultertuch. Die Rolle kann Farben überschreiben (rock = Taille, schuerze, tuch, kragen).
+ * @type {Record<string, { taille: keyof typeof STOFF, schuerze: keyof typeof STOFF | null, streifen?: boolean, tuch: keyof typeof STOFF | null, kragen: keyof typeof STOFF | null, abgetragen: number }>}
+ */
+export const FRAU_STAND = {
+  // Dienstmagd: dunkles Kleid, helle Latzschürze, kleiner weißer Kragen (Paulsen 1881, Limmer 1889)
+  dienstmagd: { taille: 'schwarz', schuerze: 'weiss', tuch: null, kragen: 'weiss', abgetragen: 0.4 },
+  // Wäscherin: Taille, gestreifte Latzschürze (Paulsen), ausgeblichen
+  waescherin: { taille: 'blaugrau', schuerze: 'gelbweiss', streifen: true, tuch: null, kragen: null, abgetragen: 0.9 },
+  // Giftmischerin: schwarze Taille, Tuch über den Schultern (Kraus, Paulsen)
+  giftmischerin: { taille: 'schwarz', schuerze: null, tuch: 'lila', kragen: null, abgetragen: 0.3 },
 };
 
 /**
@@ -379,7 +396,11 @@ export const STAND = {
  * @property {'zylinder' | 'melone'} [hut] Form des Huts, wenn die Figur einen trägt
  * @property {{ nase?: number, ohr?: -1 | 1, klappe?: -1 | 1, brille?: 'nickel' | 'monokel' }} [merkmale]
  * @property {boolean} [frauPlatz] vorgesehen für eine Frauenfigur (Sitzung B); bis dahin steht hier ein Mann
- * @property {'dienstmagd' | 'waescherin' | 'giftmischerin'} [frauRolle] Rolle der Frau, die B hier einsetzt
+ * @property {'dienstmagd' | 'waescherin' | 'giftmischerin'} [frauRolle] Rolle der Frau (Kleidung nach FRAU_STAND)
+ * @property {'mann' | 'frau'} [art] Figurenart; 'frau' (B1): Büste und Schrankkopf mit Frauenkopf, Taille, Stehkragen
+ *   (Gesicht 14, 15 oder 23, Form 6 oder 7, Frisur 'hochgesteckt' oder 'dutt'). Ganzfiguren noch nicht (B2).
+ * @property {keyof typeof STOFF} [schuerze] @property {keyof typeof STOFF} [tuch] @property {keyof typeof STOFF} [kragen]
+ *   Frauen: Farben von Schürze, Schultertuch und Kragen (sonst nach FRAU_STAND)
  */
 
 /**
@@ -406,12 +427,12 @@ export const BESETZUNG = {
   buesten: [
     R(0, 16, 0, 'blond', 'scheitel', 'schnurr', { stand: 'betrueger', statur: 'schmal', rock: 'schwarz', weste: 'creme', krawatte: 'blau', merkmale: { brille: 'monokel' } }),
     R(2, 6, 4, 'grau', 'kranz', 'stoppel', { stand: 'wilddieb', rock: 'loden', weste: 'braun', krawatte: 'tabak', merkmale: { ohr: -1 } }),
-    R(1, 11, 3, 'rot', 'zerzaust', 'struppig', { stand: 'fuhrknecht', statur: 'kraeftig', rock: 'kittelblau', krawatte: 'rot', frauPlatz: true, frauRolle: 'waescherin' }),
+    R(0, 14, 6, 'rot', 'hochgesteckt', 'keiner', { art: 'frau', frauPlatz: true, frauRolle: 'waescherin', flicken: 'tweed' }),
     R(0, 17, 5, 'schwarz', 'straehnig', 'stoppel', { stand: 'taschendieb', statur: 'schmal', rock: 'braun', krawatte: 'bordeaux' }),
     R(1, 21, 1, 'meliert', 'kurz', 'schnurrStruppig', { stand: 'schlaeger', statur: 'kraeftig', rock: 'marine', merkmale: { klappe: -1, nase: -0.07 } }),
     R(0, 0, 2, 'dunkelbraun', 'zerzaust', 'stoppel', { stand: 'tageloehner', rock: 'grau', krawatte: 'blau' }),
     R(0, 22, 2, 'rotblond', 'straehnig', 'keiner', { stand: 'seemann', statur: 'schmal', rock: 'blau' }),
-    R(1, 19, 0, 'schwarz', 'ecken', 'struppig', { stand: 'hehler', statur: 'kraeftig', rock: 'rostbraun', weste: 'grau', krawatte: 'gruen', flicken: 'tweed', frauPlatz: true, frauRolle: 'giftmischerin' }),
+    R(1, 23, 7, 'dunkelbraun', 'dutt', 'keiner', { art: 'frau', frauPlatz: true, frauRolle: 'giftmischerin' }),
     R(1, 5, 4, 'dunkelblond', 'scheitel', 'voll', { stand: 'betrueger', rock: 'tweed', weste: 'braun', krawatte: 'gruen', merkmale: { brille: 'nickel' } }),
   ],
   // Glasschränke in Raum B (z 11,0 und 13,2): je 12 Köpfe, Boden 0 (unten) bis 2, je Boden 4 Plätze; je Schrank 2 Alte.
@@ -422,14 +443,14 @@ export const BESETZUNG = {
       R(2, 10, 4, 'weiss', 'kranz', 'struppig', { stand: 'hausierer', krawatte: 'braun' }), R(0, 1, 2, 'blond', 'straehnig', 'keiner', { stand: 'taschendieb', krawatte: 'blau' }),
       R(1, 18, 2, 'meliert', 'ecken', 'stoppel', { stand: 'hehler', krawatte: 'gruen' }), R(0, 0, 5, 'braun', 'straehnig', 'backen', { stand: 'seemann', rock: 'marine' }),
       R(0, 4, 3, 'rotblond', 'zerzaust', 'keiner', { stand: 'fuhrknecht', krawatte: 'bordeaux' }), R(1, 3, 0, 'schwarz', 'licht', 'schnurrStruppig', { stand: 'zuhaelter', krawatte: 'senf' }),
-      R(1, 3, 4, 'dunkelbraun', 'zerzaust', 'struppig', { stand: 'tageloehner', krawatte: 'tabak', frauPlatz: true, frauRolle: 'dienstmagd' }), R(0, 17, 1, 'schwarz', 'locken', 'stoppel', { stand: 'einbrecher', krawatte: 'rot' }),
+      R(0, 14, 7, 'blond', 'dutt', 'keiner', { art: 'frau', frauPlatz: true, frauRolle: 'dienstmagd' }), R(0, 17, 1, 'schwarz', 'locken', 'stoppel', { stand: 'einbrecher', krawatte: 'rot' }),
       R(1, 5, 5, 'dunkelblond', 'kurz', 'schnurr', { stand: 'betrueger', krawatte: 'bordeaux', merkmale: { brille: 'nickel' } }), R(2, 7, 3, 'grau', 'licht', 'stoppel', { stand: 'wilddieb', krawatte: 'gruen' }),
     ],
     [
       R(1, 9, 1, 'meliert', 'zerzaust', 'struppig', { stand: 'schlaeger', rock: 'anthrazit' }), R(0, 22, 0, 'rot', 'straehnig', 'stoppel', { stand: 'taschendieb', krawatte: 'schwarz' }),
       R(2, 6, 3, 'grau', 'ecken', 'schnurrStruppig', { stand: 'hausierer', krawatte: 'rot' }), R(0, 1, 5, 'blond', 'kurz', 'stoppel', { stand: 'einbrecher', krawatte: 'braun', merkmale: { klappe: 1 } }),
       R(0, 0, 4, 'dunkelbraun', 'locken', 'keiner', { stand: 'seemann', rock: 'blau' }), R(1, 20, 2, 'rotblond', 'ecken', 'backen', { stand: 'zuhaelter', krawatte: 'rot' }),
-      R(1, 5, 1, 'dunkelblond', 'zerzaust', 'stoppel', { stand: 'fuhrknecht', krawatte: 'blau', frauPlatz: true, frauRolle: 'waescherin' }), R(0, 8, 3, 'schwarz', 'straehnig', 'schnurrStruppig', { stand: 'tageloehner', krawatte: 'gruen' }),
+      R(1, 15, 6, 'braun', 'dutt', 'keiner', { art: 'frau', frauPlatz: true, frauRolle: 'waescherin', rock: 'dunkelgruen' }), R(0, 8, 3, 'schwarz', 'straehnig', 'schnurrStruppig', { stand: 'tageloehner', krawatte: 'gruen' }),
       R(1, 3, 5, 'schwarz', 'kurz', 'struppig', { stand: 'schlaeger', rock: 'grau', merkmale: { nase: 0.07 } }), R(0, 0, 2, 'braun', 'zerzaust', 'keiner', { stand: 'hehler', krawatte: 'senf' }),
       R(2, 2, 4, 'weiss', 'kranz', 'stoppel', { stand: 'wilddieb', krawatte: 'tabak' }), R(1, 9, 0, 'meliert', 'straehnig', 'schnurr', { stand: 'einbrecher', krawatte: 'bordeaux' }),
     ],
@@ -488,12 +509,31 @@ function wachskopf(m, rolle, fein = true, hut = false) {
     muetze: rolle.muetze ? farbe(m, STOFF[rolle.muetze]) : null,
   });
   k.scale.set(...STATUR[rolle.statur ?? 'mittel'].kopf);
+  // Frauenkopf etwas kleiner
+  if (rolle.art === 'frau') k.scale.multiply(FRAU_KOPF);
   return k;
+}
+
+/** Frauen (B1): Kopf etwas kleiner, Hals schmaler (der hohe Stehkragen sitzt eng am Hals) */
+const FRAU_KOPF = new THREE.Vector3(0.94, 0.96, 0.95);
+const FRAU_HALS = 0.86;
+
+/**
+ * Hals einer Büste oder eines Schrankkopfs; bei Frauen schmaler.
+ * @param {Materialien} m @param {Rolle} rolle
+ */
+function halsNachArt(m, rolle) {
+  const h = hals(m.wachs);
+  if (rolle.art === 'frau') h.scale.set(FRAU_HALS, 1, FRAU_HALS);
+  return h;
 }
 
 /** Schultern einer Büste (Profil: y, halbe Breite, halbe Tiefe, Versatz z, Rundlichkeit); schräge, runde Schultern */
 const BUESTE = [[1.15, 0.165, 0.1, 0, 2.6], [1.22, 0.177, 0.108, 0.005, 2.5], [1.26, 0.18, 0.104, 0.004, 2.35], [1.285, 0.167, 0.094, 0.002, 2.15],
   [1.305, 0.138, 0.082, 0, 2.0], [1.325, 0.1, 0.07, 0, 2.0], [1.345, 0.063, 0.056, 0, 2.0]];
+/** Büste einer Frau (B1): schmalere, stärker abfallende Schultern, Brust nach vorn angedeutet, enger Hals */
+const BUESTE_FRAU = [[1.15, 0.148, 0.106, 0.01, 2.4], [1.19, 0.153, 0.112, 0.014, 2.3], [1.23, 0.158, 0.1, 0.008, 2.2],
+  [1.265, 0.15, 0.088, 0.003, 2.1], [1.29, 0.124, 0.074, 0, 2.0], [1.315, 0.085, 0.062, 0, 2.0], [1.345, 0.055, 0.05, 0, 2.0]];
 
 /**
  * Wachskopf als Büste auf einem Sockel (Kopf eines Verbrechers – ohne Namen, stilisiert).
@@ -511,9 +551,10 @@ export function buesteAufSockel(m, rolle) {
   // Schultern, Hals und Kopf: Detailstufen (welt/stufen.js), der Sockel bleibt
   const figurTeil = () => {
     const t = new THREE.Group();
-    // Schultern und Kragen nach Stand (kleidung() steht weiter unten bei figur)
-    t.add(oberkoerper({ profil: profilNachStatur(BUESTE, { ...st, bauch: 0, taille: 0 }), ...kleidung(m, rolle, true).o }));
-    const h = hals(m.wachs);
+    // Schultern und Kragen nach Stand bzw. Frauenrolle (kleidung() steht weiter unten bei figur)
+    const frau = rolle.art === 'frau';
+    t.add(oberkoerper({ profil: profilNachStatur(frau ? BUESTE_FRAU : BUESTE, { ...st, bauch: 0, taille: 0 }), ...(frau ? kleidungFrau(m, rolle) : kleidung(m, rolle, true).o) }));
+    const h = halsNachArt(m, rolle);
     h.position.set(0, 1.39, -0.012);
     t.add(h);
     const k = wachskopf(m, rolle);
@@ -666,6 +707,29 @@ function kleidung(m, rolle, bueste) {
     o.flecken = bueste ? [{ stoff: fl, y: 1.235, th: -1.05, b: 0.22, h: 0.06 }] : [{ stoff: fl, y: 1.02, th: -0.75 }, { stoff: fl, y: 1.3, th: 2.5 }];
   }
   return { o, aermel };
+}
+
+/**
+ * Kleidung einer Frauenbüste (B1): Taille mit hohem Stehkragen und Knopfreihe, nach Rolle Latzschürze
+ * oder Schultertuch, ausgeblichen; Flicken wie bei den Männern.
+ * @param {Materialien} m @param {Rolle} rolle
+ * @returns {Omit<Parameters<typeof oberkoerper>[0], 'profil'>}
+ */
+function kleidungFrau(m, rolle) {
+  const fs = FRAU_STAND[rolle.frauRolle ?? 'waescherin'];
+  const f = (/** @type {keyof typeof STOFF} */ k) => farbe(m, STOFF[k]);
+  const taille = f(rolle.rock ?? fs.taille);
+  const schuerze = rolle.schuerze ?? fs.schuerze;
+  const tuch = rolle.tuch ?? fs.tuch;
+  const kragen = rolle.kragen ?? fs.kragen;
+  return {
+    rock: taille, untenZu: true, revers: false, binder: 'keiner', abgetragen: fs.abgetragen,
+    kragen: kragen ? f(kragen) : taille, kragenForm: 'hoch',
+    knopfleiste: { stoff: f('horn'), anzahl: 6 },
+    schuerze: schuerze ? { stoff: f(schuerze), oben: 1.255, breite: 0.085, streifen: fs.streifen ?? false } : null,
+    schultertuch: tuch ? { stoff: f(tuch), tiefe: 0.15 } : null,
+    flecken: rolle.flicken ? [{ stoff: f(rolle.flicken), y: 1.215, th: 1.15, b: 0.2, h: 0.05 }] : [],
+  };
 }
 
 /**
@@ -835,6 +899,8 @@ const KRAGEN_OFFEN_GEO = {
   spar: new THREE.CylinderGeometry(0.07, 0.066, 0.034, 10, 1, true, 0.55, Math.PI * 2 - 1.1),
 };
 const KNOTEN_GEO = { voll: new THREE.SphereGeometry(1, 7, 4), spar: new THREE.SphereGeometry(1, 5, 4) };
+// Frauen (B1): hoher Stehkragen am schmaleren Hals (Hals 0,86 × 0,055…0,06 m)
+const KRAGEN_HOCH_GEO = { voll: new THREE.CylinderGeometry(0.052, 0.057, 0.058, 12, 1, true), spar: new THREE.CylinderGeometry(0.052, 0.057, 0.058, 10, 1, true) };
 
 /**
  * Abschluss am Hals eines Schrankkopfs nach Stand: Rollkragen, offener Hemdkragen, Halstuch mit
@@ -844,6 +910,14 @@ const KNOTEN_GEO = { voll: new THREE.SphereGeometry(1, 7, 4), spar: new THREE.Sp
 function halsAbschluss(m, rolle) {
   const st = STAND[rolle.stand ?? 'betrueger'];
   const g = new THREE.Group();
+  if (rolle.art === 'frau') {
+    // hoher Stehkragen der Taille (Dienstmagd: weißer Kragen) am schmaleren Hals
+    const fs = FRAU_STAND[rolle.frauRolle ?? 'waescherin'];
+    const k = stoffTeil(jeStufe(KRAGEN_HOCH_GEO), farbe(m, STOFF[rolle.kragen ?? fs.kragen ?? rolle.rock ?? fs.taille]));
+    k.position.y = 0.012;
+    g.add(k);
+    return g;
+  }
   if (st.tracht === 'troyer') {
     g.add(stoffTeil(jeStufe(KRAGEN_ROLL_GEO), farbe(m, STOFF[rolle.rock ?? 'marine'])));
     return g;
@@ -1112,7 +1186,7 @@ export function kopfschrank(m, breite, rollen) {
       // Hals, Kragen und Kopf: Detailstufen je Kopf (welt/stufen.js)
       const kopfTeil = () => {
         const t = new THREE.Group();
-        const h = hals(m.wachs);
+        const h = halsNachArt(m, rolle);
         h.position.set(0, 0.09, -0.012);
         t.add(h);
         const ab = halsAbschluss(m, rolle);

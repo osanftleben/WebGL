@@ -201,6 +201,9 @@ const VARIANTEN = [
   { kiefer: 0.18, kinn: 0.02, nase: 0.022, breite: 1.07, hoehe: 0.98, tiefe: 1.0, ohr: 0.017, wange: 0.003, spitze: 1.3, brauen: 0.008 },
   { kiefer: 0.4, kinn: 0.009, nase: 0.027, breite: 0.94, hoehe: 1.07, tiefe: 1.04, ohr: 0.02, wange: 0.001, spitze: 2.1, brauen: 0.005 },
   { kiefer: 0.28, kinn: 0.015, nase: 0.017, breite: 1.02, hoehe: 1.02, tiefe: 0.96, ohr: 0.013, wange: 0.005, spitze: 1.0, brauen: 0.01 },
+  // 6, 7: Frauen (Sitzung B1) – schmaler Kiefer, kleines Kinn, kleine Nase, kaum Brauenwulst
+  { kiefer: 0.44, kinn: 0.007, nase: 0.016, breite: 0.95, hoehe: 0.97, tiefe: 0.97, ohr: 0.013, wange: 0.0032, spitze: 1.2, brauen: 0.002 },
+  { kiefer: 0.38, kinn: 0.009, nase: 0.0185, breite: 0.97, hoehe: 1.0, tiefe: 0.98, ohr: 0.014, wange: 0.0045, spitze: 1.6, brauen: 0.003 },
 ];
 
 /**
@@ -438,7 +441,10 @@ const KRANZ_OBEN = [[0, 0.3], [1.0, 0.32], [1.5, 0.5], [2.2, 0.62], [PI, 0.66]];
  * Frisuren. Neu mit der Besetzung (nur mit Stoff-Farbe): scheitel (Seitenscheitel, voller oben),
  * locken, ecken (Geheimratsecken), licht (hohe Stirn, dünnes Haar), unterHut (nur unter dem Hutrand);
  * ungepflegt: zerzaust (wirr, Büschel in der Stirn), straehnig (zu lang, über Ohren und Nacken).
- * @typedef {'voll' | 'kurz' | 'lang' | 'kranz' | 'scheitel' | 'locken' | 'ecken' | 'licht' | 'unterHut' | 'zerzaust' | 'straehnig'} HaarStil
+ * Frauen (Sitzung B1): Haar über die Ohren nach hinten genommen, Knoten am Hinterkopf (hochgesteckt)
+ * bzw. oben auf dem Kopf (dutt), ungepflegt mit losen Strähnen an Schläfen und Nacken.
+ * @typedef {'voll' | 'kurz' | 'lang' | 'kranz' | 'scheitel' | 'locken' | 'ecken' | 'licht' | 'unterHut' | 'zerzaust' | 'straehnig'
+ *   | 'hochgesteckt' | 'dutt'} HaarStil
  */
 /**
  * Bärte; ungepflegt (nur Besetzung): stoppel (Bartstoppeln), struppig (wirrer Vollbart), schnurrStruppig.
@@ -457,6 +463,9 @@ const HAARANSATZ_NEU = {
   unterHut: HAARANSATZ.kurz,
   zerzaust: [[0, 0.52], [0.8, 0.38], [1.35, 0.14], [1.85, -0.12], [PI, -0.58]],
   straehnig: [[0, 0.5], [0.8, 0.3], [1.35, -0.02], [1.85, -0.35], [PI, -0.78]],
+  // Frauen: Stirn frei, Schläfen und obere Ohrränder bedeckt, Nacken hoch (Haar nach oben genommen)
+  hochgesteckt: [[0, 0.55], [0.6, 0.45], [1.15, 0.2], [1.6, 0.03], [2.2, -0.2], [PI, -0.36]],
+  dutt: [[0, 0.57], [0.6, 0.47], [1.15, 0.22], [1.6, 0.05], [2.2, -0.16], [PI, -0.32]],
 };
 /**
  * Form der neuen Frisuren: Grunddicke, Fülle oben, Strähnenrippen, Zacken im Haaransatz,
@@ -474,7 +483,73 @@ const FRISUR = {
   unterHut: { grund: 0.0035, fuelle: 0, rippe: 0.0008, zacke: 0.02, oben: 0.62 },
   zerzaust: { grund: 0.006, fuelle: 0.005, rippe: 0.002, zacke: 0.06, wirr: 0.011 },
   straehnig: { grund: 0.004, fuelle: 0.004, rippe: 0.004, zacke: 0.09, wirr: 0.005 },
+  // glatt zurückgekämmt (Rippen laufen zum Scheitelpunkt), aber nicht sauber: etwas wirr; Scheitel mittig
+  hochgesteckt: { grund: 0.006, fuelle: 0.007, rippe: 0.0024, zacke: 0.022, wirr: 0.0065, scheitel: 0 },
+  dutt: { grund: 0.006, fuelle: 0.009, rippe: 0.0022, zacke: 0.024, wirr: 0.008, scheitel: 0.25 },
 };
+
+/**
+ * Haarknoten der Frauenfrisuren: Lage auf dem Kopf (Höhe D am Hinterkopf, a = π), Halbachsen (m),
+ * Anzahl der Windungen. Dazu lose Strähnen: [Winkel a, Ansatzhöhe D, Länge (in D), Schwung].
+ * @type {Record<string, { D: number, r: number[], windungen: number, straehnen: number[][] }>}
+ */
+const KNOTEN = {
+  // am Hinterkopf, eher breit, hoch genug, dass er von vorn über dem Scheitel zu sehen ist; Strähnen an beiden Schläfen und im Nacken
+  hochgesteckt: { D: 0.52, r: [0.04, 0.032, 0.03], windungen: 3, straehnen: [[1.2, 0.2, 0.62, 0.6], [-1.25, 0.18, 0.5, -0.8], [2.75, -0.3, 0.42, 0.5], [-2.9, -0.28, 0.36, -0.4]] },
+  // oben auf dem Kopf, höher und runder; Strähnen hängen an einer Schläfe und hinten
+  dutt: { D: 0.8, r: [0.033, 0.036, 0.03], windungen: 4, straehnen: [[-1.15, 0.22, 0.66, -0.7], [1.3, 0.12, 0.4, 0.5], [2.6, -0.26, 0.48, 0.6], [-2.6, -0.24, 0.44, -0.5]] },
+};
+
+/**
+ * Haarknoten und lose Strähnen einer Frauenfrisur (Teile mit Strähnen-Farbwerten, wie das übrige Haar).
+ * @param {typeof VARIANTEN[0]} v @param {string} stil @param {number} dicke Haardicke über der Haut
+ */
+function frauenHaarTeile(v, stil, dicke) {
+  const k = KNOTEN[stil];
+  // Mitte des Knotens: knapp über der Haaroberfläche, entlang der Kopfnormale versetzt
+  const basis = aufKopf(v, PI, k.D, dicke);
+  const n = basis.clone().normalize();
+  const mitte = basis.clone().addScaledVector(n, k.r[2] * 0.75);
+  // Achsen des Knotens: e1 quer (x), e2 entlang des Kopfes, e3 = Normale
+  const e1 = new THREE.Vector3(1, 0, 0);
+  const e3 = n;
+  const e2 = new THREE.Vector3().crossVectors(e3, e1).normalize();
+  const knoten = gitter(teilung(22, 8, KOPF_ANTEIL), teilung(14, 6, KOPF_ANTEIL), (s, t) => {
+    const w = 2 * PI * s;
+    const p = PI * t;
+    // gewundener Zopf: Wülste entlang der Spirale, dazu Wirrheit (ungepflegt)
+    const wulst = 1 + 0.12 * Math.sin(k.windungen * w + 3 * p) + 0.05 * Math.sin(w * 7 + p * 5);
+    const r = (q = 1) => Math.sin(p) * wulst * q;
+    const x = k.r[0] * r() * Math.cos(w);
+    const y = k.r[1] * r() * Math.sin(w);
+    // flach zum Kopf hin (Rückseite liegt am Haar an)
+    const zc = Math.cos(p);
+    const z = k.r[2] * (zc > 0 ? zc : 0.35 * zc) * wulst;
+    return [mitte.x + e1.x * x + e2.x * y + e3.x * z, mitte.y + e1.y * x + e2.y * y + e3.y * z, mitte.z + e1.z * x + e2.z * y + e3.z * z];
+  }, undefined, (s, t) => [0.82 + 0.18 * Math.sin(2 * PI * s * k.windungen + 3 * PI * t) + 0.08 * Math.sin(s * 53), 0]);
+  /** Lose Strähne: flaches Band (elliptischer Querschnitt), vom Ansatz am Kopf entlang nach unten */
+  const straehne = (/** @type {number[]} */ [a0, D0, laenge, schwung]) => {
+    const nl = teilung(10, 5);
+    const nq = 6;
+    return gitter(nq, nl, (s, t) => {
+      const D = D0 - laenge * t;
+      const a = a0 + schwung * 0.18 * Math.sin(t * PI * 1.3) * t;
+      // liegt am Kopf an, hängt nur zum Ende hin etwas ab
+      const aus = dicke * (1 - 0.6 * t) + 0.0012 + 0.003 * t * t;
+      const p = aufKopf(v, a, D, aus);
+      const nn = p.clone().normalize();
+      const quer = aufKopf(v, a + 0.02, D, aus).sub(p).normalize();
+      // fast runder Querschnitt: auch von vorn (Kante) als Strähne zu sehen
+      const breite = 0.0075 * (1 - 0.55 * t);
+      // gegen den Uhrzeigersinn (von außen gesehen läuft s nach rechts) – sonst zeigen die Dreiecke nach innen
+      const w = -2 * PI * s;
+      const dx = Math.cos(w) * breite;
+      const dn = Math.sin(w) * 0.0042 * (1 - 0.5 * t);
+      return [p.x + quer.x * dx + nn.x * dn, p.y + quer.y * dx + nn.y * dn, p.z + quer.z * dx + nn.z * dn];
+    }, undefined, (s, t) => [0.85 + 0.15 * Math.sin(s * 2 * PI * 2 + t * 6), 0]);
+  };
+  return [knoten, ...k.straehnen.map(straehne)];
+}
 
 /**
  * @param {number} variante @param {HaarStil} stil @param {boolean} fein
@@ -526,7 +601,7 @@ function haarGeometrieNeu(variante, stil, fein, alt) {
     const oben = f.oben ?? 1;
     // Strähnen und Farbwechsel laufen vom Scheitelpunkt zum Ansatz; dort treffen alle Spalten zusammen
     const pol = (/** @type {number} */ t) => (oben < 1 ? 1 : glatt(0, 0.3, t));
-    return kopfSchale(v, fein ? 36 : 20, fein ? 9 : 5, (s, t) => {
+    const schale = kopfSchale(v, fein ? 36 : 20, fein ? 9 : 5, (s, t) => {
       const a = PI * (2 * s - 1);
       const aa = Math.abs(a);
       // gezackter Haaransatz, vorn in der Mitte ruhiger
@@ -554,6 +629,8 @@ function haarGeometrieNeu(variante, stil, fein, alt) {
       if (f.scheitel !== undefined) h *= 1 - 0.35 * g2(a - f.scheitel, 0.05, (t - 0.65) / 0.45, 1) * glatt(0.1, 0.35, t);
       return [h, 0.55 * glatt(0.8, 1, t)];
     });
+    // Frauenfrisur: Knoten und lose Strähnen in derselben Geometrie (gleiche Farbe, kein eigenes Netz)
+    return KNOTEN[stil] ? verbinde([schale, ...frauenHaarTeile(v, stil, haarDicke(stil) * 0.8)]) : schale;
   });
 }
 
@@ -1268,7 +1345,7 @@ function reversGeometrie(profil, unten, vOben, oben, w) {
  * @param {boolean} [o.revers=true] false: kein Revers (Weste, Kittel)
  * @param {'krawatte' | 'tuch' | 'offen' | 'keiner'} [o.binder='krawatte'] Halstuch: Knoten seitlich, kurze Zipfel;
  *   offen/keiner: keine Halsbinde (im V-Ausschnitt nur das Hemd)
- * @param {'steh' | 'roll' | 'tuch' | 'offen'} [o.kragenForm='steh'] offen: Hemdkragen mit Lücke vorn
+ * @param {'steh' | 'roll' | 'tuch' | 'offen' | 'hoch'} [o.kragenForm='steh'] offen: Hemdkragen mit Lücke vorn; hoch: Stehkragen der Frauentaille
  * @param {number} [o.abgetragen=0] fleckig, ausgeblichen (0…1)
  * @param {number | null} [o.saum=null] Unterkante des Rocks, wenn höher als das Profil (kurze Jacke, Weste)
  * @param {Stoff | null} [o.unterteil=null] Hose zwischen Saum und Beinen
@@ -1276,10 +1353,14 @@ function reversGeometrie(profil, unten, vOben, oben, w) {
  * @param {Stoff | null} [o.passe=null] Naht der Kittelpasse (Band rund um die Brust)
  * @param {boolean} [o.knoepfeMitte=false] Rockknöpfe einreihig auf der Mitte (Weste)
  * @param {Array<{ stoff: Stoff, y: number, th: number, b?: number, h?: number }>} [o.flecken=[]] aufgesetzte Flicken
+ * @param {{ stoff: Stoff, anzahl: number } | null} [o.knopfleiste=null] Frauen (B1): Knopfreihe der Taille vom Hals abwärts
+ * @param {{ stoff: Stoff, oben: number, breite: number, streifen?: boolean } | null} [o.schuerze=null] Latzschürze bis `oben`
+ * @param {{ stoff: Stoff, tiefe: number } | null} [o.schultertuch=null] Tuch um die Schultern, vorn gekreuzt und geknotet
  * @returns {THREE.Group}
  */
 export function oberkoerper({ profil: grundProfil, rock, untenZu = false, ausschnitt, kragen = null, schnitt = 1,
-  revers = true, binder = 'krawatte', kragenForm = 'steh', abgetragen = 0, saum = null, unterteil = null, schulter = null, passe = null, knoepfeMitte = false, flecken = [] }) {
+  revers = true, binder = 'krawatte', kragenForm = 'steh', abgetragen = 0, saum = null, unterteil = null, schulter = null, passe = null, knoepfeMitte = false, flecken = [],
+  knopfleiste = null, schuerze = null, schultertuch = null }) {
   const g = new THREE.Group();
   const oben = grundProfil[grundProfil.length - 1][0];
   const profil = saum !== null && saum > grundProfil[0][0] ? profilZwischen(grundProfil, saum, oben) : grundProfil;
@@ -1395,6 +1476,45 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
       (s, t) => [Math.min(s, 1 - s, t, 1 - t) < 0.01 ? 0.7 : 1, 0]));
     g.add(stoffMesh(fl, f.stoff));
   }
+  if (schuerze) {
+    // Latz: vorn vom unteren Rand bis `oben`, oben etwas schmaler; Ränder dunkler, wahlweise Längsstreifen
+    const { breite: sb, oben: so, streifen = false } = schuerze;
+    const latz = gemerkt(`latz|${schluessel}|${so}|${sb}|${streifen}`, () => flicken(profil, profil[0][0], so, (y) => {
+      const b = sb * (1 - 0.15 * glatt(profil[0][0], so, y));
+      return [winkelBei(profil, y, -b), winkelBei(profil, y, b)];
+      // gestreift: je Streifen zwei Spalten, damit die Farbe nicht verwischt
+    }, 0.0042, streifen ? 18 : 10, (s, t) => [(Math.min(s, 1 - s) < 0.01 || t < 0.01 ? 0.8 : 1) * (streifen && Math.round(s * 18) % 4 < 2 ? 0.62 : 1), 0]));
+    g.add(stoffMesh(latz, schuerze.stoff));
+  }
+  if (knopfleiste) {
+    // Knopfreihe der Taille vom Hals abwärts (über dem Latz, falls einer da ist)
+    for (let i = 0; i < knopfleiste.anzahl; i++) {
+      const y = oben - 0.03 - i * 0.028;
+      if (y < profil[0][0] + 0.01) break;
+      // unter dem Latz verdeckt
+      if (schuerze && y < schuerze.oben + 0.008) continue;
+      const k = stoffMesh(stufenForm(KNOPF_GEO), knopfleiste.stoff);
+      k.scale.setScalar(0.0045);
+      k.position.set(...rumpfPunkt(profil, 0, y, 0.003));
+      g.add(k);
+    }
+  }
+  if (schultertuch) {
+    // Tuch über den Schultern: hinten und seitlich bis `tiefe` unter den Hals, vorn offen und unten gekreuzt
+    const yu = oben - schultertuch.tiefe;
+    const yo = oben - 0.004;
+    const tuch = gemerkt(`schultertuch|${schluessel}|${schultertuch.tiefe}`, () => flicken(profil, yu, yo, (y) => {
+      const q = (y - yu) / (yo - yu);
+      const off = 0.1 + 0.85 * q ** 1.3;
+      return [off, 2 * PI - off];
+    }, 0.0075, teilung(26, 14), (s, t) => [(Math.min(s, 1 - s) < 0.012 || t > 0.99 ? 0.72 : 1) * (1 + 0.05 * Math.sin(s * 70 + t * 4)), 0]));
+    g.add(stoffMesh(tuch, schultertuch.stoff));
+    // Knoten vorn, wo sich die Enden treffen (auch sparsam mit voller Kugel, wie der Halstuchknoten)
+    const knoten = stoffMesh(KNOPF_GEO.voll, schultertuch.stoff);
+    knoten.scale.set(0.02, 0.015, 0.011);
+    knoten.position.set(...rumpfPunkt(profil, 0, yu + 0.012, 0.012));
+    g.add(knoten);
+  }
   if (kragen) {
     const art = kragenForm;
     // sparsame Stufe: 10 Teilungen wie der Hals darunter (Ecken übereinander, kein Durchstechen)
@@ -1404,9 +1524,11 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
       : art === 'tuch' ? new THREE.CylinderGeometry(0.066, 0.072, 0.034, n(16), 1)
         // offener Hemdkragen: oben etwas weiter, vorn eine Lücke (dort sieht man den Hals)
         : art === 'offen' ? new THREE.CylinderGeometry(0.073, 0.068, 0.036, n(16), 1, true, 0.55, Math.PI * 2 - 1.1)
-          : new THREE.CylinderGeometry(0.064, 0.067, 0.045, n(16), 1)));
+          // hoher Stehkragen der Frauentaille (enger Hals, siehe bauteile.js)
+          : art === 'hoch' ? new THREE.CylinderGeometry(0.052, 0.057, 0.05, n(16), 1)
+            : new THREE.CylinderGeometry(0.064, 0.067, 0.045, n(16), 1)));
     const k = stoffMesh(geo, kragen);
-    k.position.set(0, oben + (art === 'roll' ? 0.02 : art === 'tuch' || art === 'offen' ? 0.006 : 0.012), profil[profil.length - 1][3] - 0.012);
+    k.position.set(0, oben + (art === 'roll' ? 0.02 : art === 'tuch' || art === 'offen' ? 0.006 : art === 'hoch' ? 0.014 : 0.012), profil[profil.length - 1][3] - 0.012);
     g.add(k);
   }
   return g;

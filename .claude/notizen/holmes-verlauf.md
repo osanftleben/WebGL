@@ -179,3 +179,12 @@ Aktuelle Regeln und Arbeitsstand stehen in `.claude/rules/projekte/holmes-berlin
 - (Aus dem Arbeitsstand verschoben) Sichtbarkeit je Raum / LOD: Gruppe ~97 700 Dreiecke über A und B. Sitzung B: Frauen nach `frauRolle`. Kranich neu: Nutzer findet Körper/Schnitt, Ausrüstung, Haltung unrealistisch – erst Uniform recherchieren, dann eigener Neubau.
 - **Korrekturrunde 2 (Nutzer, Firefox: „zu dunkel, wie Brandlöcher“):** Flecken heller und ohne flachen Kern: rund 0,58 / Kern 0,1 (vorher 0,75 / 0,25), eckig 0,42 / 0,15 (vorher 0,55 / 0,35), Kranich 1,0 × 0,9. Kontakte bleiben erkennbar, weicher Übergang. Damit 2/2 Runden verbraucht; weitere Feinabstimmung nur als eigener Auftrag (Werte `STAERKE*`/`KERN*` in `welt/fleck.js`).
 - Firefox vom Nutzer bestätigt (nach Runde 2). Auftrag abgeschlossen, nicht committet.
+
+## B1 Frauenköpfe (14. 11. 2026, Aufgabensitzung, Runde 0/2, nicht committet)
+- Plätze (`art: 'frau'`): Büste 2 (Gesicht 14, rot, hochgesteckt, Wäscherin, gestreifte Latzschürze), Büste 7 (23 = 15 + Wangennarbe, dunkelbraun, Dutt, Giftmischerin, lila Tuch), Schrank 0 Pl. 8 (14, blond, Dutt, Magd, weißer Kragen), Schrank 1 Pl. 6 (15, braun, hochgesteckt, Wäscherin, dunkelgrün). Belege: `holmes-quellen.md`, Block Frauenkleidung um 1890.
+- texturen.js: FRAUEN-Gesichter 14 jung / 15 mittel (Lidstrich, Wimpern, Lippen ×1,45, kein Bartschatten, finster, Augenringe), NARBEN 23.
+- menschen.js: VARIANTEN 6/7, Frisuren 'hochgesteckt'/'dutt' (Knoten + 4 lose Strähnen in der Haar-Geometrie), oberkoerper: knopfleiste, schuerze, schultertuch, kragenForm 'hoch'.
+- bauteile.js: Stoffe blaugrau/tuchrot/lila/gelbweiss/dunkelgruen, FRAU_STAND, kleidungFrau, BUESTE_FRAU, halsNachArt (Hals 0,86), FRAU_KOPF, Stehkragen (KRAGEN_HOCH_GEO).
+- Messung (736 × 630): Draw-Calls wie 019022f (Büsten nah 33, Kopfschrank 78, Hofwand 59, Gruppe 64, B Kranich 103, B schräg 105), 60 Bilder/s. Lichtmodell unverändert gültig.
+- Fleckprüfung (Einheit allein, 1920 × 1080, Umschaltabstand, 3 Richtungen, Augenhöhe): neue Einheiten 2, 7, 17, 27 je 0. Unveränderte Schrank-1-Köpfe Pl. 0/2/4 zeigen bei dieser Blickhöhe 1–2 Punkte (andere Prüfanordnung als im LOD-Protokoll).
+- Restpunkte: Schrank 1 Pl. 6 liegt vom Blickpunkt „Kopfschrank nah“ im Fensterspiegel des Glases (schwer erkennbar); lose Strähnen kaum sichtbar. Nutzer hat so abgenommen.

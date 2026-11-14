@@ -196,8 +196,8 @@ export function skaliereUV(geometrie, su, sv) {
 
 /**
  * Aufteilung der Gesichtstafel: 4 × 6 Zellen zu 256 Bildpunkten. Zellen 0–11: Wachsgesichter,
- * 12: Leiche (blass, Augen geschlossen), 13: Schutzmann Kranich (lebendige Haut), 14–15 frei (für
- * Frauengesichter, Sitzung B), 16–22: Wachsgesichter mit Narben (Kopien von 0–11, siehe NARBEN), 23 frei.
+ * 12: Leiche (blass, Augen geschlossen), 13: Schutzmann Kranich (lebendige Haut), 14–15: Frauengesichter
+ * (FRAUEN, Sitzung B1), 16–22: Wachsgesichter mit Narben (Kopien von 0–11, siehe NARBEN), 23: Frau mit Narbe.
  * Innerhalb einer Zelle: u = 0,5 + 0,5·U (U = Sinus des Winkels um den Kopf, vorn 0), v = 0,5 + 0,5·D
  * (D = Höhe auf der Kopfkugel, oben 1). Der Rand der Zelle ist einfarbige Haut (für Hals, Hände, Hinterkopf).
  */
@@ -219,13 +219,14 @@ export function zellenUV(zelle, u, v) {
  * @typedef {{ grund: number[], auge?: string, braue: string, brauDicke: number, lippe: number[], roete: number,
  *   bart: number, alter?: number, falte?: boolean, geschlossen?: boolean, ringe?: number,
  *   augAbst?: number, augGr?: number, brauWinkel?: number, mund?: number, mal?: number[] | null,
- *   stufe?: number, bartFarbe?: number[], finster?: number,
+ *   stufe?: number, bartFarbe?: number[], finster?: number, frau?: boolean,
  *   narben?: Array<{ art: 'schmiss' | 'pocken' | 'wange' | 'auge' | 'stirn' | 'kinn', seite?: number }> }} Gesicht
  * grund: Hautton (sRGB); auge: Irisfarbe; braue: Farbe, brauDicke: Stärke; lippe: Lippenfarbe; roete: Wangenröte;
  * bart: Bartschatten; alter: Falten; falte: Zornesfalte; geschlossen: Augen zu; ringe: Augenringe;
  * augAbst: Augenmitte (U), augGr: Augengröße, brauWinkel: Neigung der Brauen außen, mund: Mundbreite, mal: Muttermal [U, D];
  * stufe: Altersstufe der Besetzung (0 jung, 1 mittel, 2 alt; fehlt = alte Malweise); bartFarbe: Farbe des Bartschattens;
  * finster: finsterer Ausdruck 0…1 (tiefere, schräge Brauen, Augenschatten, harte Mundwinkel);
+ * frau: Frauengesicht (Sitzung B1: kräftiger Lidstrich und Wimpern, vollere Lippen, kein Bartschatten);
  * narben: Narben der Besetzung (siehe maleNarben)
  */
 
@@ -295,14 +296,28 @@ const NARBEN = {
   20: [11, [{ art: 'wange', seite: -1 }]], // mittel, rot, Messernarbe
   21: [9, [{ art: 'auge', seite: -1 }]], // Narbe durch Braue und Auge (unter der Augenklappe)
   22: [4, [{ art: 'stirn' }]], // jung, rot, Narbe quer über die Stirn
+  23: [15, [{ art: 'wange', seite: -1 }]], // Frau, mittel, Messernarbe (Giftmischerin)
 };
+
+/**
+ * Frauengesichter der Besetzung (Sitzung B1; Gestaltung, keine belegte Angabe): ungepflegt und finster
+ * wie die Männer – Augenringe, Zornesfalte, harte Mundwinkel –, aber ohne Bartschatten, mit schmaleren
+ * Brauen, kräftigem Lidstrich und volleren Lippen. 14 jung (etwa 25), 15 mittel (etwa 40).
+ * @type {Gesicht[]}
+ */
+const FRAUEN = [
+  { grund: [222, 186, 158], auge: '#5a3d26', braue: '#6a4426', brauDicke: 0.75, brauWinkel: 0.02, lippe: [178, 102, 94], roete: 0.13,
+    bart: 0, stufe: 0, finster: 0.9, ringe: 0.24, falte: true, augAbst: 0.4, augGr: 1.06, mund: 0.84, mal: [0.34, -0.3], frau: true },
+  { grund: [214, 180, 154], auge: '#4d6d8c', braue: '#4a3020', brauDicke: 0.85, brauWinkel: -0.01, lippe: [164, 98, 92], roete: 0.07,
+    bart: 0, stufe: 1, finster: 1, ringe: 0.32, falte: true, augAbst: 0.41, augGr: 0.97, mund: 0.88, mal: null, frau: true },
+];
 
 /** @type {Array<Gesicht | null>} */
 const GESICHTER = [
   ...wachsGesichter().map((f, k) => ({ ...f, ...(UEBERARBEITUNG[k] ?? {}) })),
   { grund: [205, 196, 182], braue: '#4e4236', brauDicke: 1.5, lippe: [146, 128, 126], roete: 0, bart: 0.26, geschlossen: true, ringe: 0.32 },
   { grund: [214, 172, 146], auge: '#4c6c90', braue: '#4a3524', brauDicke: 1.6, lippe: [172, 118, 102], roete: 0.16, bart: 0.24 },
-  null, null,
+  ...FRAUEN,
 ];
 for (const [zelle, [vorlage, narben]] of Object.entries(NARBEN)) GESICHTER[Number(zelle)] = { .../** @type {Gesicht} */ (GESICHTER[vorlage]), narben };
 
@@ -686,11 +701,25 @@ function maleGesichtsTafel() {
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.fillRect(iris[0] - 2.5, iris[1] - 2.5, 1.6, 1.6);
         ctx.restore();
-        ctx.strokeStyle = 'rgba(52,36,28,0.9)';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = f.frau ? 'rgba(30,20,16,0.95)' : 'rgba(52,36,28,0.9)';
+        ctx.lineWidth = f.frau ? 2.6 : 1.5;
         ctx.beginPath();
         bogen(ai, PA(0.4, 0.098), aa);
         ctx.stroke();
+        if (f.frau) {
+          // Wimpern am Oberlid, nach außen länger (aus der Ferne: dunkler, betonter Augenrand)
+          ctx.lineWidth = 1.1;
+          for (let i = 0; i <= 9; i++) {
+            const t = 0.25 + (i / 9) * 0.35;
+            const q = (t - 0.225) / (0.6 - 0.225);
+            const [px, py] = PA(t, 0.022 + 0.076 * 4 * q * (1 - q) + 0.002);
+            const l = 2 + 3 * q;
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(px + s * l * 0.6, py - l);
+            ctx.stroke();
+          }
+        }
         ctx.strokeStyle = 'rgba(96,62,50,0.5)';
         ctx.lineWidth = 0.9;
         ctx.beginPath();
@@ -726,7 +755,9 @@ function maleGesichtsTafel() {
     // Lippen: Oberlippe mit Amorbogen, Unterlippe voller und heller, Mundspalte
     const lip = f.stufe === 2 ? f.lippe.map((c, i) => Math.round(c * 0.55 + f.grund[i] * 0.45)) : f.lippe;
     const mb = f.mund ?? 1;
-    const PM = (/** @type {number} */ U, /** @type {number} */ D) => P(U * mb, D);
+    // Frauen: vollere Lippen (Höhe um die Mundspalte bei D −0,545 gestreckt)
+    const lv = f.frau ? 1.45 : 1;
+    const PM = (/** @type {number} */ U, /** @type {number} */ D) => P(U * mb, -0.545 + (D + 0.545) * lv);
     ctx.fillStyle = rgba(lip, 0.9);
     ctx.beginPath();
     ctx.moveTo(...PM(-0.31, -0.545));
