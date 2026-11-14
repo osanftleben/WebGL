@@ -3,11 +3,13 @@
 // Antippbare Teile bleiben einzelne Objekte (nicht verschmolzen) und bekommen eigene
 // Material-Kopien, damit eine Hervorhebung nur sie betrifft.
 import * as THREE from 'three';
-import { box, GEHROCK } from './bauteile.js';
+import { box, GEHROCK, FIGUR_ZONEN, FIGUR_FLECK } from './bauteile.js';
 import { kopf, hals, arm, fuss, oberkoerper, fingerspitzen } from './menschen.js';
 import { gesichtsTafel, GESICHT } from './texturen.js';
 import { alsHindernis } from 'steuerung/kollision.js';
 import { verschmelze } from './verschmelzen.js';
+import { sammleVerdecker } from './lichtmodell.js';
+import { weicherFleck, sammleKontaktFlecken } from './fleck.js';
 
 /** @typedef {import('./bauteile.js').Materialien} Materialien */
 /** @typedef {import('steuerung/kollision.js').Hindernis} Hindernis */
@@ -208,7 +210,9 @@ function baueWerkbankFund(m) {
  * Setzt Leiche und Fundstücke in die Szene.
  * @param {THREE.Scene} scene
  * @param {Materialien} m
- * @returns {{ gruppe: THREE.Group, antippbar: THREE.Object3D[], hindernisse: Hindernis[] }}
+ * @returns {{ gruppe: THREE.Group, antippbar: THREE.Object3D[], hindernisse: Hindernis[], verdecker: number[][] }}
+ *   `verdecker`: Quader für die Lichtberechnung (an `etage.lichtSzene.quader` anhängen),
+ *   `kontaktFlecken`: Flecken unter Böcken und Leiche (mit denen der Etage zu einem Netz bauen)
  */
 export function setzeFundstuecke(scene, m) {
   const gruppe = new THREE.Group();
@@ -226,6 +230,8 @@ export function setzeFundstuecke(scene, m) {
   leiche.add(koerper, hand);
   leiche.position.set(2.8, 0.25, 17.3);
   leiche.rotation.y = Math.PI / 2 - 0.15;
+  leiche.userData.lichtZonen = FIGUR_ZONEN;
+  leiche.userData.kontaktFleck = FIGUR_FLECK;
   gruppe.add(leiche);
   hand.userData.hinweisId = 'wachs-fingernaegel';
   eigeneMaterialien(hand);
@@ -234,6 +240,8 @@ export function setzeFundstuecke(scene, m) {
   // Hinweis 1: verdeckte Figur in der Werkstatt
   const figur = baueVerdeckteFigur(m);
   figur.position.set(7.4, 0, 23.0);
+  // liegt entlang z: Tuch, Kopf und Füße verdecken als Scheiben entlang z
+  figur.userData.lichtZonen = { achse: 2, schnitte: [-1.05, -0.6, -0.2, 0.2, 0.6, 1.05] };
   figur.userData.hinweisId = 'figur-werkstatt';
   gruppe.add(figur);
   eigeneMaterialien(figur);
@@ -249,9 +257,20 @@ export function setzeFundstuecke(scene, m) {
 
   gruppe.updateWorldMatrix(true, true);
   hindernisse.push(alsHindernis(figur, 0.02));
+  // Verdecker für die Lichtberechnung (vor dem Verschmelzen): Böcke, Brett, Gestell als Quader, Figuren als Scheiben
+  const verdecker = sammleVerdecker(gruppe);
+  const kontaktFlecken = sammleKontaktFlecken(gruppe);
 
   // Fundstücke je Material zusammenfassen (weniger Draw-Calls); Trefferkörper bleiben erhalten
   for (const g of [hand, figur, fund]) verschmelze(g);
+  // Kleine Fundstücke auf der Werkbank: weicher Fleck darunter (zu klein fürs Lichtmodell; Gruppe hat keine Drehung)
+  const umriss = new THREE.Box3();
+  fund.traverse((o) => {
+    if (/** @type {THREE.Mesh} */ (o).isMesh && !o.userData.nurTreffer) umriss.expandByObject(o, true);
+  });
+  const fleck = weicherFleck(umriss.max.x - umriss.min.x + 0.1, umriss.max.z - umriss.min.z + 0.1);
+  fleck.position.set((umriss.min.x + umriss.max.x) / 2, fund.position.y + 0.003, (umriss.min.z + umriss.max.z) / 2);
+  gruppe.add(fleck);
 
   // Der Körper der Leiche ist nicht antippbar: zu einem Mesh je Material zusammenfassen
   const koerperGruppe = new THREE.Group();
@@ -260,5 +279,5 @@ export function setzeFundstuecke(scene, m) {
   leiche.updateWorldMatrix(true, true);
   verschmelze(koerperGruppe);
 
-  return { gruppe, antippbar, hindernisse };
+  return { gruppe, antippbar, hindernisse, verdecker, kontaktFlecken };
 }

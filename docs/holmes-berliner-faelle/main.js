@@ -9,6 +9,7 @@ import { erstelleIchSteuerung } from 'steuerung/ich-steuerung.js';
 import { erstelleAntippen } from 'steuerung/antippen.js';
 import { baueEtage3 } from './welt/etage3.js';
 import { setzeFundstuecke } from './welt/fundstuecke.js';
+import { baueKontaktFlecken } from './welt/fleck.js';
 import { HINWEISE, findeHinweis } from './fall1/hinweise.js';
 import { erstelleHinweiskarte } from './ui/hinweiskarte.js';
 import { erstelleNotizbuch } from './ui/notizbuch.js';
@@ -33,6 +34,10 @@ richteRendererEin(renderer);
 // ---- Ort und Fundstücke ----
 const etage = baueEtage3(scene);
 const funde = setzeFundstuecke(scene, etage.materialien);
+// Fundstücke (Leiche, verdeckte Figur auf Böcken) verdecken in der Lichtberechnung mit (nur Verdecker, Atlas gleich)
+etage.lichtSzene.quader.push(...funde.verdecker);
+// Kontaktflecken (Beine, Füße, Sockel) von Etage und Fundstücken: ein Netz, ein Draw-Call
+scene.add(baueKontaktFlecken([...etage.kontaktFlecken, ...funde.kontaktFlecken]));
 
 // Schutzmann Kranich steht in Raum B vor der Figurengruppe und schaut zum Durchgang (−z)
 const kranich = baueSchutzmann();

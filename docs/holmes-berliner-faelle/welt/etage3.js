@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { verschmelze } from './verschmelzen.js';
 import { kopf as rohKopf } from './menschen.js';
 import { sammleLichtSzene } from './lichtmodell.js';
+import { sammleKontaktFlecken } from './fleck.js';
 import { baueAusblick } from './ausblick.js';
 import { aktiviereSchatten, schattenLicht } from './licht.js';
 import { alsHindernis } from 'steuerung/kollision.js';
@@ -46,6 +47,7 @@ const FENSTER = { breite: 1.3, hoehe: 2.7, unten: 0.35, art: /** @type {const} *
  *   start: { x: number, z: number, blick: number },
  *   materialien: ReturnType<typeof erstelleMaterialien>,
  *   lichtSzene: import('./lichtmodell.js').LichtSzene,
+ *   kontaktFlecken: import('./fleck.js').KontaktFleck[],
  * }}
  */
 export function baueEtage3(scene) {
@@ -348,6 +350,8 @@ export function baueEtage3(scene) {
   // Raummodell und Lichtkarten-Atlas für die vorab berechnete Beleuchtung (vor dem Verschmelzen,
   // solange die Teile einzeln sind)
   const lichtSzene = sammleLichtSzene(gruppe);
+  // Kontaktflecken unter dünnen Beinen, Figurenfüßen, Büstensockeln (zu schmal für die Lichtkarte)
+  const kontaktFlecken = sammleKontaktFlecken(gruppe);
   // Fensteröffnungen für die Lichtberechnung: Rechteck in der Außenebene der Wand (Himmelslicht kommt
   // nur hier herein). Behrenstraße: Ebene x = 9,5 (Wandaußenseite), Friedrichstraße: Ebene z = 28
   const lichtFenster = [
@@ -367,7 +371,7 @@ export function baueEtage3(scene) {
   const direktLichter = [himmel, fensterSeite, fensterLicht, ostLicht];
   return {
     gruppe, hindernisse, verdecker, start: { x: 6.5, z: 1.3, blick: Math.PI }, materialien: m, lichtSzene, lichtFenster,
-    direktLichter, ausblick: ausblick.werte,
+    direktLichter, ausblick: ausblick.werte, kontaktFlecken,
     // Räume als z-Bereiche (Raum A, Raum B, Werkstatt), z. B. für die Fensterspiegelung im Boden
     raeumeZ: [[0, 9.5], [9.75, 19.5], [19.75, 27.5]],
   };

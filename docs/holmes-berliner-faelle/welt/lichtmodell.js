@@ -73,10 +73,12 @@ function albedo(material) {
  * Ausgelassen werden: unsichtbare, durchsichtige, unbeleuchtete Teile und Teile unter einem Vorfahren
  * mit `userData.keinLichtModell`. Runde Formen zählen nur als Verdecker, wenn ein Vorfahr
  * `userData.lichtHuelle` trägt (dann mit ihrem umgebenden Quader, z. B. Vorhänge und Säulenschäfte).
+ * Figuren mit `userData.lichtZonen` verdecken als mehrere kleine Quader (siehe `huellZonen`).
  * @param {THREE.Object3D} gruppe
+ * @param {boolean} [nurVerdecker] ohne Lichtkarten-Seiten (für `sammleVerdecker`)
  * @returns {LichtSzene}
  */
-export function sammleLichtSzene(gruppe) {
+export function sammleLichtSzene(gruppe, nurVerdecker = false) {
   gruppe.updateWorldMatrix(true, true);
   const pos = new THREE.Vector3();
   const quat = new THREE.Quaternion();
@@ -91,6 +93,7 @@ export function sammleLichtSzene(gruppe) {
   const r = (/** @type {number} */ x) => Math.round(x * 1e4) / 1e4;
 
   gruppe.traverse((o) => {
+    if (o.userData.lichtZonen) huellZonen(o, quader);
     const mesh = /** @type {THREE.Mesh} */ (o);
     if (!mesh.isMesh || !mesh.visible || mesh.userData.nurTreffer) return;
     let p = /** @type {THREE.Object3D | null} */ (mesh);
@@ -132,6 +135,7 @@ export function sammleLichtSzene(gruppe) {
     quader.push([pos.x, pos.y, pos.z, groesse[0] / 2, groesse[1] / 2, groesse[2] / 2, ...achsen.flat(), ...alb].map(r));
 
     // Seiten mit Lichtkarte: beide Kanten mindestens einen Bildpunkt lang
+    if (nurVerdecker) return;
     const kandidaten = istQuader ? [[0, 1], [0, -1], [1, 1], [1, -1], [2, 1], [2, -1]] : [[2, 1]];
     for (const [achse, vorz] of kandidaten) {
       const b = (achse + 1) % 3;
@@ -205,6 +209,80 @@ export function sammleLichtSzene(gruppe) {
 
   const flaechen = seiten.map((s) => [s.x ?? 0, s.y ?? 0, s.w, s.h, ...s.ecke, ...s.u, ...s.v, ...s.n].map(r));
   return { quader, flaechen, atlas: [ATLAS_BREITE, atlasHoehe], pruefsumme: pruefsumme(flaechen, atlasHoehe), koordinaten };
+}
+
+/** Hüllquader runder Figuren: waagerechte Halbmaße schrumpfen (Kreis statt Ecke, Fläche ≈ π/4) */
+const ZONEN_SCHRUMPF = 0.88;
+/** Rückstrahlwert der Hüllquader (Wachs, Stoff gemischt; nur fürs zurückgeworfene Licht) */
+const ZONEN_ALBEDO = [0.3, 0.26, 0.22];
+
+/**
+ * Verdecker für eine Figur (Gruppe mit `userData.lichtZonen`): Die runden Teile der Gruppe werden in
+ * Scheiben entlang einer lokalen Achse geschnitten (Standard: y, Schnitte in lokalen Metern), je Scheibe
+ * ein Quader um alle Eckpunkte darin – gedreht wie die Gruppe. Mehrere kleine Quader folgen der Gestalt
+ * (Beine, Rumpf, Kopf) und werfen weiche Kontaktschatten statt eines großen Kastens. Quader der Gruppe
+ * (Sockel, Schuhe) bleiben eigene Verdecker. Nur Verdecker, keine Lichtkarten-Seiten (Atlas bleibt gleich).
+ * @param {THREE.Object3D} o @param {number[][]} quader Ziel
+ */
+function huellZonen(o, quader) {
+  const z = o.userData.lichtZonen;
+  const achse = Array.isArray(z) ? 1 : z.achse;
+  const schnitte = Array.isArray(z) ? z : z.schnitte;
+  const n = schnitte.length - 1;
+  const mins = Array.from({ length: n }, () => [Infinity, Infinity, Infinity]);
+  const maxs = Array.from({ length: n }, () => [-Infinity, -Infinity, -Infinity]);
+  const inv = new THREE.Matrix4().copy(o.matrixWorld).invert();
+  const m = new THREE.Matrix4();
+  const p = new THREE.Vector3();
+  o.traverse((t) => {
+    const mesh = /** @type {THREE.Mesh} */ (t);
+    if (!mesh.isMesh || !mesh.visible || mesh.userData.nurTreffer) return;
+    const geo = /** @type {any} */ (mesh.geometry);
+    if (geo.type === 'BoxGeometry' || /** @type {any} */ (mesh.material).transparent) return;
+    m.multiplyMatrices(inv, mesh.matrixWorld);
+    const lage = geo.getAttribute('position');
+    for (let k = 0; k < lage.count; k++) {
+      p.fromBufferAttribute(lage, k).applyMatrix4(m);
+      const w = p.getComponent(achse);
+      let s = 0;
+      while (s < n && w >= schnitte[s + 1]) s++;
+      if (s >= n || w < schnitte[0]) continue;
+      for (let a = 0; a < 3; a++) {
+        const v = a === achse ? Math.min(Math.max(p.getComponent(a), schnitte[s]), schnitte[s + 1]) : p.getComponent(a);
+        if (v < mins[s][a]) mins[s][a] = v;
+        if (v > maxs[s][a]) maxs[s][a] = v;
+      }
+    }
+  });
+  const pos = new THREE.Vector3();
+  const quat = new THREE.Quaternion();
+  const skal = new THREE.Vector3();
+  o.matrixWorld.decompose(pos, quat, skal);
+  const e = new THREE.Matrix4().makeRotationFromQuaternion(quat).elements;
+  const achsen = [e[0], e[1], e[2], e[4], e[5], e[6], e[8], e[9], e[10]];
+  const r = (/** @type {number} */ x) => Math.round(x * 1e4) / 1e4;
+  for (let s = 0; s < n; s++) {
+    if (mins[s][0] === Infinity) continue;
+    // Scheibe an die Gestalt anpassen: an der Schnittachse bis zu den Schnitten, wenn sie dort weitergeht
+    const lo = [...mins[s]];
+    const hi = [...maxs[s]];
+    if (s > 0 && maxs[s - 1][0] !== -Infinity) lo[achse] = schnitte[s];
+    if (s < n - 1 && mins[s + 1][0] !== Infinity) hi[achse] = schnitte[s + 1];
+    const mitte = new THREE.Vector3((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2).applyMatrix4(o.matrixWorld);
+    const halb = [0, 1, 2].map((a) => ((hi[a] - lo[a]) / 2) * Math.abs(skal.getComponent(a)) * (a === achse ? 1 : ZONEN_SCHRUMPF));
+    if (Math.max(...halb) * 2 < TEXEL) continue;
+    quader.push([mitte.x, mitte.y, mitte.z, ...halb, ...achsen, ...ZONEN_ALBEDO].map(r));
+  }
+}
+
+/**
+ * Nur die Verdecker einer Gruppe, die nicht zur Etage gehört (z. B. Fundstücke): gleiche Regeln wie
+ * `sammleLichtSzene`, aber ohne Lichtkarten-Seiten (die Teile nehmen das Lichtgitter). Vor dem Verschmelzen.
+ * @param {THREE.Object3D} gruppe
+ * @returns {number[][]} Quader im Format von `LichtSzene.quader`
+ */
+export function sammleVerdecker(gruppe) {
+  return sammleLichtSzene(gruppe, true).quader;
 }
 
 /**

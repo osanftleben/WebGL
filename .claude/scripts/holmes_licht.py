@@ -4,9 +4,14 @@ Aufruf:
   python .claude/scripts/holmes_licht.py empfange [datei]
       Wartet auf 127.0.0.1:8765 auf das Raummodell, das die Spielseite schickt
       (lokal: __debug.sendeLichtModell()), und speichert es (Vorgabe: .claude/scripts/holmes_lichtmodell.json).
-  python .claude/scripts/holmes_licht.py berechne [modell] [zielordner]
+  python .claude/scripts/holmes_licht.py berechne [modell] [zielordner] [--cpu] [--ausschnitt Z]
       Berechnet Lichtgitter und Lichtkarte und schreibt licht-etage3.png, licht-etage3-karte.png
       und licht-etage3.json (Vorgabe-Ziel: docs/holmes-berliner-faelle/licht/).
+      Rechnet auf der Grafikkarte (moderngl, OpenGL 4.3); fehlt sie, oder mit --cpu, auf allen Prozessorkernen.
+      --ausschnitt Z: nur zum Testen – Gitter und Lichtkarten-Seiten nur bis z = Z Meter.
+  python .claude/scripts/holmes_licht.py vergleiche <ordner_a> <ordner_b> [modell]
+      Gleicht Gitter-PNG und Lichtkarten-PNG zweier Läufe Bildpunkt für Bildpunkt ab (höchste Abweichung,
+      Anteil über 2 Stufen, Lage der größten Ausreißer).
 
 Grundregel (siehe welt/lichtmodell.js):
   - Lichtkarte: Statische Quader und Flächen (Wände, Boden, Decke, Möbel aus Quadern) bekommen ihr Licht
@@ -23,8 +28,10 @@ Verfahren (Strahlverfolgung):
   - Lichtkarte: direktes Licht + einmal gesammeltes zurückgeworfenes Licht (Strahlen in die Halbkugel vor
     der Fläche, Licht der getroffenen Flächen aus dem fertigen Gitter); dazu die Verdeckung durch Nahes
     (Alphakanal, für den Bodenglanz).
-  - Beschleunigung: je Raum nur die Quader in der Nähe; Strahlen, die den Bereich verlassen, werden gegen
-    alle Quader geprüft (Ergebnis exakt). Parallel auf allen Prozessorkernen.
+  - Beschleunigung (holmes_strahlen.py): Raster aus 0,5-m-Zellen, jeder Strahl prüft nur die Quader der
+    Zellen auf seinem Weg. CPU-Weg bitgleich zur früheren Prüfung gegen alle Quader, parallel auf allen
+    Kernen. Grafikkarte: Strahlen, direktes Licht, Gitter-Durchgänge und Sammeln als Compute-Shader
+    (Abweichung zur CPU nur durch Gleitkomma-Rundung).
 """
 
 from __future__ import annotations
@@ -97,7 +104,11 @@ def empfange(datei: Path) -> int:
 
 import numpy as np  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import holmes_strahlen as hs  # noqa: E402
+
 _S: dict = {}   # Szene je Prozess (über _init gesetzt)
+AUSSCHNITT = 0.0   # nur zum Testen (--ausschnitt): Gitter und Lichtkarte bis z = AUSSCHNITT
 
 
 def _init(szene: dict) -> None:
@@ -106,7 +117,8 @@ def _init(szene: dict) -> None:
 
 
 def baue_szene(modell: dict) -> dict:
-    """Quader aus dem Modell: achsenparallele als min/max, gedrehte mit lokalen Achsen; Bereiche je Raum."""
+    """Quader aus dem Modell: achsenparallele als min/max, gedrehte mit lokalen Achsen; Raumgrenzen
+    (für die Aufteilung der Arbeitspakete) und Raster für die Strahlprüfung."""
     q = np.array(modell["quader"], dtype=np.float64)
     mitte, halb, achsen, albedo = q[:, 0:3], q[:, 3:6], q[:, 6:15].reshape(-1, 3, 3), q[:, 15:18]
     # Achsenparallel: jede lokale Achse zeigt (fast) genau entlang einer Weltachse
@@ -118,109 +130,25 @@ def baue_szene(modell: dict) -> dict:
     for a, b in zip(raeume[:-1], raeume[1:]):
         grenzen.append((a[1] + b[0]) / 2)
     grenzen.append(raeume[-1][1] + 1)
-    bereiche, auswahl = [], []
-    for i in range(len(raeume)):
-        lo = np.array([RAUM_MIN[0] - 0.6, RAUM_MIN[1] - 0.6, grenzen[i] - 0.6])
-        hi = np.array([RAUM_MAX[0] + 0.6, RAUM_MAX[1] + 0.6, grenzen[i + 1] + 0.6])
-        bereiche.append((lo, hi))
-        auswahl.append(np.nonzero(np.all((bmax >= lo) & (bmin <= hi), axis=1))[0])
-    return {
+    szene = {
         "bmin": bmin.astype(np.float32), "bmax": bmax.astype(np.float32), "albedo": albedo.astype(np.float32),
         "parallel": parallel, "mitte": mitte.astype(np.float32), "halb": halb.astype(np.float32),
-        "achsen": achsen.astype(np.float32), "grenzen": np.array(grenzen), "bereiche": bereiche, "auswahl": auswahl,
+        "achsen": achsen.astype(np.float32), "grenzen": np.array(grenzen), "raeume": len(raeume),
         "fenster": modell.get("fenster", []),
     }
-
-
-def _schnitt_teil(o: np.ndarray, d: np.ndarray, idx: np.ndarray):
-    """Nächster Treffer unter den Quadern idx: (t, Quader-Index, Normale); t = inf ohne Treffer."""
-    S = _S
-    n = len(o)
-    t_best = np.full(n, np.inf, dtype=np.float32)
-    i_best = np.full(n, -1, dtype=np.int64)
-    n_best = np.zeros((n, 3), dtype=np.float32)
-    if len(idx) == 0:
-        return t_best, i_best, n_best
-    r = np.arange(n)
-    inv = 1.0 / np.where(np.abs(d) < 1e-7, 1e-7, d)
-    par = idx[S["parallel"][idx]]
-    if len(par):
-        t1 = (S["bmin"][par][None] - o[:, None]) * inv[:, None]
-        t2 = (S["bmax"][par][None] - o[:, None]) * inv[:, None]
-        tnah = np.minimum(t1, t2)
-        tein = tnah.max(axis=2)
-        taus = np.maximum(t1, t2).min(axis=2)
-        tein = np.where((taus >= tein) & (tein > 1e-4), tein, np.inf)
-        b = tein.argmin(axis=1)
-        t = tein[r, b]
-        ax = tnah[r, b].argmax(axis=1)
-        besser = t < t_best
-        t_best = np.where(besser, t, t_best)
-        i_best = np.where(besser, par[b], i_best)
-        nn = np.zeros((n, 3), dtype=np.float32)
-        nn[r, ax] = -np.sign(d[r, ax])
-        n_best = np.where(besser[:, None], nn, n_best)
-    rot = idx[~S["parallel"][idx]]
-    if len(rot):
-        A = S["achsen"][rot]                      # (k, 3, 3): Zeilen = lokale Achsen in Welt
-        ol = np.einsum("kij,rkj->rki", A, o[:, None, :] - S["mitte"][rot][None])
-        dl = np.einsum("kij,rj->rki", A, d)
-        invl = 1.0 / np.where(np.abs(dl) < 1e-7, 1e-7, dl)
-        h = S["halb"][rot][None]
-        t1 = (-h - ol) * invl
-        t2 = (h - ol) * invl
-        tnah = np.minimum(t1, t2)
-        tein = tnah.max(axis=2)
-        taus = np.maximum(t1, t2).min(axis=2)
-        tein = np.where((taus >= tein) & (tein > 1e-4), tein, np.inf)
-        b = tein.argmin(axis=1)
-        t = tein[r, b]
-        ax = tnah[r, b].argmax(axis=1)
-        besser = t < t_best
-        t_best = np.where(besser, t, t_best)
-        i_best = np.where(besser, rot[b], i_best)
-        vorz = -np.sign(dl[r, b, ax])
-        nn = (A[b, ax] * vorz[:, None]).astype(np.float32)
-        n_best = np.where(besser[:, None], nn, n_best)
-    return t_best, i_best, n_best
+    szene.update(hs.baue_raster(szene["bmin"], szene["bmax"], np.array(RAUM_MIN), np.array(RAUM_MAX)))
+    return szene
 
 
 def schnitt(o: np.ndarray, d: np.ndarray, raum: int, bis: np.ndarray | None = None):
-    """Nächster Treffer: erst gegen die Quader des Raumbereichs; verlässt der Strahl den Bereich ohne
-    Treffer darin, gegen alle Quader (so bleibt das Ergebnis exakt).
-    bis: wird nur die Strecke bis zu dieser Entfernung gebraucht (Sichtprüfung) und liegt ihr Ende im Bereich,
-    genügt die Auswahl (ein Quader außerhalb des Bereichs kann die Strecke nicht schneiden)."""
-    S = _S
-    t, i, nrm = _schnitt_teil(o, d, S["auswahl"][raum])
-    lo, hi = S["bereiche"][raum]
-    p = o + d * np.where(np.isfinite(t), t, 0)[:, None]
-    drin = np.isfinite(t) & np.all((p >= lo) & (p <= hi), axis=1)
-    if bis is not None:
-        ende = o + d * bis[:, None]
-        drin |= np.all((ende >= lo) & (ende <= hi), axis=1)
-    nach = np.nonzero(~drin)[0]
-    if len(nach):
-        t2, i2, n2 = _schnitt_teil(o[nach], d[nach], np.arange(len(S["bmin"])))
-        t[nach], i[nach], nrm[nach] = t2, i2, n2
-    return t, i, nrm
+    """Nächster Treffer (t, Quader-Index, Normale) über das Raster (holmes_strahlen.schnitt_raster).
+    bis: nur die Strecke bis zu dieser Entfernung zählt (Sichtprüfung). raum bleibt im Aufruf, weil die
+    Arbeitspakete weiter je Raum geordnet sind (das hält die Zufallszahlen gleich)."""
+    return hs.schnitt_raster(_S, o, d, bis)
 
 
 def raum_von(p: np.ndarray) -> np.ndarray:
-    return np.clip(np.searchsorted(_S["grenzen"], p[:, 2]) - 1, 0, len(_S["auswahl"]) - 1)
-
-
-def innen(p: np.ndarray, rand: float) -> np.ndarray:
-    """Liegt der Punkt in einem Quader (um `rand` vergrößert)?"""
-    S = _S
-    erg = np.zeros(len(p), dtype=bool)
-    par = np.nonzero(S["parallel"])[0]
-    for s in range(0, len(par), 64):
-        k = par[s:s + 64]
-        erg |= np.any(np.all((p[:, None] > S["bmin"][k][None] - rand) & (p[:, None] < S["bmax"][k][None] + rand), axis=2), axis=1)
-    for k in np.nonzero(~S["parallel"])[0]:
-        lokal = (p - S["mitte"][k]) @ S["achsen"][k].T
-        erg |= np.all(np.abs(lokal) < S["halb"][k] + rand, axis=1)
-    return erg
+    return np.clip(np.searchsorted(_S["grenzen"], p[:, 2]) - 1, 0, _S["raeume"] - 1)
 
 
 def himmel(richtung: np.ndarray) -> np.ndarray:
@@ -257,6 +185,7 @@ def _direkt_paket(args):
     pkte, normalen, raum, proben = args
     n = len(pkte)
     erg = np.zeros((n, 6, 3) if normalen is None else (n, 3), dtype=np.float64)
+    teile = []
     for f in _S["fenster"]:
         pkt, n_f, flaeche = _fenster_proben(f, proben)
         d = pkt[None] - pkte[:, None]
@@ -268,10 +197,21 @@ def _direkt_paket(args):
         if not nutz.any():
             continue
         pi, si = np.nonzero(nutz)
+        teile.append((pi, si, w, rr, cos_f, gew, flaeche))
+    if not teile:
+        return erg
+    # Sichtstrahlen aller Fenster auf einmal verfolgen (das Ergebnis je Strahl hängt nicht vom Paket ab)
+    t_alle, _, _ = schnitt(np.concatenate([pkte[pi] for pi, *_ in teile]).astype(np.float32),
+                           np.concatenate([w[pi, si] for pi, si, w, *_ in teile]).astype(np.float32), raum,
+                           bis=np.concatenate([rr[pi, si] for pi, si, w, rr, *_ in teile]))
+    pos = 0
+    for pi, si, w, rr, cos_f, gew, flaeche in teile:
+        t_f = t_alle[pos:pos + len(pi)]
+        pos += len(pi)
         for s in range(0, len(pi), STUECK):
             a, b = pi[s:s + STUECK], si[s:s + STUECK]
             ww = w[a, b]
-            t, _, _ = schnitt(pkte[a].astype(np.float32), ww.astype(np.float32), raum, bis=rr[a, b])
+            t = t_f[s:s + STUECK]
             frei = t >= rr[a, b] - 0.02
             raumwinkel = flaeche * cos_f[a, b] / np.maximum(rr[a, b], 0.05) ** 2
             L = himmel(ww) * (raumwinkel * frei)[:, None]
@@ -325,6 +265,7 @@ def _sammle_paket(args):
     n = len(pkte)
     E = np.zeros((n, 3))
     frei = np.zeros(n)
+    stuecke = []
     for s in range(0, n, max(1, STUECK // k)):
         p = pkte[s:s + STUECK // k]
         nn = normalen[s:s + STUECK // k]
@@ -340,9 +281,14 @@ def _sammle_paket(args):
         hoch = np.sqrt(1 - rad ** 2)[None]
         d = (tu[:, None] * (rad[None] * cphi)[..., None] + tv[:, None] * (rad[None] * sphi)[..., None]
              + nn[:, None] * hoch[..., None])
-        o2 = np.repeat(p, k, axis=0).astype(np.float32)
-        d2 = d.reshape(-1, 3).astype(np.float32)
-        t, idx, nrm = schnitt(o2, d2, raum)
+        stuecke.append((s, m, np.repeat(p, k, axis=0).astype(np.float32), d.reshape(-1, 3).astype(np.float32)))
+    # alle Strahlen des Pakets auf einmal verfolgen (das Ergebnis je Strahl hängt nicht vom Paket ab)
+    t_alle, i_alle, n_alle = schnitt(np.concatenate([st[2] for st in stuecke]),
+                                     np.concatenate([st[3] for st in stuecke]), raum)
+    pos = 0
+    for s, m, o2, d2 in stuecke:
+        t, idx, nrm = t_alle[pos:pos + len(o2)], i_alle[pos:pos + len(o2)], n_alle[pos:pos + len(o2)]
+        pos += len(o2)
         g = np.isfinite(t)
         L = np.zeros((len(o2), 3))
         if g.any():
@@ -354,18 +300,59 @@ def _sammle_paket(args):
     return E, frei
 
 
-def _innen_paket(args):
-    p, rand = args
-    return innen(p, rand)
-
-
 # ---------------------------------------------------------------- Berechnen
 
-def berechne(modell_datei: Path, ziel: Path) -> int:
+def _proben_liste(fenster: list, proben: tuple[int, int]):
+    """Alle Fensterproben für die Grafikkarte: (Punkt, Fläche je Probe) und (Fensternormale) je Probe."""
+    p, n = [], []
+    for f in fenster:
+        pkt, n_f, flaeche = _fenster_proben(f, proben)
+        p.append(np.column_stack([pkt, np.full(len(pkt), flaeche)]))
+        n.append(np.tile(np.append(n_f, 0.0), (len(pkt), 1)))
+    return np.concatenate(p), np.concatenate(n)
+
+
+def _drehwinkel(pakete: list, anzahl: int) -> np.ndarray:
+    """Zufällige Drehung der Halbkugel je Lichtkarten-Bildpunkt – genau wie in _sammle_paket
+    (gleiche Saat je Paket, gleiche Reihenfolge der Ziehungen)."""
+    dreh = np.zeros(anzahl)
+    teil = STUECK // KARTE_STRAHLEN
+    for nr, (_, sel) in enumerate(pakete):
+        rng = np.random.default_rng(1000 + nr)
+        for s in range(0, len(sel), max(1, teil)):
+            stueck = sel[s:s + teil]
+            dreh[stueck] = rng.uniform(0, 2 * np.pi, len(stueck))
+    return dreh
+
+
+def _waehle_weg(szene: dict, nur_cpu: bool):
+    """Grafikkarte, wenn möglich; sonst (oder mit --cpu) None = CPU-Weg."""
+    if nur_cpu:
+        print("Rechenweg: CPU (Schalter --cpu)")
+        return None
+    try:
+        gk = hs.Grafikkarte(szene)
+    except Exception as fehler:  # noqa: BLE001 – jede Ursache führt auf den CPU-Weg
+        print(f"Hinweis: Grafikkarte nicht nutzbar ({type(fehler).__name__}: {fehler}) – rechne auf der CPU.")
+        return None
+    print(f"Rechenweg: Grafikkarte ({gk.name})")
+    return gk
+
+
+def berechne(modell_datei: Path, ziel: Path, nur_cpu: bool = False) -> int:
     from multiprocessing import Pool
     from PIL import Image
 
     beginn = time.time()
+    phasen: list[tuple[str, float]] = []
+    marke = [beginn]
+
+    def phase(name: str) -> None:
+        jetzt = time.time()
+        phasen.append((name, jetzt - marke[0]))
+        print(f"  [{jetzt - marke[0]:6.1f} s] {name}  (gesamt {jetzt - beginn:.0f} s)")
+        marke[0] = jetzt
+
     modell = json.loads(modell_datei.read_text(encoding="utf-8"))
     if "flaechen" not in modell:
         print("Das Raummodell ist im alten Format – bitte neu senden (__debug.sendeLichtModell()).")
@@ -374,23 +361,57 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
     _init(szene)
     kerne = os.cpu_count() or 4
     print(f"{len(szene['bmin'])} Quader ({int((~szene['parallel']).sum())} gedreht), {len(szene['fenster'])} Fenster, "
-          f"{len(modell['flaechen'])} Lichtkarten-Seiten, {kerne} Prozesse")
+          f"{len(modell['flaechen'])} Lichtkarten-Seiten, {kerne} Prozesse; Raster "
+          f"{' × '.join(str(int(v)) for v in szene['r_n'])} Zellen à {szene['r_zelle']} m, "
+          f"{len(szene['r_liste'])} Einträge")
+    gk = _waehle_weg(szene, nur_cpu)
+    weg = f"Grafikkarte ({gk.name})" if gk else f"CPU ({kerne} Prozesse)"
+    boden = (BODEN_REFLEXION * 7 / 9) * np.array(BODEN_AUSSEN)
 
     rmin = np.array(RAUM_MIN)
     rmax = np.array(RAUM_MAX)
+    if AUSSCHNITT:
+        rmax[2] = AUSSCHNITT
+        print(f"AUSSCHNITT (nur zum Testen): Gitter und Lichtkarte bis z = {AUSSCHNITT} m")
     nx, ny, nz = (int(v) for v in np.ceil((rmax - rmin) / SCHRITT))
     gx, gy, gz = np.meshgrid(np.arange(nx), np.arange(ny), np.arange(nz), indexing="ij")
     punkte = rmin + (np.stack([gx, gy, gz], -1).reshape(-1, 3) + 0.5) * SCHRITT
     anzahl = len(punkte)
 
-    with Pool(kerne, initializer=_init, initargs=(szene,)) as pool:
-        # ---------- Lichtgitter
-        # Punkte in Quadern und genau auf Oberflächen (± 2 cm) sind ungültig, werden aus Nachbarn aufgefüllt
-        teile = np.array_split(punkte, kerne * 4)
-        gueltig = ~np.concatenate(pool.map(_innen_paket, [(t, 0.02) for t in teile]))
-        idx = np.nonzero(gueltig)[0]
-        raum_g = raum_von(punkte[idx])
-        print(f"Lichtgitter {nx} × {ny} × {nz} = {anzahl} Punkte ({len(idx)} gültig)")
+    # Lichtkarten-Bildpunkte (hängen nicht vom Gitter ab)
+    fl = np.array(modell["flaechen"], dtype=np.float64)
+    if AUSSCHNITT:
+        fl = fl[(fl[:, 6] + fl[:, 9] / 2 + fl[:, 12] / 2) < AUSSCHNITT]
+    breite, hoehe = (int(v) for v in modell["atlas"])
+    pos_l, nrm_l, ziel_l, seite_l = [], [], [], []
+    for s, f in enumerate(fl):
+        x0, y0, w, h = (int(v) for v in f[0:4])
+        ecke, u, v, n = f[4:7], f[7:10], f[10:13], f[13:16]
+        ii, jj = np.meshgrid(np.arange(w), np.arange(h), indexing="ij")
+        p = ecke + ((ii.ravel()[:, None] + 0.5) / w) * u + ((jj.ravel()[:, None] + 0.5) / h) * v
+        pos_l.append(p + n * 0.01)
+        nrm_l.append(np.repeat(n[None], len(p), axis=0))
+        ziel_l.append(np.stack([x0 + ii.ravel(), y0 + jj.ravel()], 1))
+        seite_l.append(np.full(len(p), s))
+    kp = np.concatenate(pos_l)
+    kn = np.concatenate(nrm_l)
+    kz = np.concatenate(ziel_l)
+    print(f"Lichtkarte {breite} × {hoehe}: {len(kp)} Bildpunkte")
+
+    phase("Vorbereitung")
+
+    # Punkte in Quadern sind ungültig: Gitter mit ± 2 cm (auch genau auf Oberflächen), Lichtkarte ohne Rand
+    gueltig = ~hs.innen_raster(szene, punkte, 0.02)
+    k_gueltig = ~hs.innen_raster(szene, kp, 0.0)
+    idx = np.nonzero(gueltig)[0]
+    raum_g = raum_von(punkte[idx])
+    print(f"Lichtgitter {nx} × {ny} × {nz} = {anzahl} Punkte ({len(idx)} gültig)")
+    phase("Punkte prüfen")
+    from contextlib import nullcontext
+
+    # CPU-Weg: Hilfsprozesse auf allen Kernen; die Grafikkarte braucht keine
+    with (nullcontext() if gk else Pool(kerne, initializer=_init, initargs=(szene,))) as pool:
+        # ---------- Lichtgitter (ungültige Punkte werden später aus Nachbarn aufgefüllt)
 
         def je_raum(liste, raeume, groesse):
             """Indizes nach Raum ordnen und in Pakete teilen."""
@@ -402,10 +423,14 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
             return pakete
 
         direkt = np.zeros((anzahl, 6, 3))
-        pakete = je_raum(np.arange(len(idx)), raum_g, 64)
-        for (r, sel), erg in zip(pakete, pool.imap(_direkt_paket, [(punkte[idx[sel]], None, int(r), PROBEN_GITTER) for r, sel in pakete])):
-            direkt[idx[sel]] = erg
-        print(f"  direktes Licht: {time.time() - beginn:.0f} s")
+        if gk:
+            pr, prn = _proben_liste(szene["fenster"], PROBEN_GITTER)
+            direkt[idx] = gk.direkt(punkte[idx], None, pr, prn, HIMMEL, boden)
+        else:
+            pakete = je_raum(np.arange(len(idx)), raum_g, 512)   # früher 64; Ergebnis je Punkt gleich
+            for (r, sel), erg in zip(pakete, pool.imap(_direkt_paket, [(punkte[idx[sel]], None, int(r), PROBEN_GITTER) for r, sel in pakete])):
+                direkt[idx[sel]] = erg
+        phase("Gitter: direktes Licht")
 
         kk = np.arange(STRAHLEN) + 0.5
         phi = np.arccos(1 - 2 * kk / STRAHLEN)
@@ -418,17 +443,21 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
         richt[..., 0] = c[:, None] * basis[None, :, 0] - si[:, None] * basis[None, :, 2]
         richt[..., 1] = basis[None, :, 1]
         richt[..., 2] = si[:, None] * basis[None, :, 0] + c[:, None] * basis[None, :, 2]
-        tref_t = np.full((len(idx), STRAHLEN), np.inf, dtype=np.float32)
-        tref_i = np.full((len(idx), STRAHLEN), -1, dtype=np.int64)
-        tref_n = np.zeros((len(idx), STRAHLEN, 3), dtype=np.float32)
-        pakete = je_raum(np.arange(len(idx)), raum_g, max(1, STUECK // STRAHLEN))
-        auftraege = [(np.repeat(punkte[idx[sel]], STRAHLEN, axis=0).astype(np.float32), richt[sel].reshape(-1, 3), int(r)) for r, sel in pakete]
-        for (r, sel), (t, i, nrm) in zip(pakete, pool.imap(_strahlen_paket, auftraege, chunksize=4)):
-            tref_t[sel] = t.reshape(-1, STRAHLEN)
-            tref_i[sel] = i.reshape(-1, STRAHLEN)
-            tref_n[sel] = nrm.reshape(-1, STRAHLEN, 3)
-        print(f"  Strahlen verfolgt: {time.time() - beginn:.0f} s")
-        gewicht = np.clip(np.einsum("prk,ak->pra", richt, _ACHSEN), 0, None) * (4 * np.pi / STRAHLEN)
+        if gk:
+            gk.strahlen(punkte[idx], richt, SCHRITT * 0.5)        # Treffer bleiben auf der Grafikkarte
+        else:
+            tref_t = np.full((len(idx), STRAHLEN), np.inf, dtype=np.float32)
+            tref_i = np.full((len(idx), STRAHLEN), -1, dtype=np.int64)
+            tref_n = np.zeros((len(idx), STRAHLEN, 3), dtype=np.float32)
+            # größere Pakete als früher (13 Punkte): weniger Aufrufe, das Ergebnis je Strahl bleibt gleich
+            pakete = je_raum(np.arange(len(idx)), raum_g, 128)
+            auftraege = [(np.repeat(punkte[idx[sel]], STRAHLEN, axis=0).astype(np.float32), richt[sel].reshape(-1, 3), int(r)) for r, sel in pakete]
+            for (r, sel), (t, i, nrm) in zip(pakete, pool.imap(_strahlen_paket, auftraege, chunksize=4)):
+                tref_t[sel] = t.reshape(-1, STRAHLEN)
+                tref_i[sel] = i.reshape(-1, STRAHLEN)
+                tref_n[sel] = nrm.reshape(-1, STRAHLEN, 3)
+            gewicht = np.clip(np.einsum("prk,ak->pra", richt, _ACHSEN), 0, None) * (4 * np.pi / STRAHLEN)
+        phase("Gitter: Strahlen verfolgen")
 
         def schiebe(a: np.ndarray, sch: int, ax: int) -> np.ndarray:
             """Wie np.roll, aber ohne Umlauf: Am Rand rückt eine Null nach."""
@@ -476,44 +505,33 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
         direkt = fuelle(direkt)
         feld = direkt.copy()
         print(f"Gitter, direktes Himmelslicht: mittlere Helligkeit {feld[gueltig].mean():.4f}")
-        hb = tref_i >= 0
-        pf = punkte[idx][:, None] + richt * np.where(hb, tref_t, 0)[..., None]
+        if not gk:
+            hb = tref_i >= 0
+            pf = punkte[idx][:, None] + richt * np.where(hb, tref_t, 0)[..., None]
         for durchgang in range(1, DURCHGAENGE):
-            L = np.zeros((len(idx), STRAHLEN, 3))
-            E = _nachschlagen(feld, (nx, ny, nz), pf[hb] + tref_n[hb] * (SCHRITT * 0.5), tref_n[hb])
-            L[hb] = szene["albedo"][tref_i[hb]] * E / np.pi
             indirekt = np.zeros((anzahl, 6, 3))
-            indirekt[idx] = np.einsum("pra,prc->pac", gewicht, L)
+            if gk:
+                indirekt[idx] = gk.durchgang(feld, (nx, ny, nz), SCHRITT, RAUM_MIN)
+            else:
+                L = np.zeros((len(idx), STRAHLEN, 3))
+                E = _nachschlagen(feld, (nx, ny, nz), pf[hb] + tref_n[hb] * (SCHRITT * 0.5), tref_n[hb])
+                L[hb] = szene["albedo"][tref_i[hb]] * E / np.pi
+                indirekt[idx] = np.einsum("pra,prc->pac", gewicht, L)
             # Erst glätten, dann auffüllen: Punkte auf Wänden übernehmen so geglättete Nachbarwerte
             indirekt = fuelle(glaette(indirekt))
             feld = direkt + indirekt
             print(f"Gitter, Durchgang {durchgang + 1}: mittlere Helligkeit {feld[gueltig].mean():.4f}")
-        del tref_t, tref_i, tref_n, richt, pf, gewicht
+        if not gk:
+            del tref_t, tref_i, tref_n, pf, gewicht
+        del richt
+        phase("Gitter: Durchgänge")
 
-    # ---------- Lichtkarte (neuer Prozess-Pool: kennt das fertige Gitter)
+    # ---------- Lichtkarte (CPU-Weg: neuer Prozess-Pool, kennt das fertige Gitter)
     szene["feld"] = feld
     szene["info"] = (nx, ny, nz)
     _init(szene)
-    fl = np.array(modell["flaechen"], dtype=np.float64)
-    breite, hoehe = (int(v) for v in modell["atlas"])
-    pos_l, nrm_l, ziel_l, seite_l = [], [], [], []
-    for s, f in enumerate(fl):
-        x0, y0, w, h = (int(v) for v in f[0:4])
-        ecke, u, v, n = f[4:7], f[7:10], f[10:13], f[13:16]
-        ii, jj = np.meshgrid(np.arange(w), np.arange(h), indexing="ij")
-        p = ecke + ((ii.ravel()[:, None] + 0.5) / w) * u + ((jj.ravel()[:, None] + 0.5) / h) * v
-        pos_l.append(p + n * 0.01)
-        nrm_l.append(np.repeat(n[None], len(p), axis=0))
-        ziel_l.append(np.stack([x0 + ii.ravel(), y0 + jj.ravel()], 1))
-        seite_l.append(np.full(len(p), s))
-    kp = np.concatenate(pos_l)
-    kn = np.concatenate(nrm_l)
-    kz = np.concatenate(ziel_l)
-    print(f"Lichtkarte {breite} × {hoehe}: {len(kp)} Bildpunkte")
 
-    with Pool(kerne, initializer=_init, initargs=(szene,)) as pool:
-        teile = np.array_split(np.arange(len(kp)), kerne * 8)
-        k_gueltig = ~np.concatenate(pool.map(_innen_paket, [(kp[t], 0.0) for t in teile]))
+    with (nullcontext() if gk else Pool(kerne, initializer=_init, initargs=(szene,))) as pool:
         ki = np.nonzero(k_gueltig)[0]
         raum_k = raum_von(kp[ki])
         print(f"  sichtbare Bildpunkte: {len(ki)}")
@@ -525,14 +543,30 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
             sel = ki[raum_k == r]
             for s in range(0, len(sel), 48):
                 pakete.append((int(r), sel[s:s + 48]))
-        for (r, sel), erg in zip(pakete, pool.imap(_direkt_paket, [(kp[sel], kn[sel], r, PROBEN_KARTE) for r, sel in pakete], chunksize=4)):
-            E_dir[sel] = erg
-        print(f"  direktes Licht: {time.time() - beginn:.0f} s")
-        auftraege = [(kp[sel], kn[sel], r, 1000 + nr) for nr, (r, sel) in enumerate(pakete)]
-        for (r, sel), (e, fr) in zip(pakete, pool.imap(_sammle_paket, auftraege, chunksize=4)):
-            E_ind[sel] = e
-            frei[sel] = fr
-        print(f"  zurückgeworfenes Licht: {time.time() - beginn:.0f} s")
+        if gk:
+            pr, prn = _proben_liste(szene["fenster"], PROBEN_KARTE)
+            E_dir[ki] = gk.direkt(kp[ki], kn[ki], pr, prn, HIMMEL, boden)
+        else:
+            # eigene, größere Pakete fürs direkte Licht (keine Zufallszahlen daran; Ergebnis je Punkt gleich)
+            gross = []
+            for r in np.unique(raum_k):
+                sel = ki[raum_k == r]
+                gross += [(int(r), sel[s:s + 384]) for s in range(0, len(sel), 384)]
+            for (r, sel), erg in zip(gross, pool.imap(_direkt_paket, [(kp[sel], kn[sel], r, PROBEN_KARTE) for r, sel in gross])):
+                E_dir[sel] = erg
+        phase("Lichtkarte: direktes Licht")
+        if gk:
+            dreh = _drehwinkel(pakete, len(kp))
+            E_ind[ki], frei[ki] = gk.sammeln(kp[ki], kn[ki], dreh[ki], feld, (nx, ny, nz), SCHRITT, RAUM_MIN,
+                                             KARTE_STRAHLEN, NAH, SCHRITT * 0.5)
+        else:
+            auftraege = [(kp[sel], kn[sel], r, 1000 + nr) for nr, (r, sel) in enumerate(pakete)]
+            for (r, sel), (e, fr) in zip(pakete, pool.imap(_sammle_paket, auftraege, chunksize=4)):
+                E_ind[sel] = e
+                frei[sel] = fr
+        phase("Lichtkarte: zurückgeworfenes Licht")
+    if gk:
+        gk.schliessen()
 
     # Je Seite: zurückgeworfenes Licht leicht glätten, verdeckte Bildpunkte aus Nachbarn füllen, Rand auffüllen
     atlas = np.zeros((hoehe, breite, 3))
@@ -562,7 +596,7 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
         atlas[y0 - 1:y0 + h + 1, x0 - 1:x0 + w + 1] = block
         alpha[y0 - 1:y0 + h + 1, x0 - 1:x0 + w + 1] = 1 + np.round(254 * np.clip(fblock, 0, 1))
 
-    glaette_karte(atlas, fl)
+    glaette_karte(atlas, fl, alpha)
     hoechst_k = float(atlas.max())
     rgb = (np.clip(atlas / hoechst_k, 0, 1) ** (1 / 2.2) * 255 + 0.5).astype(np.uint8)
     bild_k = np.dstack([rgb, alpha.astype(np.uint8)])
@@ -591,37 +625,59 @@ def berechne(modell_datei: Path, ziel: Path) -> int:
     (ziel / "licht-etage3.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
     for name in ("licht-etage3.png", "licht-etage3-karte.png"):
         print(f"geschrieben: {ziel / name} ({(ziel / name).stat().st_size // 1024} KB)")
-    print(f"fertig nach {time.time() - beginn:.0f} s")
+    phase("Lichtkarte nachbearbeiten, Dateien schreiben")
+    print(f"\nRechenweg: {weg}")
+    for name, dauer in phasen:
+        print(f"  {dauer:6.1f} s  {name}")
+    print(f"fertig nach {time.time() - beginn:.1f} s")
     return 0
 
 
 KARTE_UNSCHAERFE = 2.5   # Weichzeichnung der Lichtkarte je Seite (Bildpunkte, Gauß-Sigma) gegen Wolken/Flecken
+KARTE_UNSCHAERFE_NAH = 1.0   # … nahe an Verdeckern (Möbelfugen, Kontaktschatten), siehe glaette_karte
+FREI_NAH = (0.45, 0.75)  # freie Sicht: bis zum ersten Wert schwach, ab dem zweiten stark weichgezeichnet
 
 
-def glaette_karte(atlas: np.ndarray, fl: np.ndarray, sigma: float = KARTE_UNSCHAERFE) -> None:
-    """Lichtkarte je Seite weichzeichnen (Gauß, nur innerhalb der Seite, am Rand normiert) und den Randpunkt
-    ringsum neu als Kopie der Kante setzen. Ohne das bleibt das Zufallsrauschen des zurückgeworfenen Lichts
-    als wolkige Flecken auf Wänden und Decken sichtbar (Hinweis des Nutzers)."""
+def _gauss_seite(blk: np.ndarray, sigma: float) -> np.ndarray:
+    """Gauß-Weichzeichnung eines Blocks (Höhe × Breite [× Kanäle]), nur innerhalb des Blocks, am Rand normiert."""
     r = int(np.ceil(3 * sigma))
     kern = np.exp(-0.5 * (np.arange(-r, r + 1) / sigma) ** 2)
+    eins = np.ones(blk.shape[:2])
+    for ax in (0, 1):
+        summe = np.zeros_like(blk)
+        gew = np.zeros_like(eins)
+        n = blk.shape[ax]
+        for k, g in zip(range(-r, r + 1), kern):
+            if abs(k) >= n:
+                continue
+            q = [slice(None), slice(None)]
+            z = [slice(None), slice(None)]
+            q[ax] = slice(max(0, -k), n - max(0, k))
+            z[ax] = slice(max(0, k), n - max(0, -k))
+            summe[tuple(z)] += g * blk[tuple(q)]
+            gew[tuple(z)] += g * eins[tuple(q)]
+        blk = summe / (gew[..., None] if blk.ndim == 3 else gew)
+    return blk
+
+
+def glaette_karte(atlas: np.ndarray, fl: np.ndarray, alpha: np.ndarray | None = None,
+                  sigma: float = KARTE_UNSCHAERFE, sigma_nah: float = KARTE_UNSCHAERFE_NAH) -> None:
+    """Lichtkarte je Seite weichzeichnen (Gauß, nur innerhalb der Seite, am Rand normiert) und den Randpunkt
+    ringsum neu als Kopie der Kante setzen. Ohne das bleibt das Zufallsrauschen des zurückgeworfenen Lichts
+    als wolkige Flecken auf Wänden und Decken sichtbar (Hinweis des Nutzers).
+    Nahe an Verdeckern (wenig freie Sicht laut Alphakanal, z. B. Boden unter und an Möbeln, unter Figuren)
+    gilt eine schwache Weichzeichnung: die starke verwischte dort die Kontaktfuge. Übergang weich nach FREI_NAH;
+    auf freier Fläche bleibt alles wie zuvor."""
     for f in fl:
         x0, y0, w, h = (int(v) for v in f[0:4])
-        blk = atlas[y0:y0 + h, x0:x0 + w]
-        eins = np.ones((h, w))
-        for ax in (0, 1):
-            summe = np.zeros_like(blk)
-            gew = np.zeros_like(eins)
-            n = blk.shape[ax]
-            for k, g in zip(range(-r, r + 1), kern):
-                if abs(k) >= n:
-                    continue
-                q = [slice(None), slice(None)]
-                z = [slice(None), slice(None)]
-                q[ax] = slice(max(0, -k), n - max(0, k))
-                z[ax] = slice(max(0, k), n - max(0, -k))
-                summe[tuple(z)] += g * blk[tuple(q)]
-                gew[tuple(z)] += g * eins[tuple(q)]
-            blk = summe / gew[..., None]
+        roh = atlas[y0:y0 + h, x0:x0 + w]
+        blk = _gauss_seite(roh, sigma)
+        if alpha is not None:
+            fr = _gauss_seite(np.clip((alpha[y0:y0 + h, x0:x0 + w] - 1) / 254, 0, 1), sigma_nah)
+            weich = np.clip((fr - FREI_NAH[0]) / (FREI_NAH[1] - FREI_NAH[0]), 0, 1)
+            weich = weich * weich * (3 - 2 * weich)
+            nah = _gauss_seite(roh, sigma_nah)
+            blk = nah + (blk - nah) * weich[..., None]
         atlas[y0:y0 + h, x0:x0 + w] = blk
         atlas[y0 - 1:y0 + h + 1, x0 - 1:x0 + w + 1] = np.pad(blk, ((1, 1), (1, 1), (0, 0)), mode="edge")
 
@@ -661,15 +717,88 @@ def _fuelle_seite(wert: np.ndarray, fr: np.ndarray, ok: np.ndarray):
     return wert, fr
 
 
+def vergleiche(a: Path, b: Path, modell_datei: Path) -> int:
+    """Gitter-PNG und Lichtkarten-PNG zweier Läufe Bildpunkt für Bildpunkt abgleichen."""
+    from PIL import Image
+
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    info_a = json.loads((a / "licht-etage3.json").read_text(encoding="utf-8"))
+    info_b = json.loads((b / "licht-etage3.json").read_text(encoding="utf-8"))
+    for name, wa, wb in (("Gitter", info_a["hoechstwert"], info_b["hoechstwert"]),
+                         ("Lichtkarte", info_a["lichtkarte"]["hoechstwert"], info_b["lichtkarte"]["hoechstwert"])):
+        print(f"Höchstwert {name}: {wa:.6g} ↔ {wb:.6g} (Verhältnis {wb / wa:.6f})")
+    seite_von = None
+    try:
+        fl = np.array(json.loads(modell_datei.read_text(encoding="utf-8"))["flaechen"])
+        seite_von = np.full((int(fl[:, 1].max() + fl[:, 3].max() + 2), int(fl[:, 0].max() + fl[:, 2].max() + 2)), -1)
+        for s, f in enumerate(fl):
+            x0, y0, w, h = (int(v) for v in f[0:4])
+            seite_von[y0:y0 + h, x0:x0 + w] = s
+    except (OSError, ValueError, KeyError):
+        pass
+    nx, ny = info_a["nx"], info_a["ny"]
+    richtungen = info_a["richtungen"]
+    gut = True
+    for datei, art in (("licht-etage3.png", "gitter"), ("licht-etage3-karte.png", "karte")):
+        ia = np.asarray(Image.open(a / datei)).astype(np.int16)
+        ib = np.asarray(Image.open(b / datei)).astype(np.int16)
+        if ia.shape != ib.shape:
+            print(f"{datei}: Größe verschieden {ia.shape} ↔ {ib.shape}")
+            gut = False
+            continue
+        diff = np.abs(ia - ib)
+        hoechst = diff.reshape(-1, diff.shape[-1]).max(axis=0)
+        je_punkt = diff.max(axis=-1)
+        ueber2 = float((je_punkt > 2).mean())
+        verschieden = float((je_punkt > 0).mean())
+        kanaele = "RGBA"[:diff.shape[-1]]
+        print(f"\n{datei} ({ia.shape[1]} × {ia.shape[0]}): höchste Abweichung je Kanal "
+              + ", ".join(f"{k} {v}" for k, v in zip(kanaele, hoechst))
+              + f"; verschieden {verschieden * 100:.3f} %, über 2 Stufen {ueber2 * 100:.3f} %")
+        if ueber2 > 0.01:
+            gut = False
+        if je_punkt.max() == 0:
+            continue
+        flach = np.argsort(je_punkt, axis=None)[::-1][:10]
+        print("  größte Ausreißer:")
+        for pos in flach:
+            y, x = divmod(int(pos), je_punkt.shape[1])
+            if je_punkt[y, x] == 0:
+                break
+            if art == "gitter":
+                z, gy = divmod(y, ny)
+                r, gx = divmod(x, nx)
+                lage = f"Gitterpunkt x {gx} y {gy} z {z} (≈ {(gx + 0.5) * SCHRITT:.1f} / {(gy + 0.5) * SCHRITT:.1f} / {(z + 0.5) * SCHRITT:.1f} m), Richtung {richtungen[r]}"
+            else:
+                s = int(seite_von[y, x]) if seite_von is not None and y < seite_von.shape[0] and x < seite_von.shape[1] else -1
+                lage = f"Atlas x {x} y {y}, Seite {s if s >= 0 else 'Rand'}"
+            print(f"    {int(je_punkt[y, x]):3d} Stufen  {lage}: {ia[y, x].tolist()} ↔ {ib[y, x].tolist()}")
+    print("\nErgebnis:", "≥ 99 % der Bildpunkte höchstens 2 Stufen verschieden" if gut else "ABWEICHUNG über der Grenze")
+    return 0 if gut else 1
+
+
 def main() -> int:
-    if len(sys.argv) < 2 or sys.argv[1] not in ("empfange", "berechne"):
+    global AUSSCHNITT
+    nur_cpu = "--cpu" in sys.argv
+    if nur_cpu:
+        sys.argv.remove("--cpu")
+    if "--ausschnitt" in sys.argv:
+        i = sys.argv.index("--ausschnitt")
+        AUSSCHNITT = float(sys.argv[i + 1])
+        del sys.argv[i:i + 2]
+    if len(sys.argv) < 2 or sys.argv[1] not in ("empfange", "berechne", "vergleiche"):
         print(__doc__)
         return 2
     if sys.argv[1] == "empfange":
         return empfange(Path(sys.argv[2]) if len(sys.argv) > 2 else MODELL_VORGABE)
+    if sys.argv[1] == "vergleiche":
+        if len(sys.argv) < 4:
+            print(__doc__)
+            return 2
+        return vergleiche(Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]) if len(sys.argv) > 4 else MODELL_VORGABE)
     modell = Path(sys.argv[2]) if len(sys.argv) > 2 else MODELL_VORGABE
     ziel = Path(sys.argv[3]) if len(sys.argv) > 3 else ZIEL_VORGABE
-    return berechne(modell, ziel)
+    return berechne(modell, ziel, nur_cpu)
 
 
 if __name__ == "__main__":

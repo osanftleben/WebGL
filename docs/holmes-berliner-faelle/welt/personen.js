@@ -5,6 +5,7 @@
 // Annahmen: Farbe von Rock und Hose (dunkelblau), Knöpfe, Koppel, Schnurrbart, Statur.
 import * as THREE from 'three';
 import { verschmelze } from './verschmelzen.js';
+import { weicherFleck } from './fleck.js';
 import { kopf, hals, arm, oberkoerper, band, rumpfPunkt } from './menschen.js';
 import { gesichtsTafel, GESICHT } from './texturen.js';
 import { baueHelm } from './helm.js';
@@ -111,5 +112,9 @@ export function baueSchutzmann() {
   treffer.visible = false;
   treffer.userData.nurTreffer = true;
   person.add(treffer);
+  // Kontaktschatten: weicher Fleck unter den Stiefeln (Personen stehen nicht im Lichtmodell), wandert mit
+  const fleck = weicherFleck(1.0, 0.9);
+  fleck.position.z = 0.04;
+  person.add(fleck);
   return person;
 }

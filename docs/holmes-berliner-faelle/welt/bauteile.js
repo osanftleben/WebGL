@@ -497,6 +497,10 @@ const BUESTE = [[1.15, 0.165, 0.1, 0, 2.6], [1.22, 0.177, 0.108, 0.005, 2.5], [1
  */
 export function buesteAufSockel(m, rolle) {
   const g = new THREE.Group();
+  // Kontaktschatten: Schultern, Hals und Kopf verdecken in der Lichtberechnung als Scheiben (lichtmodell.js)
+  g.userData.lichtZonen = [1.12, 1.25, 1.34, 1.45, 1.6, 1.95];
+  // Fuge am Sockelfuß (für die Lichtkarte zu schmal): eckiger Kontaktfleck (welt/fleck.js)
+  g.userData.kontaktFleck = { breite: 0.5, tiefe: 0.5, eckig: true };
   g.add(box(0.36, 1.1, 0.36, 0, 0.55, 0, m.holzDunkel));
   g.add(box(0.42, 0.05, 0.42, 0, 1.125, 0, m.holzDunkel));
   const st = STATUR[rolle.statur ?? 'mittel'];
@@ -514,6 +518,14 @@ export function buesteAufSockel(m, rolle) {
 const klingeGeo = new THREE.BoxGeometry(0.065, 0.9, 0.008);
 const griffGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.26, 10);
 const knaufGeo = new THREE.SphereGeometry(0.03, 10, 8);
+
+/**
+ * Scheiben (lokales y, Meter) für die Verdecker einer stehenden Figur (lichtmodell.js): Füße, Unter-/Oberschenkel,
+ * Hüfte, Rumpf mit Armen, Schultern, Hals, Kopf, Hut. Auch für die Leiche (fundstuecke.js).
+ */
+export const FIGUR_ZONEN = [0, 0.15, 0.45, 0.8, 1.05, 1.3, 1.48, 1.6, 1.78, 2.05];
+/** Kontaktfleck unter den Füßen einer stehenden Figur (welt/fleck.js; Füße sind für die Lichtkarte zu klein) */
+export const FIGUR_FLECK = { breite: 0.44, tiefe: 0.42, dz: 0.05 };
 
 /**
  * Tafel mit drei Richtschwertern (breite Klinge, stumpfes Ende – ohne Spitze).
@@ -708,6 +720,8 @@ const schuhGeo = new THREE.SphereGeometry(1, 12, 8);
  */
 export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = true } = {}) {
   const g = new THREE.Group();
+  g.userData.lichtZonen = FIGUR_ZONEN;
+  g.userData.kontaktFleck = FIGUR_FLECK;
   const st = STATUR[rolle.statur ?? 'mittel'];
   for (const s of [-1, 1]) {
     const bein = stoffTeil(beinGeo, farbe(m, STOFF[rolle.hose ?? 'anthrazit']));
@@ -1052,15 +1066,20 @@ export function kopfschrank(m, breite, rollen) {
     for (let k = 0; k < anzahl; k++) {
       const x = -breite / 2 + ((k + 0.5) * breite) / anzahl;
       const rolle = rollen[(boden * anzahl + k) % rollen.length];
+      // je Kopf eine Gruppe: verdeckt in der Lichtberechnung als zwei Scheiben (Hals, Kopf)
+      const kg = new THREE.Group();
+      kg.position.set(x, y, tiefe / 2);
+      kg.userData.lichtZonen = [0.025, 0.16, 0.45];
       const h = hals(m.wachs);
-      h.position.set(x, y + 0.09, tiefe / 2 - 0.012);
-      g.add(h);
+      h.position.set(0, 0.09, -0.012);
+      kg.add(h);
       const ab = halsAbschluss(m, rolle);
-      ab.position.set(x, y + 0.045, tiefe / 2 - 0.012);
-      g.add(ab);
+      ab.position.set(0, 0.045, -0.012);
+      kg.add(ab);
       const wk = wachskopf(m, rolle, false);
-      wk.position.set(x, y + 0.235, tiefe / 2);
-      g.add(wk);
+      wk.position.set(0, 0.235, 0);
+      kg.add(wk);
+      g.add(kg);
     }
   }
   // Glasfront mit Messingrahmen

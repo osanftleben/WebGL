@@ -9,13 +9,15 @@ paths:
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/` im Hauptordner (nicht lesen, nicht ändern).
 
 ## Arbeitsstand (zuletzt 14. 11. 2026)
-- **Augenanpassung fertig** (`belichtung-v1` 1.0.1, Messbild 16 Bit; Holmes-Werte `AUGEN_OPTIONEN` in `welt/licht.js`: Bezug 0,075, nur aufhellen 1,0 … 1,3 um 1,25). Runde 1/2 erledigt; Firefox bestätigt (Warnung weg, `messart 'half'`, Gruppe 1,19). Werte: Verlauf.
-- **Fensterausblick fertig** (d11b743; `welt/ausblick.js`: ein Netz, Canvas-Atlas, Dunst im Shader). **Speicher-Verkleinerung erledigt** (Atlas 1024², Grafikspeicher 21 → 5 MB; Verlauf). Restpunkt: Laibungen fast weiß (eigener Auftrag). Firefox offen.
-- **Boden, Ecken, Figuren heller erledigt** (cea5718, Werte: Verlauf). Firefox-Prüfung durch den Nutzer offen.
-- **Kranich-Helm sitzt tief** (`welt/helm.js`, Maße am Kopf gemessen; Runde 0/2, Verlauf), noch nicht committet, Firefox offen.
-- **Als Nächstes:** Sichtbarkeit je Raum / LOD (Gruppe ~97 700 Dreiecke über A und B), dann **Sitzung B** (Frauenfiguren an `frauPlatz` nach `frauRolle`).
-- Besetzung A/A2 fertig (Runde 2/2, 65f1767); Messung 20/37/26 Draw-Calls, 60 Bilder/s. Frauen = Annahme (anonym).
-- Feinschliff C fertig (e191cab), Firefox-Abnahme offen. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben. Zurückgestellt: Lichtberechnung auf der Grafikkarte, Fenster-Überstrahlen.
+- **Lichtberechnung schneller umgesetzt** (nicht committet; Runden 0/2): Grafikkarte 2,6 s, CPU-Ersatzweg 101 s (bitgleich zum alten Weg), vorher ~11 min. GPU ↔ CPU ≤ 1 Stufe (Alpha vereinzelt 3). Lichtdateien mit dem neuen Modell geschrieben (Nutzer-Ja), Rundgang ok. Verlauf.
+- **Kontaktschatten fertig** (nicht committet; Runde 2/2): Hüllquader im Lichtmodell, Fleck unter Kranich, Kontaktflecken (`welt/fleck.js`, +1 Draw-Call). Firefox bestätigt. Verlauf.
+- **Augenanpassung fertig** (`belichtung-v1` 1.0.1; Werte `AUGEN_OPTIONEN` in `welt/licht.js`, Einzelheiten: Verlauf). Firefox bestätigt.
+- **Fensterausblick fertig** (d11b743, `welt/ausblick.js`, Grafikspeicher 5 MB; Verlauf). Restpunkt: Laibungen fast weiß (eigener Auftrag). Firefox offen.
+- **Boden, Ecken, Figuren heller erledigt** (cea5718; Verlauf). Firefox offen.
+- **Kranich-Helm sitzt tief** (3ae345f, `welt/helm.js`; Verlauf), Firefox offen.
+- **Als Nächstes:** Sichtbarkeit je Raum / LOD, dann **Sitzung B** (Frauenfiguren an `frauPlatz`), dann **Kranich neu** (Körper, Ausrüstung, Haltung; erst Uniform recherchieren; Helm 3ae345f bleibt). Einzelheiten: Verlauf.
+- Besetzung A/A2 fertig (65f1767; Verlauf).
+- Feinschliff C fertig (e191cab), Firefox-Abnahme offen. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben. Zurückgestellt: Fenster-Überstrahlen.
 - **Danach:** D (Stuck, Beschläge), dann weitere Inhalte von Fall 1 (siehe Ausbaustufen).
 - Prüfhilfen: Vorschau `webgl-vorschau` (Pane mit `show_pane` einblenden, sonst keine Bilder); Blickpunkte: „Rundgang“. `ERR_CONNECTION_REFUSED` (Port 8765) harmlos.
 
@@ -27,7 +29,7 @@ paths:
 ## Grafik (Einzelheiten: `.claude/notizen/holmes-verlauf.md`)
 - Feinschliff A (Licht), B (Glanz, Glas) und C (Wachsfiguren, `welt/menschen.js`) fertig; D (Stuck, Beschläge) offen.
 - Beleuchtung vorab berechnet (`.claude/scripts/holmes_licht.py`): Lichtkarte (10 cm) für statische Quader/Flächen, Lichtgitter (0,4 m) für den Rest; keine Lampen. Runde Teile verdecken nur mit `userData.lichtHuelle`.
-- **Nach jeder Änderung an Räumen, Möbeln, Fenstern neu berechnen:** `holmes_licht.py empfange` → im Spiel `await __debug.sendeLichtModell()` → `holmes_licht.py berechne` (≈ 10 min, im Terminal-Panel). Konsole beim Start: „Beleuchtung: Lichtkarte aktiv“.
+- **Nach jeder Änderung an Räumen, Möbeln, Fenstern neu berechnen:** `holmes_licht.py empfange` → im Spiel `await __debug.sendeLichtModell()` → `holmes_licht.py berechne` (über den Wächter; Grafikkarte ≈ 3 s, mit `--cpu` ≈ 100 s). Konsole beim Start: „Beleuchtung: Lichtkarte aktiv“.
 - Bodenglanz (`welt/bodenglanz.js`): Dielen spiegeln die Fenster weich.
 
 ## Rundgang (feste Blickpunkte für `/visuell-pruefen`)
