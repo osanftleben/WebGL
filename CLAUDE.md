@@ -39,7 +39,7 @@ tools/                      ← nicht im Git: glslang (bin/), three.js-Vorrat (v
 ## Sitzungen und Token sparen
 - Aufgaben mit `/auftrag` beginnen (Ziel, Abnahme, Runden) und mit `/abschluss` beenden.
 - **Hauptsitzung und Aufgabensitzungen:** Eine Sitzung, die der Nutzer selbst startet, ist die Hauptsitzung. Sie bespricht, plant und legt mit `/auftrag` Aufträge fest, setzt aber selbst nichts um. Jede Aufgabe läuft in einer eigenen Aufgabensitzung (`start_session`, „fresh“, mit vollständigem Auftrag). Kleinigkeiten bleiben in der Hauptsitzung, z. B. Fragen oder eine Korrektur an den Notizen.
-- **Aufgabensitzung:** erkennbar am Auftrag („Du bist eine Aufgabensitzung …“). Erledigt nur diese eine Aufgabe und endet mit `/abschluss`. Wird der Verlauf lang, Arbeitsstand in den Projektnotizen festhalten und der Hauptsitzung melden.
+- **Aufgabensitzung:** erkennbar am Auftrag („Du bist eine Aufgabensitzung …“). Erledigt nur diese eine Aufgabe und endet mit `/abschluss`. Führt laufend ein **Protokoll** in `.claude/notizen/protokolle/` (nach jedem Schritt; Aufbau im Skill `auftrag`, Stop-Hook `protokoll_check.py` erinnert). Wird der Verlauf lang, Arbeitsstand in den Projektnotizen festhalten und der Hauptsitzung melden.
 - Automatisch geladene Projektnotizen (`.claude/rules/projekte/*.md`) kurz halten (Ziel ≤ 5 KB): nur Arbeitsstand, gültige Regeln, Rundgang. Einzelheiten, Verlauf, Quellen, Fall-Entwürfe nach `.claude/notizen/` – nur lesen, wenn die Aufgabe sie braucht.
 - Dateien nur ausschnittsweise lesen (`grep`, `offset/limit`), lange Ausgaben kürzen (`tail`, Filter).
 - Screenshots klein (`scale: 0.5`) oder als Ausschnitt (`zoom`); erst mit Text/Zahlen prüfen, Bilder für den Rundgang am Ende.

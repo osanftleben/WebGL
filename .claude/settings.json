@@ -91,6 +91,11 @@
             "type": "command",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/abschluss_check.py\"",
             "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/protokoll_check.py\"",
+            "timeout": 30
           }
         ]
       }
