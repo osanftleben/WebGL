@@ -1,0 +1,12 @@
+{
+  "name": "belichtung",
+  "version": "1.0.0",
+  "beschreibung": "Augenanpassung: Belichtung per Bildmessung weich nachführen",
+  "three": [
+    "r187"
+  ],
+  "braucht": {},
+  "dateien": [
+    "augenanpassung.js"
+  ]
+}

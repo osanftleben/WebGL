@@ -3,6 +3,18 @@
 import * as THREE from 'three';
 
 /**
+ * Einstellungen der Augenanpassung (Bibliothek belichtung-v1) für diese Szene.
+ * Gemessene mittlere Helligkeit (vor der Belichtung): übliche Raumblicke ≈ 0,033, Figurengruppe ≈ 0,024,
+ * Fensterecke ≈ 0,066, Werkstatt ≈ 0,073. Bezug 0,04: übliche Blicke bleiben nahe der Grundbelichtung,
+ * dunkle werden bis +30 % heller, helle nur bis −15 % dunkler (die Szene ist eher zu dunkel).
+ */
+export const AUGEN_OPTIONEN = {
+  bezugsHelligkeit: 0.04,
+  minFaktor: 0.85,
+  maxFaktor: 1.3,
+};
+
+/**
  * Stellt Farbkurve und Schatten des Renderers ein. Die Schatten werden nicht in jedem Bild
  * neu berechnet (der Raum steht still), sondern nur auf Anforderung (`schattenNeu`).
  * @param {THREE.WebGLRenderer} renderer

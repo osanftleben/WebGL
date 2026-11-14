@@ -9,12 +9,10 @@ paths:
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/` im Hauptordner (nicht lesen, nicht ändern).
 
 ## Arbeitsstand (zuletzt 14. 11. 2026)
-- **Auftrag Besetzung** (Wachsfiguren mit festen Rollen; Ziel, Abnahme, Runden in `holmes-verlauf.md`). **Frauen = Annahme** (anonym, ohne historischen Anspruch). Nicht dazu: Leiche, Originalfigur, Kranich, Rohköpfe.
-  - A, A2 und Runde 1 (Halsbinde nur Ausnahme) committet. **Runde 2/2 erledigt 14. 11.:** Ganzfiguren schlanker (Taille, schmalere Schultern, dünne angewinkelte Arme, kleinere Hände, Beine mit Knie). Keine weiteren Runden; Restfehler im Verlauf. Messung: Draw-Calls 20/37/26, Dreiecke Gruppe 133 344, 60 Bilder/s.
-  - **Vorschlag vor B (Hauptsitzung entscheidet): Sichtbarkeit je Raum / LOD.** Im Blick „Figurengruppe nah“ stecken ~97 700 Dreiecke in zwei Paketen über Raum A und B (Büsten hinter der Wand werden mitgezeichnet), Werkstatt ~9 500 → großes Sparpotenzial ohne Detailverlust.
-  - **Danach: Sitzung B** (Frauenfiguren an den `frauPlatz`-Plätzen nach `frauRolle`). Ohne Sichtbarkeit bleiben nur ~1 650 Dreiecke bis 135 000.
-- Feinschliff C fertig (e191cab), Firefox-Abnahme durch den Nutzer offen. Version 1, Feinschliff A/B committet.
-- **Licht abgeschlossen** (776b9ed, Firefox-Abnahme 13. 11.); keine weiteren Feinschliff-Schleifen, nur echte Fehler beheben. Zurückgestellt: Lichtberechnung auf der Grafikkarte, Fenster-Überstrahlen.
+- **Augenanpassung fertig** (Bibliothek `belichtung-v1`, in `main.js`; Holmes-Werte `AUGEN_OPTIONEN` in `welt/licht.js`: Bezug 0,04, −15 %/+30 % um 1,25). Runden 0/2; **Firefox-Prüfung durch den Nutzer offen.** Einzelheiten, Messreihe: Verlauf.
+- **Als Nächstes: „Boden, Ecken, Figuren heller“ neu bewerten** (Nutzer: in Firefox zu dunkel). Halbfertige, wirkungslose Änderung (`gitterFaktor`, `grund`) liegt nicht committet in `welt/lichtgitter.js`. Danach Sichtbarkeit je Raum / LOD (Gruppe ~97 700 Dreiecke über A und B), dann **Sitzung B** (Frauenfiguren an `frauPlatz` nach `frauRolle`).
+- Besetzung A/A2 fertig (Runde 2/2, 65f1767); Messung 20/37/26 Draw-Calls, 60 Bilder/s. Frauen = Annahme (anonym).
+- Feinschliff C fertig (e191cab), Firefox-Abnahme offen. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben. Zurückgestellt: Lichtberechnung auf der Grafikkarte, Fenster-Überstrahlen.
 - **Danach:** D (Stuck, Beschläge), dann weitere Inhalte von Fall 1 (siehe Ausbaustufen).
 - Prüfhilfen: Vorschau `webgl-vorschau`; Blickpunkte siehe „Rundgang“. `ERR_CONNECTION_REFUSED` (Port 8765) = Empfänger nicht gestartet, harmlos.
 

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { erstelleRenderer } from 'render/renderer.js';
 import { starteSchleife } from 'render/schleife.js';
 import { stelleBereit } from 'debug/debug.js';
+import { erstelleAugenanpassung } from 'belichtung/augenanpassung.js';
 import { erstelleIchSteuerung } from 'steuerung/ich-steuerung.js';
 import { erstelleAntippen } from 'steuerung/antippen.js';
 import { baueEtage3 } from './welt/etage3.js';
@@ -16,7 +17,7 @@ import { baueSchutzmann } from './welt/personen.js';
 import { GESPRAECH_KRANICH } from './fall1/gespraech-kranich.js';
 import { ladeSpielstand, speichereSpielstand, loescheSpielstand, ladeTonAn, speichereTonAn } from './fall1/spielstand.js';
 import { erstelleKlaenge } from './ton/klaenge.js';
-import { richteRendererEin, aktiviereSchatten, schattenNeu, erzeugeUmgebung, fensterLichtAbfall } from './welt/licht.js';
+import { richteRendererEin, AUGEN_OPTIONEN, aktiviereSchatten, schattenNeu, erzeugeUmgebung, fensterLichtAbfall } from './welt/licht.js';
 import { ladeLichtgitter, wendeLichtgitterAn } from './welt/lichtgitter.js';
 import { bodenGlanz } from './welt/bodenglanz.js';
 
@@ -250,10 +251,13 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') speichere();
 });
 
+// Augenanpassung: Belichtung folgt weich der Bildhelligkeit (Grundbelichtung aus welt/licht.js)
+const auge = erstelleAugenanpassung(renderer, scene, camera, AUGEN_OPTIONEN);
+
 // Nur lokal: window.__debug für Prüfungen (/perf-check); weitere Objekte für Tests
 stelleBereit({ renderer, scene, camera });
 if (/** @type {any} */ (window).__debug) {
-  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere, lichtgitterWerte, bodenGlanzWerte });
+  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere, lichtgitterWerte, bodenGlanzWerte, belichtung: auge });
   // Nur lokal: Raummodell an das Lichtberechnungs-Programm schicken (python .claude/scripts/holmes_licht.py empfange)
   /** @type {any} */ (window).__debug.sendeLichtModell = () =>
     // Gleicher Rechner wie die Vorschau, anderer Anschluss (8765); nur lokal aktiv
@@ -287,5 +291,6 @@ starteSchleife(renderer, ({ delta }) => {
   klaenge.setzeStrassenNaehe(Math.max((camera.position.x - 4) / 5, (camera.position.z - 22) / 5));
   aktualisiereWendung(delta);
   antippen.aktualisiere();
+  auge.aktualisiere(delta);
   renderer.render(scene, camera);
 });
