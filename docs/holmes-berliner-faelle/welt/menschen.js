@@ -921,27 +921,36 @@ function aermelGeometrie(punkte, radien) {
  * @param {number} [o.kugel=1] Größe der Schulterkugel (Besetzung: kleiner, gegen klobige Schultern)
  * @param {number} [o.krempel=0] hochgekrempelter Ärmel (Besetzung): Anteil des Unterarms, ab dem die
  *   Haut zu sehen ist (z. B. 0,45); 0 = Ärmel bis zum Handgelenk
+ * @param {number[]} [o.radien] Ärmelradien an Schulter, Ellbogen, Handgelenk (vor `dicke`);
+ *   Besetzung: schlanker und stärker verjüngt. Schulterkugel, Manschette und Umschlag passen sich an.
+ * @param {number} [o.handGroesse=1] Größe der Hand (Besetzung: kleiner)
  * @returns {{ gruppe: THREE.Group, hand: THREE.Mesh }}
  */
-export function arm({ stoff, haut, zelle, seite, schulter, ellbogen, handgelenk, manschette = null, dicke = 1, kugel: kg = 1, krempel = 0 }) {
+export function arm({ stoff, haut, zelle, seite, schulter, ellbogen, handgelenk, manschette = null, dicke = 1, kugel: kg = 1, krempel = 0,
+  radien = [0.052, 0.047, 0.041], handGroesse = 1 }) {
   const g = new THREE.Group();
   const p = [schulter, ellbogen, handgelenk].map((w) => new THREE.Vector3(...w));
+  const [r0, r1, r2] = radien.map((r) => r * dicke);
+  // Manschette (Grundmaß 0,041) im Verhältnis zum Ärmel am Handgelenk
+  const km = r2 / 0.041;
   if (krempel > 0) {
     // Ärmel bis zur Mitte des Unterarms, dort ein dicker Umschlag, darunter Haut
     const mitte = p[1].clone().lerp(p[2], krempel);
-    g.add(stoffMesh(aermelGeometrie([p[0], p[1], mitte], [0.052 * dicke, 0.047 * dicke, 0.046 * dicke]), stoff, true));
-    const unterarm = einfarbigUV(aermelGeometrie([mitte, p[2]], [0.036 * dicke, 0.031 * dicke]), hautUV(zelle));
+    g.add(stoffMesh(aermelGeometrie([p[0], p[1], mitte], [r0, r1, r1 * 0.98]), stoff, true));
+    const unterarm = einfarbigUV(aermelGeometrie([mitte, p[2]], [r2 * 0.88, r2 * 0.76]), hautUV(zelle));
     g.add(new THREE.Mesh(unterarm, haut));
     const um = stoffMesh(manschetteGeo, stoff);
     um.position.copy(mitte);
     um.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), p[2].clone().sub(p[1]).normalize());
-    um.scale.set(1.2 * dicke, 1.6, 1.2 * dicke);
+    const ku = (1.2 * r1) / 0.047;
+    um.scale.set(ku, 1.6, ku);
     g.add(um);
   } else {
-    g.add(stoffMesh(aermelGeometrie(p, [0.052 * dicke, 0.047 * dicke, 0.041 * dicke]), stoff, true));
+    g.add(stoffMesh(aermelGeometrie(p, [r0, r1, r2]), stoff, true));
   }
   const kugel = stoffMesh(kugelGeo, stoff);
-  kugel.scale.set(0.05 * dicke * kg, 0.042 * dicke * kg, 0.054 * dicke * kg);
+  const kk = (kg * r0) / 0.052;
+  kugel.scale.set(0.05 * kk, 0.042 * kk, 0.054 * kk);
   kugel.position.copy(p[0]).add(new THREE.Vector3(0, -0.01, 0));
   g.add(kugel);
   const richtung = p[2].clone().sub(p[1]).normalize();
@@ -950,11 +959,13 @@ export function arm({ stoff, haut, zelle, seite, schulter, ellbogen, handgelenk,
     const m = stoffMesh(manschetteGeo, manschette);
     m.position.copy(p[2]).addScaledVector(richtung, -0.004);
     m.quaternion.copy(q);
+    m.scale.set(km, 1, km);
     g.add(m);
   }
   const h = hand(haut, seite, zelle);
   h.position.copy(p[2]).addScaledVector(richtung, 0.004);
   h.quaternion.copy(q);
+  h.scale.setScalar(handGroesse);
   g.add(h);
   return { gruppe: g, hand: h };
 }
@@ -1139,7 +1150,15 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
   g.add(stoffMesh(gemerkt(`rumpf|${schluessel}|${abgetragen}`, () => rumpfGeometrie(profil, untenZu || profil !== grundProfil, abgetragen)), rock));
   if (profil !== grundProfil && unterteil && saum !== null) {
     // Hose: vom Schritt bis knapp über den Saum, etwas schmaler als der Rock
-    const hose = profilZwischen(grundProfil, Math.max(grundProfil[0][0], 0.74), saum + 0.05, 0.975);
+    const roh = profilZwischen(grundProfil, Math.max(grundProfil[0][0], 0.74), saum + 0.05, 0.975);
+    // nach unten nicht breiter als oben: die Hose folgt nicht dem ausgestellten Rockschoß
+    // und zum Schritt hin schmaler und flacher, damit dort keine Stufe zu den Beinen entsteht
+    const [yo, bo, to] = roh[roh.length - 1];
+    const yu = roh[0][0];
+    const hose = roh.map((p) => {
+      const k = Math.min(1, (p[0] - yu) / (0.6 * (yo - yu)));
+      return [p[0], Math.min(p[1], bo) * (0.88 + 0.12 * k), Math.min(p[2], to) * (0.68 + 0.32 * k), ...p.slice(3)];
+    });
     g.add(stoffMesh(gemerkt(`hose|${JSON.stringify(hose)}`, () => rumpfGeometrie(hose, true)), unterteil));
   }
   if (ausschnitt) {

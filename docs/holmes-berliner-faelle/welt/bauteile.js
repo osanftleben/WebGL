@@ -435,11 +435,12 @@ export const BESETZUNG = {
   ],
 };
 
-/** Statur: Breite und Tiefe des Rumpfs, Bauch (nur Ganzfiguren), Kopfmaße */
+/** Statur: Breite und Tiefe des Rumpfs, Bauch und Taille (nur Ganzfiguren; Taille = Breite, die
+ * um 1,06 m dazukommt, d. h. weniger Taille), Kopfmaße */
 const STATUR = {
-  schmal: { breite: 0.92, tiefe: 0.94, bauch: 0, kopf: [0.96, 1.03, 0.98] },
-  mittel: { breite: 1, tiefe: 1, bauch: 0, kopf: [1, 1, 1] },
-  kraeftig: { breite: 1.08, tiefe: 1.1, bauch: 0.03, kopf: [1.05, 0.98, 1.03] },
+  schmal: { breite: 0.92, tiefe: 0.94, bauch: 0, taille: 0, kopf: [0.96, 1.03, 0.98] },
+  mittel: { breite: 1, tiefe: 1, bauch: 0, taille: 0, kopf: [1, 1, 1] },
+  kraeftig: { breite: 1.08, tiefe: 1.1, bauch: 0.03, taille: 0.012, kopf: [1.05, 0.98, 1.03] },
 };
 
 /**
@@ -456,7 +457,8 @@ const farbe = (m, hex) => ({ farbig: m.farbig, farbe: hex });
 function profilNachStatur(profil, st) {
   return profil.map(([y, hw, hd, zo, n]) => {
     const b = st.bauch * Math.exp(-(((y - 1.1) / 0.14) ** 2));
-    return [y, hw * st.breite, hd * st.tiefe + b, zo + b * 0.8, n];
+    const t = st.taille * Math.exp(-(((y - 1.06) / 0.12) ** 2));
+    return [y, (hw + t) * st.breite, hd * st.tiefe + b, zo + b * 0.8, n];
   });
 }
 
@@ -496,7 +498,7 @@ export function buesteAufSockel(m, rolle) {
   g.add(box(0.42, 0.05, 0.42, 0, 1.125, 0, m.holzDunkel));
   const st = STATUR[rolle.statur ?? 'mittel'];
   // Schultern und Kragen nach Stand (kleidung() steht weiter unten bei figur)
-  g.add(oberkoerper({ profil: profilNachStatur(BUESTE, { ...st, bauch: 0 }), ...kleidung(m, rolle, true).o }));
+  g.add(oberkoerper({ profil: profilNachStatur(BUESTE, { ...st, bauch: 0, taille: 0 }), ...kleidung(m, rolle, true).o }));
   const h = hals(m.wachs);
   h.position.set(0, 1.39, -0.012);
   g.add(h);
@@ -641,7 +643,37 @@ function kleidung(m, rolle, bueste) {
   return { o, aermel };
 }
 
-const beinGeo = new THREE.CylinderGeometry(0.065, 0.06, 0.82, 10);
+/**
+ * Hosenbein (0,82 m, Mitte im Ursprung): oben kräftig, über dem Knie schmal, Knie vorn angedeutet,
+ * Wade hinten, zum Knöchel verjüngt. Gedrechselt (Naht hinten), dann Knie und Wade aus der Achse geschoben.
+ */
+const beinGeo = (() => {
+  // [Radius, y] vom Knöchel zur Hüfte
+  const punkte = [[0.035, -0.41], [0.034, -0.33], [0.042, -0.21], [0.048, -0.1], [0.045, 0.01], [0.047, 0.08], [0.049, 0.15],
+    [0.055, 0.25], [0.06, 0.35], [0.062, 0.41]].map(([r, y]) => new THREE.Vector2(r, y));
+  const geo = new THREE.LatheGeometry(punkte, 10, Math.PI);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const r = Math.hypot(pos.getX(i), z) || 1;
+    const vorn = Math.max(0, z / r) ** 2;
+    const hinten = Math.max(0, -z / r) ** 2;
+    pos.setZ(i, z + 0.008 * vorn * Math.exp(-(((y - 0.08) / 0.035) ** 2)) - 0.006 * hinten * Math.exp(-(((y + 0.1) / 0.07) ** 2)));
+  }
+  geo.computeVertexNormals();
+  // Naht (erste und letzte Spalte) glätten
+  const nor = geo.attributes.normal;
+  const np = punkte.length;
+  for (let j = 0; j < np; j++) {
+    const a = j;
+    const b = 10 * np + j;
+    const n = new THREE.Vector3().fromBufferAttribute(nor, a).add(new THREE.Vector3().fromBufferAttribute(nor, b)).normalize();
+    nor.setXYZ(a, n.x, n.y, n.z);
+    nor.setXYZ(b, n.x, n.y, n.z);
+  }
+  return geo;
+})();
 const hutGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.16, 16);
 const krempeGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.015, 20);
 const meloneGeo = new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2);
@@ -651,10 +683,13 @@ const meloneRandGeo = new THREE.TorusGeometry(1, 0.06, 4, 22);
 export const GEHROCK = [[0.6, 0.205, 0.15, -0.005], [0.8, 0.19, 0.135, 0], [0.98, 0.172, 0.118, 0], [1.06, 0.16, 0.11, 0], [1.2, 0.17, 0.118, 0.006],
   [1.33, 0.182, 0.122, 0.01], [1.4, 0.184, 0.112, 0.005], [1.44, 0.168, 0.1, 0.002], [1.47, 0.138, 0.085, 0], [1.5, 0.1, 0.07, 0], [1.52, 0.065, 0.058, 0]];
 
-/** Gehrock der Besetzung: wie GEHROCK, aber schräge, runde Schultern (5. Wert: Rundlichkeit) */
-const GEHROCK_RUND = [[0.6, 0.205, 0.15, -0.005, 2.6], [0.8, 0.19, 0.135, 0, 2.6], [0.98, 0.172, 0.118, 0, 2.6], [1.06, 0.16, 0.11, 0, 2.6],
-  [1.2, 0.17, 0.118, 0.006, 2.6], [1.33, 0.178, 0.12, 0.01, 2.5], [1.39, 0.18, 0.11, 0.005, 2.3], [1.425, 0.166, 0.098, 0.002, 2.1],
-  [1.455, 0.14, 0.086, 0, 2.0], [1.485, 0.104, 0.072, 0, 2.0], [1.52, 0.065, 0.058, 0, 2.0]];
+/**
+ * Gehrock der Besetzung: schräge, runde Schultern (5. Wert: Rundlichkeit), schmaler als GEHROCK,
+ * mit Taille bei 1,04 m und ausgestelltem Schoß; Querschnitt unten runder (weniger Röhre)
+ */
+const GEHROCK_RUND = [[0.6, 0.198, 0.14, -0.005, 2.4], [0.8, 0.177, 0.122, 0, 2.3], [0.94, 0.157, 0.107, 0, 2.25], [1.04, 0.143, 0.099, 0.002, 2.2],
+  [1.12, 0.147, 0.103, 0.004, 2.25], [1.22, 0.159, 0.111, 0.008, 2.35], [1.32, 0.166, 0.116, 0.01, 2.4], [1.38, 0.167, 0.107, 0.005, 2.3],
+  [1.418, 0.155, 0.096, 0.002, 2.1], [1.452, 0.133, 0.085, 0, 2.0], [1.485, 0.103, 0.072, 0, 2.0], [1.52, 0.065, 0.058, 0, 2.0]];
 const schuhGeo = new THREE.SphereGeometry(1, 12, 8);
 
 /**
@@ -674,7 +709,7 @@ export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = 
   for (const s of [-1, 1]) {
     const bein = stoffTeil(beinGeo, farbe(m, STOFF[rolle.hose ?? 'anthrazit']));
     bein.scale.set(st.breite, 1, st.breite);
-    bein.position.set(s * 0.09, 0.41, 0);
+    bein.position.set(s * 0.08, 0.41, 0);
     g.add(bein);
     if (quaderSchuhe) {
       g.add(box(0.1, 0.06, 0.24, s * 0.09, 0.03, 0.05, m.eisen));
@@ -691,8 +726,12 @@ export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = 
   const b = st.breite;
   for (const s of [-1, 1]) {
     g.add(arm({
-      stoff: aermel.stoff, haut: m.wachs, zelle: 0, seite: s, manschette: aermel.manschette, kugel: 0.82, krempel: aermel.krempel,
-      schulter: [s * 0.156 * b, 1.39, 0], ellbogen: [s * (0.195 * b + sw * 0.26), 1.14, 0.03], handgelenk: [s * (0.205 * b + sw * 0.5), 0.9, 0.05],
+      stoff: aermel.stoff, haut: m.wachs, zelle: 0, seite: s, manschette: aermel.manschette, kugel: 1.1, krempel: aermel.krempel,
+      // schlanke, verjüngte Ärmel (Statur über die Dicke), kleinere Hände; Ellbogen leicht zurück,
+      // Handgelenk vor: Arme leicht angewinkelt. Schulterkugel etwas größer als der Ärmel, damit sein
+      // oberes Ende nicht über die Schulter ragt.
+      radien: [0.044, 0.038, 0.031], dicke: Math.sqrt(b), handGroesse: 0.86,
+      schulter: [s * 0.142 * b, 1.375, 0], ellbogen: [s * (0.187 * b + sw * 0.26), 1.13, -0.012], handgelenk: [s * (0.192 * b + sw * 0.5), 0.895, 0.075],
     }).gruppe);
   }
   // Alte Figuren: Kopf leicht nach vorn geneigt

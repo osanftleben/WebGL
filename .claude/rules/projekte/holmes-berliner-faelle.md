@@ -9,9 +9,10 @@ paths:
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/` im Hauptordner (nicht lesen, nicht ändern).
 
 ## Arbeitsstand (zuletzt 14. 11. 2026)
-- **Auftrag Besetzung** (Wachsfiguren mit festen Rollen; Ziel und Abnahme in `holmes-verlauf.md`). **Frauen = Annahme** (anonym, ohne historischen Anspruch, vom Nutzer entschieden 14. 11.). Nicht dazu: Leiche, Originalfigur, Kranich, Rohköpfe. Runden 1/2 (Halsbinden).
-  - A fertig (3a3b6da, 0e61780). **A2 abschließen: erledigt 14. 11.** (Kleidung nach Stand, Brille/Monokel, Narben, `frauRolle`; ffc3f51). Runde 1 (Nutzer: „alle tragen Krawatten“): Halsbinde nur noch Ausnahme, offener Hemdkragen (committet). Messwerte Chromium: Draw-Calls 20/37/26 (Gruppe auch bei A 37), Dreiecke ≤ ~134 000, 60 Bilder/s.
-  - **Nächster Schritt: Sitzung B** (Frauenfiguren an den `frauPlatz`-Plätzen nach `frauRolle`; Brillen schon erledigt).
+- **Auftrag Besetzung** (Wachsfiguren mit festen Rollen; Ziel, Abnahme, Runden in `holmes-verlauf.md`). **Frauen = Annahme** (anonym, ohne historischen Anspruch). Nicht dazu: Leiche, Originalfigur, Kranich, Rohköpfe.
+  - A, A2 und Runde 1 (Halsbinde nur Ausnahme) committet. **Runde 2/2 erledigt 14. 11.:** Ganzfiguren schlanker (Taille, schmalere Schultern, dünne angewinkelte Arme, kleinere Hände, Beine mit Knie). Keine weiteren Runden; Restfehler im Verlauf. Messung: Draw-Calls 20/37/26, Dreiecke Gruppe 133 344, 60 Bilder/s.
+  - **Vorschlag vor B (Hauptsitzung entscheidet): Sichtbarkeit je Raum / LOD.** Im Blick „Figurengruppe nah“ stecken ~97 700 Dreiecke in zwei Paketen über Raum A und B (Büsten hinter der Wand werden mitgezeichnet), Werkstatt ~9 500 → großes Sparpotenzial ohne Detailverlust.
+  - **Danach: Sitzung B** (Frauenfiguren an den `frauPlatz`-Plätzen nach `frauRolle`). Ohne Sichtbarkeit bleiben nur ~1 650 Dreiecke bis 135 000.
 - Feinschliff C fertig (e191cab), Firefox-Abnahme durch den Nutzer offen. Version 1, Feinschliff A/B committet.
 - **Licht abgeschlossen** (776b9ed, Firefox-Abnahme 13. 11.); keine weiteren Feinschliff-Schleifen, nur echte Fehler beheben. Zurückgestellt: Lichtberechnung auf der Grafikkarte, Fenster-Überstrahlen.
 - **Danach:** D (Stuck, Beschläge), dann weitere Inhalte von Fall 1 (siehe Ausbaustufen).
