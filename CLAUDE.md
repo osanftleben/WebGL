@@ -21,6 +21,7 @@ docs/                       ← Website (GitHub Pages)
 └─ <projekt>/               ← je Projekt: index.html, main.js, style.css, shaders/
 .claude/                    ← Setup: Hooks, Skripte, Regeln, Skills, Agenten, Workflows
 tools/                      ← nicht im Git: glslang (bin/), three.js-Vorrat (vendor/)
+recherche/quellen/          ← nicht im Git: Textauszüge und geladene Quellen des Recherche-Agenten
 ```
 
 ## Technik
@@ -41,6 +42,7 @@ tools/                      ← nicht im Git: glslang (bin/), three.js-Vorrat (v
 - Aufgaben mit `/auftrag` beginnen (Ziel, Abnahme, Runden) und mit `/abschluss` beenden.
 - **Hauptsitzung und Aufgabensitzungen:** Eine Sitzung, die der Nutzer selbst startet, ist die Hauptsitzung. Sie bespricht, plant und legt mit `/auftrag` Aufträge fest, setzt aber selbst nichts um. Jede Aufgabe läuft in einer eigenen Aufgabensitzung (`start_session`, „fresh“, mit vollständigem Auftrag). Kleinigkeiten bleiben in der Hauptsitzung, z. B. Fragen oder eine Korrektur an den Notizen.
 - **Aufgabensitzung:** erkennbar am Auftrag („Du bist eine Aufgabensitzung …“). Erledigt nur diese eine Aufgabe und endet mit `/abschluss`. Führt laufend ein **Protokoll** in `.claude/notizen/protokolle/` (nach jedem Schritt; Aufbau im Skill `auftrag`, Stop-Hook `protokoll_check.py` erinnert). Wird der Verlauf lang, Arbeitsstand in den Projektnotizen festhalten und der Hauptsitzung melden.
+- **Recherchen nie in der Sitzung selbst:** ein paar Fragen → Agent `recherche` (Ergebnis in `.claude/notizen/recherche/`, Auszüge in `recherche/quellen/`, Hook `recherche_log.py` protokolliert jeden Abruf); große Recherche → eigene Aufgabensitzung. Danach Fundstellen in die Quellen-Notiz des Projekts übertragen. Meldet der Agent „ANGEHALTEN – Nutzer nötig“, sofort dem Nutzer sagen und nach seiner Bestätigung den Agenten fortsetzen. Vorgeschlagene Downloads dem Nutzer gesammelt vorlegen (Name, Quelle, Größe), erst nach Ja laden. Bildquellen nur als abgelegte Datei auswerten (`recherche/quellen/<thema>/bilder/`): Agent schlägt vor → Nutzer sagt Ja → Sitzung lädt (`curl`, Hook protokolliert) → Agent wertet aus. Meldung „ANGEHALTEN – Bilder laden“ wie oben behandeln.
 - Automatisch geladene Projektnotizen (`.claude/rules/projekte/*.md`) kurz halten (Ziel ≤ 5 KB): nur Arbeitsstand, gültige Regeln, Rundgang. Einzelheiten, Verlauf, Quellen, Fall-Entwürfe nach `.claude/notizen/` – nur lesen, wenn die Aufgabe sie braucht.
 - Dateien nur ausschnittsweise lesen (`grep`, `offset/limit`), lange Ausgaben kürzen (`tail`, Filter).
 - Screenshots klein (`scale: 0.5`) oder als Ausschnitt (`zoom`); erst mit Text/Zahlen prüfen, Bilder für den Rundgang am Ende.

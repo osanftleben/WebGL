@@ -82,6 +82,16 @@
             "timeout": 60
           }
         ]
+      },
+      {
+        "matcher": "WebSearch|WebFetch|Bash|PowerShell|mcp__Claude_Browser__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/recherche_log.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [
