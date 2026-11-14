@@ -47,7 +47,7 @@ export function bodenGlanz(material, fenster, raeumeZ, o = {}) {
     bgEbene: { value: ebenen },
     bgRechteck: { value: rechtecke },
     bgRaum: { value: raeume },
-    // Farbe der Fensterflächen (wie m.fensterGlas), linear
+    // Helligkeit der Fenster (bedeckter Himmel, wie früher die Fensterfläche), linear
     bgFarbe: { value: o.farbe ?? new THREE.Color(0xe4e8ea) },
     bgStaerke: { value: o.staerke ?? GLANZ_STAERKE },
     bgUnschaerfe: { value: o.unschaerfe ?? GLANZ_UNSCHAERFE },

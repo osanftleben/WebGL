@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { verschmelze } from './verschmelzen.js';
 import { kopf as rohKopf } from './menschen.js';
 import { sammleLichtSzene } from './lichtmodell.js';
+import { baueAusblick } from './ausblick.js';
 import { aktiviereSchatten, schattenLicht } from './licht.js';
 import { alsHindernis } from 'steuerung/kollision.js';
 import {
@@ -355,6 +356,9 @@ export function baueEtage3(scene) {
   ];
   const verdecker = verschmelze(gruppe, lichtSzene.koordinaten);
   aktiviereSchatten(gruppe);
+  // Straßenausblick hinter den Fenstern (nach Lichtmodell und Verschmelzen: nicht beleuchtet, ein Draw-Call)
+  const ausblick = baueAusblick(lichtFenster);
+  gruppe.add(ausblick.mesh);
 
   // Mit Lichtgitter entfallen alle vier Lampen: Das Gitter enthält das Himmelslicht durch die Fenster
   // schon vollständig. Die schattenwerfenden Fensterlichter kamen aus einer festen Richtung und zeichneten
@@ -363,7 +367,7 @@ export function baueEtage3(scene) {
   const direktLichter = [himmel, fensterSeite, fensterLicht, ostLicht];
   return {
     gruppe, hindernisse, verdecker, start: { x: 6.5, z: 1.3, blick: Math.PI }, materialien: m, lichtSzene, lichtFenster,
-    direktLichter,
+    direktLichter, ausblick: ausblick.werte,
     // Räume als z-Bereiche (Raum A, Raum B, Werkstatt), z. B. für die Fensterspiegelung im Boden
     raeumeZ: [[0, 9.5], [9.75, 19.5], [19.75, 27.5]],
   };

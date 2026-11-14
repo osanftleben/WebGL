@@ -82,8 +82,6 @@ export function erstelleMaterialien() {
     holzDunkel: glanz({ map: holzTextur(heller([66, 44, 28], HOLZ_DUNKEL_HELLIGKEIT), 31), roughness: 0.55, metalness: 0, envMapIntensity: 0.3 }),
     holzHell: lambert({ map: holzTextur([150, 112, 72], 41) }),
     fensterRahmen: lambert({ color: 0xe9e5db }),
-    // Mattes Tageslicht hinter den Scheiben (bewusst ohne Außenansicht)
-    fensterGlas: new THREE.MeshBasicMaterial({ color: 0xe4e8ea, toneMapped: false }),
     // Vorhangstoff (Farbe angenommen) und Nummerntafeln (eine gemeinsame Textur für alle Nummern)
     vorhang: lambert({ color: 0x5c2a26 }),
     nummern: lambert({ map: nummernAtlas() }),
@@ -197,10 +195,7 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
         gruppe.add(bruestung);
         hindernisse.push(bruestung);
       }
-      // Helles, mattes Tageslicht hinter dem Fenster (ohne Außenansicht); das Gitter davor bleibt sichtbar
-      const licht = new THREE.Mesh(new THREE.PlaneGeometry(o.breite + 0.8, o.hoehe + 0.8), m.fensterGlas);
-      licht.position.set(o.pos, unten + o.hoehe / 2, -dicke - 0.35);
-      gruppe.add(licht);
+      // Hinter dem Fenster liegt der Straßenausblick (welt/ausblick.js), nicht Teil der Wand
       // Scheibe mit ganz schwacher Spiegelung (Raumseite)
       const scheibe = new THREE.Mesh(new THREE.PlaneGeometry(o.breite - 0.1, o.hoehe - 0.1), m.fensterSpiegel);
       scheibe.position.set(o.pos, unten + o.hoehe / 2, -dicke * 0.7 + 0.04);

@@ -24,7 +24,8 @@ import { bodenGlanz } from './welt/bodenglanz.js';
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101014);
 
-const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 60);
+// Fernebene 200 m: der Straßenausblick (Himmel 60 m hinter der Außenwand) wird auch schräg nicht abgeschnitten
+const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 200);
 
 const { renderer } = erstelleRenderer({ kamera: camera });
 richteRendererEin(renderer);

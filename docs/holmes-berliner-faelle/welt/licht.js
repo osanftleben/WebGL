@@ -91,7 +91,8 @@ export function schattenLicht(licht, umfang, groesse = 2048) {
  */
 export function erzeugeUmgebung(renderer, scene, ort) {
   const ziel = new THREE.WebGLCubeRenderTarget(512, { type: THREE.HalfFloatType });
-  const wuerfelKamera = new THREE.CubeCamera(0.1, 60, ziel);
+  // Fernebene 200 m: auch der Himmel des Straßenausblicks wird mit aufgenommen
+  const wuerfelKamera = new THREE.CubeCamera(0.1, 200, ziel);
   wuerfelKamera.position.copy(ort);
   wuerfelKamera.update(renderer, scene);
   const pmrem = new THREE.PMREMGenerator(renderer);
