@@ -120,3 +120,10 @@ Aktuelle Regeln und Arbeitsstand stehen in `.claude/rules/projekte/holmes-berlin
 - **Restpunkt (Nutzer: „Fensterrahmen viel heller als der Rest“):** Laibungen/Fensterbank innen gemessen 250–254 (fast reinweiß), Himmel 232, Fassade ~170, Raum 80–150. Ursache: Lichtkarte am Fenster + Aufhellung + Belichtung, nicht der Ausblick (vorher von der weißen Fensterfläche kaschiert). Gehört zu Licht/Belichtung (in diesem Auftrag ausgeschlossen) → eigener Auftrag, z. B. Helligkeitsgrenze für Flächen am Fenster ohne Neuberechnung.
 - Bildrate: im eingebauten Browser ~30 Bilder/s an allen Blickpunkten, aber auch ein leeres requestAnimationFrame läuft dort nur 32-mal/s → Grenze der Vorschau, nicht des Spiels. Commit d11b743.
 
+
+## Kranich: Helm richtig aufgesetzt (14. 11., Runde 0/2)
+- Befund: Pickelhaube hatte feste Maße (Halbkugel ab y 1,82) und saß als Deckel auf dem Kopf (Stirn, Haarstreifen frei). Neu: `welt/helm.js` (`baueHelm(kopf, leder, messing)`); `personen.js` ruft es mit dem fertigen Kopf auf.
+- Maße kommen aus den Netzen des Kopfes (Haut, Haar, Bart): Breite und vorderste/hinterste Lage je 5-mm-Höhe, ±1 Stufe Sicherheit. Unterkante vorn 0,31 der Kopfhöhe unter dem Scheitel (knapp über den Brauen), hinten 0,69 (über dem Hinterkopf); Kuppel 1,2 cm über dem Scheitel; Luft zum Kopf 9 mm, unten bis 14 mm ausgestellt. Vorderschirm 6 cm, Neigung 0,32; Nackenschirm 7 cm, Neigung 0,5 (steiler); beide doppelt (oben/unten). Wappenplatte als Ausschnitt der Glocke (2,5 mm davor), Sockel und Spitze aus Messing.
+- Gemessen (Kopf Variante 1, Kranich): Scheitel +0,115, Brauen etwa +0,045, Hinterkopf −0,04; Haaransatz vorn bei +0,06 (verdeckt), Haar sichtbar nur an den Schläfen.
+- Gleiche Materialien wie vorher → Kranich weiter 7 Netze. Raum B `(5,3, 12,8, π)`: 52 Draw-Calls gesamt, 60 Bilder/s, Prüfsumme 77bcb35e, keine Konsolenfehler, Anfragen nur 127.0.0.1; Gespräch (Anklicken, Dialog, Beenden) geprüft.
+- Kopf-Umbau: Helm folgt automatisch; nur bei völlig anderer Kopfform (andere Höhenlage der Brauen) die Anteile 0,31/0,69 in `helm.js` anpassen.

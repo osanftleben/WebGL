@@ -11,7 +11,8 @@ paths:
 ## Arbeitsstand (zuletzt 14. 11. 2026)
 - **Augenanpassung fertig** (`belichtung-v1` 1.0.1, Messbild 16 Bit; Holmes-Werte `AUGEN_OPTIONEN` in `welt/licht.js`: Bezug 0,075, nur aufhellen 1,0 … 1,3 um 1,25). Runde 1/2 erledigt; Firefox bestätigt (Warnung weg, `messart 'half'`, Gruppe 1,19). Werte: Verlauf.
 - **Fensterausblick fertig** (d11b743; `welt/ausblick.js`: ein Netz, Canvas-Atlas, Dunst im Shader). **Speicher-Verkleinerung erledigt** (Atlas 1024², Grafikspeicher 21 → 5 MB; Verlauf). Restpunkt: Laibungen fast weiß (eigener Auftrag). Firefox offen.
-- **Boden, Ecken, Figuren heller erledigt** (Runde 0/1, cea5718): Dielen ×1,5, dunkles Holz/Podest ×1,4, Lichtgitter ×1,3, Grundhelligkeit 0,15 (main.js/bauteile.js), Augen-Bezug 0,05. **Firefox-Prüfung durch den Nutzer offen.** Werte: Verlauf.
+- **Boden, Ecken, Figuren heller erledigt** (cea5718, Werte: Verlauf). Firefox-Prüfung durch den Nutzer offen.
+- **Kranich-Helm sitzt tief** (`welt/helm.js`, Maße am Kopf gemessen; Runde 0/2, Verlauf), noch nicht committet, Firefox offen.
 - **Als Nächstes:** Sichtbarkeit je Raum / LOD (Gruppe ~97 700 Dreiecke über A und B), dann **Sitzung B** (Frauenfiguren an `frauPlatz` nach `frauRolle`).
 - Besetzung A/A2 fertig (Runde 2/2, 65f1767); Messung 20/37/26 Draw-Calls, 60 Bilder/s. Frauen = Annahme (anonym).
 - Feinschliff C fertig (e191cab), Firefox-Abnahme offen. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben. Zurückgestellt: Lichtberechnung auf der Grafikkarte, Fenster-Überstrahlen.

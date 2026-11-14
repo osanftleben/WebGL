@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { verschmelze } from './verschmelzen.js';
 import { kopf, hals, arm, oberkoerper, band, rumpfPunkt } from './menschen.js';
 import { gesichtsTafel, GESICHT } from './texturen.js';
+import { baueHelm } from './helm.js';
 
 /** Waffenrock (Profil: y, halbe Breite, halbe Tiefe, Versatz z); Schoß bis 0,8 m, Kragen bei 1,61 m */
 const WAFFENROCK = [[0.8, 0.215, 0.15, 0], [0.95, 0.205, 0.145, 0], [1.08, 0.19, 0.135, 0], [1.2, 0.195, 0.13, 0.005], [1.4, 0.205, 0.13, 0.01],
@@ -82,21 +83,10 @@ export function baueSchutzmann() {
   const k = kopf({ haut, zelle, variante: 1, haar, haarStil: 'kurz', bart: 'schnurr' });
   k.position.y = 1.75;
   koerper.add(k);
-  // Helm mit Spitze: Lederglocke, Vorder- und Nackenschirm, Beschlag vorn, Spitze aus Messing
-  const glocke = teil(new THREE.SphereGeometry(0.115, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), leder, 0, 1.82, 0);
-  glocke.scale.set(0.95, 1.05, 1.08);
-  koerper.add(glocke);
-  const schirmV = teil(new THREE.BoxGeometry(0.17, 0.012, 0.08), leder, 0, 1.825, 0.12);
-  schirmV.rotation.x = 0.25;
-  koerper.add(schirmV);
-  const schirmH = teil(new THREE.BoxGeometry(0.15, 0.012, 0.08), leder, 0, 1.83, -0.12);
-  schirmH.rotation.x = -0.35;
-  koerper.add(schirmH);
-  koerper.add(teil(new THREE.CylinderGeometry(0.03, 0.035, 0.03, 12), messing, 0, 1.95, 0));
-  koerper.add(teil(new THREE.ConeGeometry(0.018, 0.1, 10), messing, 0, 2.01, 0));
-  const beschlag = teil(new THREE.CircleGeometry(0.05, 14), messing, 0, 1.88, 0.122);
-  beschlag.rotation.x = -0.35;
-  koerper.add(beschlag);
+  // Helm mit Spitze: Maße werden am Kopf gemessen (welt/helm.js), sitzt tief über Brauen und Hinterkopf
+  const helm = baueHelm(k, leder, messing);
+  helm.position.copy(k.position);
+  koerper.add(helm);
   // Säbel an der linken Hüfte (Scheide schräg nach hinten), Griff mit Messingbügel
   const saebel = new THREE.Group();
   saebel.add(teil(new THREE.BoxGeometry(0.03, 0.85, 0.018), stahl, 0, -0.42, 0));
