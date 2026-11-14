@@ -8,14 +8,12 @@ paths:
 - Ordner: `docs/holmes-berliner-faelle/`, online unter `…/WebGL/holmes-berliner-faelle/`
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/` im Hauptordner (nicht lesen, nicht ändern).
 
-## Arbeitsstand (zuletzt 13. 11. 2026)
-- **Aktueller Auftrag: Besetzung** – Ziel: Büsten, Schrankköpfe und Figurengruppe bekommen feste Rollen (Besetzungsliste statt Zufall) mit klaren Altersstufen, vielen Haar-/Kleiderfarben (Vertex-Farben) und Frauenfiguren; dazu Restfehler Haar kappenartig, Schultern klobig, Revers schwach. Abnahme an Büsten nah, Figurengruppe nah, Kopfschrank nah: je 3 Altersstufen erkennbar, ≥ 4 Haarfarben, mind. eine Frau, keine zwei benachbarten Köpfe gleich; nicht mehr Draw-Calls als jetzt, 60 Bilder/s am PC, Dreiecke ≤ ~135 000. Nicht dazu: Leiche, Originalfigur, Kranich, Rohköpfe, Namen/echte Personen. **Frauen = Annahme** (anonym, ohne historischen Anspruch, vom Nutzer so entschieden 14. 11.). Runden 0/2.
-- **Besetzung A fertig, 14. 11.** (nicht committet): Besetzungsliste `BESETZUNG` (bauteile.js), Vertex-Farben `m.farbig`, 3 Altersstufen, Schultern/Revers/Haar überarbeitet, Frauenplätze markiert; Draw-Calls 20/34/26, 60 Bilder/s. **Nächster Schritt: Sitzung B** (Frauenfiguren). Einzelheiten in `holmes-verlauf.md`.
-- Feinschliff C (Wachsfiguren) fertig (e191cab), Firefox-Abnahme durch den Nutzer offen.
-- **Fertig und committet:** Version 1 (bis e104b58), Grafik-Feinschliff A und B (baf7cd9).
-- **Licht abgeschlossen** (Flächen-Lichtkarten, 776b9ed), vom Nutzer am 13. 11. 2026 in Firefox abgenommen. Zurückgestellt: Lichtberechnung auf der Grafikkarte (erst beim nächsten Ort).
-- **Vereinbart mit dem Nutzer (Nov. 2026):** Beim Licht keine weiteren Feinschliff-Schleifen. Kleine Schönheitsfehler hier notieren und weitermachen, nur echte Fehler sofort beheben.
-- **Bekannte kleine Schönheitsfehler Licht:** Fenster ohne Überstrahlen (Geschmackssache, kostet Leistung).
+## Arbeitsstand (zuletzt 14. 11. 2026)
+- **Auftrag Besetzung** (Wachsfiguren mit festen Rollen; Ziel und Abnahme in `holmes-verlauf.md`). **Frauen = Annahme** (anonym, ohne historischen Anspruch, vom Nutzer entschieden 14. 11.). Nicht dazu: Leiche, Originalfigur, Kranich, Rohköpfe. Runden 0/2.
+  - A fertig (3a3b6da, 0e61780). **A2 abschließen: erledigt 14. 11.** (Kleidung nach Stand, Brille/Monokel, Narben, `frauRolle`; Commit offen). Messwerte Chromium: Draw-Calls 20/37/26 (Gruppe auch bei A 37), Dreiecke ≤ ~134 000, 60 Bilder/s.
+  - **Nächster Schritt: Sitzung B** (Frauenfiguren an den `frauPlatz`-Plätzen nach `frauRolle`; Brillen schon erledigt).
+- Feinschliff C fertig (e191cab), Firefox-Abnahme durch den Nutzer offen. Version 1, Feinschliff A/B committet.
+- **Licht abgeschlossen** (776b9ed, Firefox-Abnahme 13. 11.); keine weiteren Feinschliff-Schleifen, nur echte Fehler beheben. Zurückgestellt: Lichtberechnung auf der Grafikkarte, Fenster-Überstrahlen.
 - **Danach:** D (Stuck, Beschläge), dann weitere Inhalte von Fall 1 (siehe Ausbaustufen).
 - Prüfhilfen: Vorschau `webgl-vorschau`; Blickpunkte siehe „Rundgang“. `ERR_CONNECTION_REFUSED` (Port 8765) = Empfänger nicht gestartet, harmlos.
 
@@ -43,7 +41,7 @@ Im Browser: `__debug.steuerung.setzePosition(x, z, blick)` (Blick vorwärts = (�
 8. Schräge Werkstattwand: `(5,6, 23,6, −3π/4+0,1)`
 
 ## Ausbaustufen
-- **Grafik-Feinschliff direkt nach Version 1** (vom Nutzer so entschieden; Stil bleibt stilisiert und selbst erzeugt, handytauglich): weiche Schatten und Abdunkelung in Ecken/unter Möbeln, glänzende Materialien (Gold, Messing, Glas, poliertes Holz), bessere Wachsfiguren (Körperform, Hände, Gesichter, Kleidung), feinere Details (Stuckornamente, Beschläge), einheitliche Farbstimmung. Vorrang haben die spielwichtigen Gegenstände.
+- **Grafik-Feinschliff** (stilisiert, selbst erzeugt, handytauglich; spielwichtige Gegenstände zuerst): A–C fertig, Besetzung läuft, D offen (Liste im Verlauf).
 - Schwierigkeitsstufen, Droschkenfahrt, Startmenü mit Grafikeinstellung
 - Hinweise verknüpfen, Auflösung (Wer/Wie/Warum)
 - übrige Orte von Fall 1, danach weitere Fälle (je eigenes Viertel)

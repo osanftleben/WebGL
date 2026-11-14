@@ -307,9 +307,9 @@ export function heizkoerper(m, breite) {
 // ---------- Ausstellungsstücke ----------
 
 // ---------- Besetzung der Wachsfiguren ----------
-// Feste Rollen statt Zufall: Alter, Statur, Haar, Bart und Kleidung je Figur bewusst verteilt
-// (keine Namen, keine echten Personen). Farben laufen über Vertex-Farben auf `m.farbig`, daher
-// kosten weitere Farben keinen Draw-Call.
+// Feste Rollen statt Zufall: Stand, Alter, Statur, Haar, Bart, Kleidung und Merkmale je Figur bewusst
+// verteilt (keine Namen, keine echten Personen). Farben laufen über Vertex-Farben auf `m.farbig`, daher
+// kosten weitere Farben keinen Draw-Call. Stände, Kleidung und Narben sind Gestaltung, keine belegte Angabe.
 
 /** Haarfarben (sRGB) */
 export const HAARFARBE = {
@@ -321,11 +321,37 @@ export const STOFF = {
   schwarz: 0x2a2725, anthrazit: 0x38332d, grau: 0x55565a, hellgrau: 0x85837d, braun: 0x4b3a2b, tabak: 0x6b5136,
   tweed: 0x6e6551, blau: 0x2c3550, gruen: 0x34402f, bordeaux: 0x55232a, beige: 0x9c8a68, creme: 0xd9cfb8,
   weiss: 0xe9e6de, rot: 0x7a1f1f, horn: 0x2a221c, messing: 0xa8854a,
+  // Besetzung A2 (Kleidung nach Stand)
+  leinen: 0xb8ab90, grauweiss: 0xc9c3b5, kittelblau: 0x3b577c, loden: 0x4b5437, marine: 0x232a3d, senf: 0x8a6a2b,
+  rostbraun: 0x6c3a24, nickel: 0x9d9b93,
+};
+
+/**
+ * Stände der Schreckenskammer (Gestaltung): Tracht und Halsbinde, Hemdfarbe, wie abgetragen.
+ * Trachten: gehrock (langer Rock, Weste, Revers), joppe (kurze Jacke mit Revers), weste (Hemdsärmel,
+ * hochgekrempelt, mit Weste), kittel (Fuhrmannskittel mit Passe), troyer (Wollpullover mit Rollkragen).
+ * Gehrock mit Krawatte nur bei den „feinen“ Betrügern.
+ * Frauenrollen für Sitzung B (bis dahin steht an diesen Plätzen ein Mann): dienstmagd, waescherin, giftmischerin.
+ * @type {Record<string, { tracht: 'gehrock' | 'joppe' | 'weste' | 'kittel' | 'troyer', binder: 'krawatte' | 'tuch' | 'keiner', hemd: keyof typeof STOFF, abgetragen: number }>}
+ */
+export const STAND = {
+  betrueger: { tracht: 'gehrock', binder: 'krawatte', hemd: 'weiss', abgetragen: 0 }, // Hochstapler, Heiratsschwindler
+  hausierer: { tracht: 'gehrock', binder: 'tuch', hemd: 'leinen', abgetragen: 1 }, // alter, geflickter Rock
+  zuhaelter: { tracht: 'joppe', binder: 'tuch', hemd: 'creme', abgetragen: 0 }, // auffällige Farben
+  einbrecher: { tracht: 'joppe', binder: 'tuch', hemd: 'grauweiss', abgetragen: 0.6 },
+  hehler: { tracht: 'joppe', binder: 'tuch', hemd: 'leinen', abgetragen: 0.8 },
+  wilddieb: { tracht: 'joppe', binder: 'tuch', hemd: 'leinen', abgetragen: 0.8 }, // Lodenjoppe
+  tageloehner: { tracht: 'weste', binder: 'tuch', hemd: 'leinen', abgetragen: 1 },
+  taschendieb: { tracht: 'weste', binder: 'tuch', hemd: 'grauweiss', abgetragen: 0.5 },
+  fuhrknecht: { tracht: 'kittel', binder: 'tuch', hemd: 'leinen', abgetragen: 0.5 },
+  seemann: { tracht: 'troyer', binder: 'keiner', hemd: 'grauweiss', abgetragen: 0.4 },
+  schlaeger: { tracht: 'troyer', binder: 'keiner', hemd: 'grauweiss', abgetragen: 0.7 },
 };
 
 /**
  * Rolle einer Wachsfigur. Gesicht = Zelle der Gesichtstafel passend zur Altersstufe
- * (jung 0, 1, 4, 8 · mittel 3, 5, 9, 11 · alt 2, 6, 7, 10; Brauenfarbe siehe texturen.js), form = Kopfform 0–5.
+ * (jung 0, 1, 4, 8 · mittel 3, 5, 9, 11 · alt 2, 6, 7, 10; mit Narben 16–22, siehe NARBEN in texturen.js;
+ * Brauenfarbe siehe texturen.js), form = Kopfform 0–5.
  * @typedef {object} Rolle
  * @property {0 | 1 | 2} alter 0 jung, 1 mittel, 2 alt
  * @property {number} gesicht
@@ -335,9 +361,17 @@ export const STOFF = {
  * @property {import('./menschen.js').BartStil} bart
  * @property {keyof typeof HAARFARBE} [bartFarbe] sonst wie das Haar
  * @property {'schmal' | 'mittel' | 'kraeftig'} [statur]
- * @property {keyof typeof STOFF} [rock] @property {keyof typeof STOFF} [weste]
- * @property {keyof typeof STOFF} [krawatte] @property {keyof typeof STOFF} [hose]
+ * @property {keyof typeof STAND} [stand] Stand bzw. Rolle (bestimmt Tracht und Halsbinde)
+ * @property {keyof typeof STOFF} [rock] Rock, Jacke, Weste (Tracht weste), Kittel oder Pullover
+ * @property {keyof typeof STOFF} [weste] Weste unter Rock/Jacke
+ * @property {keyof typeof STOFF} [krawatte] Krawatte bzw. Halstuch
+ * @property {keyof typeof STOFF} [hose] @property {keyof typeof STOFF} [hemd] sonst nach Stand
+ * @property {keyof typeof STOFF} [flicken] aufgesetzter Flicken in dieser Farbe
+ * @property {keyof typeof STOFF} [muetze] Schiebermütze (Haar darunter kurz)
+ * @property {'zylinder' | 'melone'} [hut] Form des Huts, wenn die Figur einen trägt
+ * @property {{ nase?: number, ohr?: -1 | 1, klappe?: -1 | 1, brille?: 'nickel' | 'monokel' }} [merkmale]
  * @property {boolean} [frauPlatz] vorgesehen für eine Frauenfigur (Sitzung B); bis dahin steht hier ein Mann
+ * @property {'dienstmagd' | 'waescherin' | 'giftmischerin'} [frauRolle] Rolle der Frau, die B hier einsetzt
  */
 
 /**
@@ -352,41 +386,51 @@ const R = (alter, gesicht, form, haar, frisur = 'voll', bart = 'keiner', mehr = 
 /**
  * Besetzungsliste der Schreckenskammer. Reihenfolge = Aufstellung in etage3.js. Gestaltung (keine
  * historische Angabe): überwiegend jung bis mittelalt (etwa 20–40), nur wenige Alte; Haar und Bart
- * meist ungepflegt (zerzaust, strähnig, Stoppeln, struppig). Gepflegt nur zwei „feine“ Betrüger
- * (Büste 0 und 8). Nachbarn unterscheiden sich in Alter, Haarfarbe und Frisur; jeder Blickpunkt zeigt
- * drei Altersstufen und mindestens vier Haarfarben. `frauPlatz` markiert die Plätze für Frauenfiguren.
+ * meist ungepflegt (zerzaust, strähnig, Stoppeln, struppig). Fast alle aus den unteren Ständen
+ * (Tagelöhner, Fuhrknecht, Seemann, Hausierer, Zuhälter, Einbrecher, Wilddieb …), nur zwei „feine“
+ * Betrüger im Gehrock (Büste 0 und 8). Narben und Entstellungen bei etwa einem Drittel.
+ * Nachbarn unterscheiden sich in Alter, Haarfarbe und Frisur; jeder Blickpunkt zeigt drei
+ * Altersstufen und mindestens vier Haarfarben. `frauPlatz` markiert die Plätze für Frauenfiguren.
  */
 export const BESETZUNG = {
-  // Büsten in Raum A: 0–5 an der Hofwand (z 1,6 → 7,85), 6–8 an der Trennwand zu Raum B (x 6,75 → 8,45)
+  // Büsten in Raum A: 0–5 an der Hofwand (z 1,6 → 7,85), 6–8 an der Trennwand zu Raum B (x 6,75 → 8,45).
+  // Seite −1 (lokal −x) ist vom Blickpunkt „Büsten nah“ aus zu sehen.
   buesten: [
-    R(0, 1, 0, 'blond', 'scheitel', 'schnurr', { statur: 'schmal', rock: 'tabak', weste: 'creme', krawatte: 'blau' }),
-    R(2, 6, 4, 'grau', 'kranz', 'stoppel', { rock: 'schwarz', weste: 'grau', krawatte: 'schwarz' }),
-    R(1, 11, 3, 'rot', 'zerzaust', 'struppig', { statur: 'kraeftig', rock: 'gruen', weste: 'beige', krawatte: 'schwarz', frauPlatz: true }),
-    R(0, 8, 5, 'schwarz', 'straehnig', 'stoppel', { statur: 'schmal', rock: 'blau', weste: 'hellgrau', krawatte: 'rot' }),
-    R(1, 9, 1, 'meliert', 'kurz', 'schnurrStruppig', { statur: 'kraeftig', rock: 'grau', weste: 'schwarz', krawatte: 'bordeaux' }),
-    R(0, 0, 2, 'dunkelbraun', 'zerzaust', 'stoppel', { rock: 'braun', weste: 'beige', krawatte: 'schwarz' }),
-    R(0, 4, 2, 'rotblond', 'straehnig', 'keiner', { statur: 'schmal', rock: 'bordeaux', weste: 'schwarz', krawatte: 'schwarz' }),
-    R(1, 3, 0, 'schwarz', 'ecken', 'struppig', { statur: 'kraeftig', rock: 'schwarz', weste: 'hellgrau', krawatte: 'schwarz', frauPlatz: true }),
-    R(1, 5, 4, 'dunkelblond', 'scheitel', 'voll', { rock: 'tweed', weste: 'braun', krawatte: 'gruen' }),
+    R(0, 16, 0, 'blond', 'scheitel', 'schnurr', { stand: 'betrueger', statur: 'schmal', rock: 'schwarz', weste: 'creme', krawatte: 'blau', merkmale: { brille: 'monokel' } }),
+    R(2, 6, 4, 'grau', 'kranz', 'stoppel', { stand: 'wilddieb', rock: 'loden', weste: 'braun', krawatte: 'tabak', merkmale: { ohr: -1 } }),
+    R(1, 11, 3, 'rot', 'zerzaust', 'struppig', { stand: 'fuhrknecht', statur: 'kraeftig', rock: 'kittelblau', krawatte: 'rot', frauPlatz: true, frauRolle: 'waescherin' }),
+    R(0, 17, 5, 'schwarz', 'straehnig', 'stoppel', { stand: 'taschendieb', statur: 'schmal', rock: 'braun', krawatte: 'bordeaux' }),
+    R(1, 21, 1, 'meliert', 'kurz', 'schnurrStruppig', { stand: 'schlaeger', statur: 'kraeftig', rock: 'marine', merkmale: { klappe: -1, nase: -0.07 } }),
+    R(0, 0, 2, 'dunkelbraun', 'zerzaust', 'stoppel', { stand: 'tageloehner', rock: 'grau', krawatte: 'blau' }),
+    R(0, 22, 2, 'rotblond', 'straehnig', 'keiner', { stand: 'seemann', statur: 'schmal', rock: 'blau' }),
+    R(1, 19, 0, 'schwarz', 'ecken', 'struppig', { stand: 'hehler', statur: 'kraeftig', rock: 'rostbraun', weste: 'grau', krawatte: 'gruen', flicken: 'tweed', frauPlatz: true, frauRolle: 'giftmischerin' }),
+    R(1, 5, 4, 'dunkelblond', 'scheitel', 'voll', { stand: 'betrueger', rock: 'tweed', weste: 'braun', krawatte: 'gruen', merkmale: { brille: 'nickel' } }),
   ],
-  // Glasschränke in Raum B (z 11,0 und 13,2): je 12 Köpfe, Boden 0 (unten) bis 2, je Boden 4 Plätze; je Schrank 2 Alte
+  // Glasschränke in Raum B (z 11,0 und 13,2): je 12 Köpfe, Boden 0 (unten) bis 2, je Boden 4 Plätze; je Schrank 2 Alte.
+  // Von den Schrankköpfen ist nur der Kragen bzw. das Halstuch zu sehen (nach Stand).
   schrank: [
     [
-      R(0, 8, 0, 'schwarz', 'zerzaust', 'stoppel'), R(1, 11, 1, 'rot', 'kurz', 'schnurrStruppig'), R(2, 10, 4, 'weiss', 'kranz', 'struppig'), R(0, 1, 2, 'blond', 'straehnig'),
-      R(1, 9, 2, 'meliert', 'ecken', 'stoppel'), R(0, 0, 5, 'braun', 'straehnig', 'backen'), R(0, 4, 3, 'rotblond', 'zerzaust'), R(1, 3, 0, 'schwarz', 'licht', 'schnurrStruppig'),
-      R(1, 3, 4, 'dunkelbraun', 'zerzaust', 'struppig', { frauPlatz: true }), R(0, 8, 1, 'schwarz', 'locken', 'stoppel'), R(1, 5, 5, 'dunkelblond', 'kurz', 'schnurr'), R(2, 7, 3, 'grau', 'licht', 'stoppel'),
+      R(0, 8, 0, 'schwarz', 'zerzaust', 'stoppel', { stand: 'tageloehner', krawatte: 'rot' }), R(1, 11, 1, 'rot', 'kurz', 'schnurrStruppig', { stand: 'einbrecher', krawatte: 'schwarz' }),
+      R(2, 10, 4, 'weiss', 'kranz', 'struppig', { stand: 'hausierer', krawatte: 'braun' }), R(0, 1, 2, 'blond', 'straehnig', 'keiner', { stand: 'taschendieb', krawatte: 'blau' }),
+      R(1, 18, 2, 'meliert', 'ecken', 'stoppel', { stand: 'hehler', krawatte: 'gruen' }), R(0, 0, 5, 'braun', 'straehnig', 'backen', { stand: 'seemann', rock: 'marine' }),
+      R(0, 4, 3, 'rotblond', 'zerzaust', 'keiner', { stand: 'fuhrknecht', krawatte: 'bordeaux' }), R(1, 3, 0, 'schwarz', 'licht', 'schnurrStruppig', { stand: 'zuhaelter', krawatte: 'senf' }),
+      R(1, 3, 4, 'dunkelbraun', 'zerzaust', 'struppig', { stand: 'tageloehner', krawatte: 'tabak', frauPlatz: true, frauRolle: 'dienstmagd' }), R(0, 17, 1, 'schwarz', 'locken', 'stoppel', { stand: 'einbrecher', krawatte: 'rot' }),
+      R(1, 5, 5, 'dunkelblond', 'kurz', 'schnurr', { stand: 'betrueger', krawatte: 'bordeaux', merkmale: { brille: 'nickel' } }), R(2, 7, 3, 'grau', 'licht', 'stoppel', { stand: 'wilddieb', krawatte: 'gruen' }),
     ],
     [
-      R(1, 9, 1, 'meliert', 'zerzaust', 'struppig'), R(0, 4, 0, 'rot', 'straehnig', 'stoppel'), R(2, 6, 3, 'grau', 'ecken', 'schnurrStruppig'), R(0, 1, 5, 'blond', 'kurz', 'stoppel'),
-      R(0, 0, 4, 'dunkelbraun', 'locken'), R(1, 11, 2, 'rotblond', 'ecken', 'backen'), R(1, 5, 1, 'dunkelblond', 'zerzaust', 'stoppel', { frauPlatz: true }), R(0, 8, 3, 'schwarz', 'straehnig', 'schnurrStruppig'),
-      R(1, 3, 5, 'schwarz', 'kurz', 'struppig'), R(0, 0, 2, 'braun', 'zerzaust'), R(2, 2, 4, 'weiss', 'kranz', 'stoppel'), R(1, 9, 0, 'meliert', 'straehnig', 'schnurr'),
+      R(1, 9, 1, 'meliert', 'zerzaust', 'struppig', { stand: 'schlaeger', rock: 'anthrazit' }), R(0, 22, 0, 'rot', 'straehnig', 'stoppel', { stand: 'taschendieb', krawatte: 'schwarz' }),
+      R(2, 6, 3, 'grau', 'ecken', 'schnurrStruppig', { stand: 'hausierer', krawatte: 'rot' }), R(0, 1, 5, 'blond', 'kurz', 'stoppel', { stand: 'einbrecher', krawatte: 'braun', merkmale: { klappe: 1 } }),
+      R(0, 0, 4, 'dunkelbraun', 'locken', 'keiner', { stand: 'seemann', rock: 'blau' }), R(1, 20, 2, 'rotblond', 'ecken', 'backen', { stand: 'zuhaelter', krawatte: 'rot' }),
+      R(1, 5, 1, 'dunkelblond', 'zerzaust', 'stoppel', { stand: 'fuhrknecht', krawatte: 'blau', frauPlatz: true, frauRolle: 'waescherin' }), R(0, 8, 3, 'schwarz', 'straehnig', 'schnurrStruppig', { stand: 'tageloehner', krawatte: 'gruen' }),
+      R(1, 3, 5, 'schwarz', 'kurz', 'struppig', { stand: 'schlaeger', rock: 'grau', merkmale: { nase: 0.07 } }), R(0, 0, 2, 'braun', 'zerzaust', 'keiner', { stand: 'hehler', krawatte: 'senf' }),
+      R(2, 2, 4, 'weiss', 'kranz', 'stoppel', { stand: 'wilddieb', krawatte: 'tabak' }), R(1, 9, 0, 'meliert', 'straehnig', 'schnurr', { stand: 'einbrecher', krawatte: 'bordeaux' }),
     ],
   ],
-  // Figurengruppe in Raum B: 0 mit Hut, 1 ohne, 2 (neu) hinten links neben dem Platz der Leiche
+  // Figurengruppe in Raum B: 0 mit Hut (Melone), 1 ohne, 2 hinten links neben dem Platz der Leiche (Schiebermütze)
   gruppe: [
-    R(1, 11, 1, 'rot', 'kurz', 'struppig', { statur: 'kraeftig', rock: 'grau', weste: 'anthrazit', krawatte: 'bordeaux', hose: 'anthrazit' }),
-    R(2, 10, 4, 'weiss', 'kranz', 'schnurrStruppig', { rock: 'anthrazit', weste: 'grau', krawatte: 'schwarz', hose: 'schwarz' }),
-    R(0, 8, 0, 'schwarz', 'zerzaust', 'stoppel', { statur: 'schmal', rock: 'tabak', weste: 'creme', krawatte: 'gruen', hose: 'braun', frauPlatz: true }),
+    R(1, 20, 1, 'rot', 'kurz', 'struppig', { stand: 'zuhaelter', statur: 'kraeftig', rock: 'tabak', weste: 'senf', krawatte: 'rot', hose: 'hellgrau', hut: 'melone', merkmale: { nase: 0.06 } }),
+    R(2, 10, 4, 'weiss', 'kranz', 'schnurrStruppig', { stand: 'hausierer', rock: 'braun', weste: 'grau', krawatte: 'schwarz', hose: 'tweed', flicken: 'tweed', merkmale: { ohr: 1 } }),
+    R(0, 8, 0, 'schwarz', 'zerzaust', 'stoppel', { stand: 'taschendieb', statur: 'schmal', rock: 'gruen', krawatte: 'blau', hose: 'braun', muetze: 'tweed', frauPlatz: true, frauRolle: 'dienstmagd' }),
   ],
 };
 
@@ -419,16 +463,19 @@ function profilNachStatur(profil, st) {
  * Wachskopf nach Rolle.
  * @param {Materialien} m @param {Rolle} rolle
  * @param {boolean} [fein=true]
- * @param {boolean} [hut=false] unter einem Hut nur das Haar unter dem Hutrand
+ * @param {boolean} [hut=false] unter einem Hut nur das Haar unter dem Hutrand (ebenso unter der Mütze)
  */
 function wachskopf(m, rolle, fein = true, hut = false) {
   const haar = rolle.haar ? farbe(m, HAARFARBE[rolle.haar]) : null;
   const bartFarbe = rolle.bartFarbe ? farbe(m, HAARFARBE[rolle.bartFarbe]) : haar;
+  const mk = rolle.merkmale;
   const k = kopf({
     haut: m.wachs, zelle: rolle.gesicht, variante: rolle.form, fein, alter: rolle.alter,
     // Schrankköpfe (grob) mit etwas sparsamerem Gitter: hält die Dreiecke im Blick unter ~135 000
-    raster: fein ? null : [22, 17],
-    haar, haarStil: hut ? 'unterHut' : rolle.frisur, bart: rolle.bart, bartMaterial: bartFarbe,
+    raster: fein ? null : [21, 16],
+    haar, haarStil: hut || rolle.muetze ? 'unterHut' : rolle.frisur, bart: rolle.bart, bartMaterial: bartFarbe,
+    merkmale: mk ? { ...mk, metall: farbe(m, mk.brille === 'monokel' ? STOFF.messing : STOFF.nickel), leder: farbe(m, STOFF.schwarz) } : null,
+    muetze: rolle.muetze ? farbe(m, STOFF[rolle.muetze]) : null,
   });
   k.scale.set(...STATUR[rolle.statur ?? 'mittel'].kopf);
   return k;
@@ -447,10 +494,8 @@ export function buesteAufSockel(m, rolle) {
   g.add(box(0.36, 1.1, 0.36, 0, 0.55, 0, m.holzDunkel));
   g.add(box(0.42, 0.05, 0.42, 0, 1.125, 0, m.holzDunkel));
   const st = STATUR[rolle.statur ?? 'mittel'];
-  g.add(oberkoerper({
-    profil: profilNachStatur(BUESTE, { ...st, bauch: 0 }), rock: farbe(m, STOFF[rolle.rock ?? 'anthrazit']), untenZu: true, kragen: farbe(m, STOFF.weiss), schnitt: 2,
-    ausschnitt: { unten: 1.2, breite: 0.055, weste: farbe(m, STOFF[rolle.weste ?? 'grau']), hemd: farbe(m, STOFF.weiss), krawatte: farbe(m, STOFF[rolle.krawatte ?? 'schwarz']), knopf: farbe(m, STOFF.horn), rockKnoepfe: 0 },
-  }));
+  // Schultern und Kragen nach Stand (kleidung() steht weiter unten bei figur)
+  g.add(oberkoerper({ profil: profilNachStatur(BUESTE, { ...st, bauch: 0 }), ...kleidung(m, rolle, true).o }));
   const h = hals(m.wachs);
   h.position.set(0, 1.39, -0.012);
   g.add(h);
@@ -527,9 +572,79 @@ export function vitrine(m, breite, tiefe) {
   return g;
 }
 
+/**
+ * Farbe mit Faktor abgedunkelt (sRGB-Hex).
+ * @param {number} hex @param {number} f
+ */
+const dunkler = (hex, f) => (Math.round(((hex >> 16) & 255) * f) << 16) | (Math.round(((hex >> 8) & 255) * f) << 8) | Math.round((hex & 255) * f);
+
+/**
+ * Kleidung nach Stand: Angaben für oberkoerper() (ohne Profil) und für die Arme.
+ * @param {Materialien} m @param {Rolle} rolle @param {boolean} bueste Büste (nur Schultern) oder Ganzfigur
+ */
+function kleidung(m, rolle, bueste) {
+  const st = STAND[rolle.stand ?? 'betrueger'];
+  const f = (/** @type {keyof typeof STOFF} */ k) => farbe(m, STOFF[k]);
+  const rockHex = STOFF[rolle.rock ?? 'anthrazit'];
+  const rock = farbe(m, rockHex);
+  const hemd = f(rolle.hemd ?? st.hemd);
+  const tuch = st.binder === 'tuch';
+  const binde = f(rolle.krawatte ?? (tuch ? 'rot' : 'schwarz'));
+  const knopf = f('horn');
+  const unten = bueste ? 1.2 : 1.28;
+  const breite = bueste ? 0.055 : 0.07;
+  /** @type {Omit<Parameters<typeof oberkoerper>[0], 'profil'>} */
+  const o = {
+    rock, schnitt: 2, untenZu: bueste, binder: st.binder, abgetragen: st.abgetragen,
+    kragen: tuch ? binde : hemd, kragenForm: tuch ? 'tuch' : 'steh',
+  };
+  /** @type {{ stoff: import('./menschen.js').Stoff, manschette: import('./menschen.js').Stoff | null, krempel: number }} */
+  let aermel = { stoff: rock, manschette: hemd, krempel: 0 };
+  if (st.tracht === 'gehrock' || st.tracht === 'joppe') {
+    o.ausschnitt = { unten, breite, weste: f(rolle.weste ?? 'grau'), hemd, krawatte: binde, knopf, rockKnoepfe: bueste ? 0 : 2 };
+    // Joppe: kurze Jacke bis zur Hüfte
+    if (st.tracht === 'joppe' && !bueste) o.saum = 0.8;
+  } else if (st.tracht === 'weste') {
+    // Hemdsärmel mit Weste: außen die Weste, im V und über den Schultern das Hemd
+    o.ausschnitt = { unten: unten + 0.03, breite: breite * 0.9, weste: hemd, hemd, krawatte: binde, knopf, rockKnoepfe: bueste ? 1 : 4 };
+    o.revers = false;
+    o.knoepfeMitte = true;
+    o.schulter = hemd;
+    if (!bueste) {
+      o.saum = 0.92;
+      o.unterteil = f(rolle.hose ?? 'anthrazit');
+    }
+    aermel = { stoff: hemd, manschette: null, krempel: 0.45 };
+  } else if (st.tracht === 'kittel') {
+    // Fuhrmannskittel: kleiner Schlitz am Hals, Naht der Passe über der Brust
+    o.ausschnitt = { unten: bueste ? 1.27 : 1.42, breite: 0.035, weste: hemd, hemd, krawatte: binde, knopf, rockKnoepfe: 0 };
+    o.revers = false;
+    o.passe = farbe(m, dunkler(rockHex, 0.7));
+    if (!bueste) o.saum = 0.68;
+    aermel = { stoff: rock, manschette: null, krempel: 0 };
+  } else {
+    // Troyer: Wollpullover mit Rollkragen
+    o.kragen = rock;
+    o.kragenForm = 'roll';
+    o.binder = 'keiner';
+    if (!bueste) {
+      o.saum = 0.88;
+      o.unterteil = f(rolle.hose ?? 'anthrazit');
+    }
+    aermel = { stoff: rock, manschette: null, krempel: 0 };
+  }
+  if (rolle.flicken) {
+    const fl = f(rolle.flicken);
+    o.flecken = bueste ? [{ stoff: fl, y: 1.235, th: -1.05, b: 0.22, h: 0.06 }] : [{ stoff: fl, y: 1.02, th: -0.75 }, { stoff: fl, y: 1.3, th: 2.5 }];
+  }
+  return { o, aermel };
+}
+
 const beinGeo = new THREE.CylinderGeometry(0.065, 0.06, 0.82, 10);
 const hutGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.16, 16);
 const krempeGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.015, 20);
+const meloneGeo = new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+const meloneRandGeo = new THREE.TorusGeometry(1, 0.06, 4, 22);
 
 /** Körper im Gehrock (Profil: y, halbe Breite, halbe Tiefe, Versatz z); Saum bei 0,6 m, Hals bei 1,52 m */
 export const GEHROCK = [[0.6, 0.205, 0.15, -0.005], [0.8, 0.19, 0.135, 0], [0.98, 0.172, 0.118, 0], [1.06, 0.16, 0.11, 0], [1.2, 0.17, 0.118, 0.006],
@@ -542,12 +657,12 @@ const GEHROCK_RUND = [[0.6, 0.205, 0.15, -0.005, 2.6], [0.8, 0.19, 0.135, 0, 2.6
 const schuhGeo = new THREE.SphereGeometry(1, 12, 8);
 
 /**
- * Lebensgroße, stilisierte Wachsfigur (etwa 1,75 m) im Gehrock mit Weste, Hemd und Krawatte.
- * Die Figur schaut nach +z.
+ * Lebensgroße, stilisierte Wachsfigur (etwa 1,75 m), gekleidet nach Stand (Gehrock, Joppe,
+ * Hemdsärmel mit Weste, Kittel oder Troyer). Die Figur schaut nach +z.
  * @param {Materialien} m
  * @param {Rolle} rolle aus BESETZUNG.gruppe
  * @param {object} [o]
- * @param {boolean} [o.hut=false]
+ * @param {boolean} [o.hut=false] Hut nach rolle.hut (Zylinder oder Melone)
  * @param {number} [o.armWinkel=0.12] Abspreizung der Arme
  * @param {boolean} [o.quaderSchuhe=true] Schuhe als Quader (die zählen im Lichtmodell mit; nur die
  *   beiden Figuren von Feinschliff C haben sie, neue Figuren bekommen runde Schuhe)
@@ -555,8 +670,6 @@ const schuhGeo = new THREE.SphereGeometry(1, 12, 8);
 export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = true } = {}) {
   const g = new THREE.Group();
   const st = STATUR[rolle.statur ?? 'mittel'];
-  const kleid = farbe(m, STOFF[rolle.rock ?? 'anthrazit']);
-  const weiss = farbe(m, STOFF.weiss);
   for (const s of [-1, 1]) {
     const bein = stoffTeil(beinGeo, farbe(m, STOFF[rolle.hose ?? 'anthrazit']));
     bein.scale.set(st.breite, 1, st.breite);
@@ -571,15 +684,13 @@ export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = 
       g.add(schuh);
     }
   }
-  g.add(oberkoerper({
-    profil: profilNachStatur(GEHROCK_RUND, st), rock: kleid, kragen: weiss, schnitt: 2,
-    ausschnitt: { unten: 1.28, breite: 0.07, weste: farbe(m, STOFF[rolle.weste ?? 'grau']), hemd: weiss, krawatte: farbe(m, STOFF[rolle.krawatte ?? 'schwarz']), knopf: farbe(m, STOFF.horn) },
-  }));
+  const { o, aermel } = kleidung(m, rolle, false);
+  g.add(oberkoerper({ profil: profilNachStatur(GEHROCK_RUND, st), ...o }));
   const sw = Math.sin(armWinkel);
   const b = st.breite;
   for (const s of [-1, 1]) {
     g.add(arm({
-      stoff: kleid, haut: m.wachs, zelle: 0, seite: s, manschette: weiss, kugel: 0.82,
+      stoff: aermel.stoff, haut: m.wachs, zelle: 0, seite: s, manschette: aermel.manschette, kugel: 0.82, krempel: aermel.krempel,
       schulter: [s * 0.156 * b, 1.39, 0], ellbogen: [s * (0.195 * b + sw * 0.26), 1.14, 0.03], handgelenk: [s * (0.205 * b + sw * 0.5), 0.9, 0.05],
     }).gruppe);
   }
@@ -593,7 +704,23 @@ export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = 
   k.position.set(0, 1.635 - neigung * 0.03, neigung * 0.16);
   k.rotation.x = neigung;
   g.add(k);
-  if (hut) {
+  if (hut && rolle.hut === 'melone') {
+    // Melone: runder Kopf, schmale, am Rand aufgerollte Krempe
+    const schwarz = farbe(m, STOFF.schwarz);
+    const kr = stoffTeil(meloneGeo, schwarz);
+    kr.scale.set(0.092, 0.1, 0.104);
+    kr.position.set(0, 1.71, -0.004);
+    g.add(kr);
+    const rand = stoffTeil(krempeGeo, schwarz);
+    rand.scale.set(0.76, 0.7, 0.86);
+    rand.position.set(0, 1.71, -0.004);
+    g.add(rand);
+    const roll = stoffTeil(meloneRandGeo, schwarz);
+    roll.scale.set(0.122, 0.137, 0.12);
+    roll.rotation.x = Math.PI / 2;
+    roll.position.set(0, 1.713, -0.004);
+    g.add(roll);
+  } else if (hut) {
     const hh = stoffTeil(hutGeo, farbe(m, STOFF.schwarz));
     hh.scale.set(0.85, 1, 1);
     hh.position.set(0, 1.787, -0.004);
@@ -603,6 +730,36 @@ export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = 
     kr.position.set(0, 1.707, -0.004);
     g.add(kr);
   }
+  return g;
+}
+
+// Halsabschluss der Schrankköpfe sparsam (offene Zylinder, kleiner Knoten): 24 Köpfe im Blick
+const kragenStehGeo = new THREE.CylinderGeometry(0.064, 0.068, 0.04, 12, 1, true);
+const kragenRollGeo = new THREE.CylinderGeometry(0.068, 0.075, 0.05, 12, 1, true);
+const knotenGeo = new THREE.SphereGeometry(1, 7, 4);
+
+/**
+ * Abschluss am Hals eines Schrankkopfs nach Stand: Rollkragen, Halstuch mit Knoten oder weißer
+ * Stehkragen mit Krawattenknoten. Mitte am Halsansatz, vorn = +z.
+ * @param {Materialien} m @param {Rolle} rolle
+ */
+function halsAbschluss(m, rolle) {
+  const st = STAND[rolle.stand ?? 'betrueger'];
+  const g = new THREE.Group();
+  if (st.tracht === 'troyer') {
+    g.add(stoffTeil(kragenRollGeo, farbe(m, STOFF[rolle.rock ?? 'marine'])));
+    return g;
+  }
+  const tuch = st.binder === 'tuch';
+  const binde = farbe(m, STOFF[rolle.krawatte ?? (tuch ? 'rot' : 'schwarz')]);
+  const ring = stoffTeil(kragenStehGeo, tuch ? binde : farbe(m, STOFF.weiss));
+  if (tuch) ring.scale.set(1.04, 0.8, 1.04);
+  g.add(ring);
+  const knoten = stoffTeil(knotenGeo, binde);
+  if (tuch) knoten.scale.set(0.021, 0.017, 0.014);
+  else knoten.scale.set(0.014, 0.012, 0.009);
+  knoten.position.set(0, -0.006, 0.066);
+  g.add(knoten);
   return g;
 }
 
@@ -840,10 +997,14 @@ export function kopfschrank(m, breite, rollen) {
     const anzahl = Math.max(2, Math.floor(breite / 0.45));
     for (let k = 0; k < anzahl; k++) {
       const x = -breite / 2 + ((k + 0.5) * breite) / anzahl;
+      const rolle = rollen[(boden * anzahl + k) % rollen.length];
       const h = hals(m.wachs);
       h.position.set(x, y + 0.09, tiefe / 2 - 0.012);
       g.add(h);
-      const wk = wachskopf(m, rollen[(boden * anzahl + k) % rollen.length], false);
+      const ab = halsAbschluss(m, rolle);
+      ab.position.set(x, y + 0.045, tiefe / 2 - 0.012);
+      g.add(ab);
+      const wk = wachskopf(m, rolle, false);
       wk.position.set(x, y + 0.235, tiefe / 2);
       g.add(wk);
     }

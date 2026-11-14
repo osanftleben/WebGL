@@ -250,7 +250,10 @@ function kopfPunkt(a, p, v) {
     d += v.wange * g2(U - s * 0.5, 0.2, D + 0.15, 0.14); // Wange
   }
   d += v.brauen * g2(U, 0.6, D - 0.2, 0.07); // Brauenbogen
-  d += nase(U, D, v);
+  // Besetzung: schiefe (gebrochene) Nase – Spitze seitlich versetzt, Höcker auf dem Rücken
+  const schief = /** @type {any} */ (v).schief ?? 0;
+  d += nase(schief ? U - schief * glatt(0.1, -0.34, D) : U, D, v);
+  if (schief) d += 0.0022 * g2(U - schief * 0.35, 0.08, D + 0.06, 0.06);
   d += 0.002 * g2(U, 0.3, D + 0.5, 0.05); // Oberlippe
   d += 0.0018 * g2(U, 0.26, D + 0.6, 0.05); // Unterlippe
   d -= 0.002 * g2(U, 0.3, D + 0.7, 0.05); // Kinnfalte
@@ -271,7 +274,9 @@ function kopfPunkt(a, p, v) {
     }
   }
   // Ohren
-  const ohr = v.ohr * g2(Math.abs(a) - 1.62, 0.13, D + 0.02, 0.15);
+  // eingerissenes Ohr (Besetzung): auf dieser Seite nur ein flacher Ansatz, das Ohr ist ein eigenes Formteil
+  const riss = /** @type {any} */ (v).ohrRiss ?? 0;
+  const ohr = v.ohr * g2(Math.abs(a) - 1.62, 0.13, D + 0.02, 0.15) * (riss && Math.sign(a) === riss ? 0.3 : 1);
   x += Math.sign(a) * ohr;
   z -= ohr * 0.3;
   return [x, y, z];
@@ -310,14 +315,15 @@ const variantenMitAlter = new Map();
 /**
  * Kopfform mit Altersstufe: im Alter etwas größere Nase und Ohren (Stufe 0 = Form unverändert).
  * @param {number} variante @param {number} alt 0 jung, 1 mittel, 2 alt
+ * @param {{ schief?: number, ohrRiss?: number } | null} [mehr=null] Entstellungen der Besetzung (schiefe Nase, eingerissenes Ohr)
  */
-function form(variante, alt) {
+function form(variante, alt, mehr = null) {
   const grund = VARIANTEN[variante % VARIANTEN.length];
-  if (!alt) return grund;
-  const k = `${variante}|${alt}`;
+  if (!alt && !mehr) return grund;
+  const k = `${variante}|${alt}${mehr ? `|${JSON.stringify(mehr)}` : ''}`;
   let v = variantenMitAlter.get(k);
   if (!v) {
-    v = { ...grund, nase: grund.nase * (1 + 0.08 * alt), ohr: grund.ohr * (1 + 0.15 * alt), alt };
+    v = { ...grund, nase: grund.nase * (1 + 0.08 * alt), ohr: grund.ohr * (1 + 0.15 * alt), alt, ...(mehr ?? {}) };
     variantenMitAlter.set(k, v);
   }
   return v;
@@ -327,10 +333,11 @@ function form(variante, alt) {
  * Kopfgeometrie (Mitte im Ursprung, Gesicht nach +z) mit uv auf eine Zelle der Gesichtstafel.
  * @param {number} variante @param {number} zelle @param {boolean} fein @param {number} [alt=0]
  * @param {number[] | null} [raster=null] eigenes Gitter [quer, längs] statt fein/grob
+ * @param {{ schief?: number, ohrRiss?: number } | null} [mehr=null] siehe form
  */
-function kopfGeometrie(variante, zelle, fein, alt = 0, raster = null) {
-  return gemerkt(`kopf|${variante}|${zelle}|${fein}${alt ? `|${alt}` : ''}${raster ? `|${raster}` : ''}`, () => {
-    const v = form(variante, alt);
+function kopfGeometrie(variante, zelle, fein, alt = 0, raster = null, mehr = null) {
+  return gemerkt(`kopf|${variante}|${zelle}|${fein}${alt ? `|${alt}` : ''}${raster ? `|${raster}` : ''}${mehr ? `|${JSON.stringify(mehr)}` : ''}`, () => {
+    const v = form(variante, alt, mehr);
     return gitter(raster?.[0] ?? (fein ? 40 : 26), raster?.[1] ?? (fein ? 30 : 20), (s, t) => {
       const [a, p] = kopfWinkel(s, t);
       return kopfPunkt(a, p, v);
@@ -570,6 +577,172 @@ function bartGeometrie(variante, stil, fein, alt = 0) {
   });
 }
 
+// ---------- Merkmale der Besetzung: Entstellungen, Brille, Mütze (Gestaltung, keine belegte Angabe) ----------
+
+/**
+ * Merkmale einer Figur. Narben und Pockennarben sind auf die Gesichtstafel gemalt (texturen.js);
+ * hier nur, was eine Form braucht.
+ * @typedef {object} Merkmale
+ * @property {number} [nase] schiefe Nase: seitlicher Versatz der Spitze (etwa ±0,07), mit Höcker
+ * @property {-1 | 1} [ohr] eingerissenes Ohr auf dieser Seite (+1 = +x)
+ * @property {-1 | 1} [klappe] Augenklappe über diesem Auge, Riemen über den Kopf
+ * @property {'nickel' | 'monokel'} [brille] Nickelbrille (zwei Ringe, Steg, Bügel) oder Monokel (vor dem Auge bei +x)
+ * @property {Stoff} [metall] Farbe der Fassung
+ * @property {Stoff} [leder] Farbe von Augenklappe und Riemen
+ */
+
+/** Winkel auf (−π, π] bringen */
+const winkelNorm = (/** @type {number} */ a) => Math.atan2(Math.sin(a), Math.cos(a));
+
+/**
+ * Punkt auf dem Kopf zu (a, D), nach außen versetzt um `aus`.
+ * @param {typeof VARIANTEN[0]} v @param {number} a @param {number} D @param {number} [aus=0]
+ */
+function aufKopf(v, a, D, aus = 0) {
+  const [x, y, z] = kopfPunkt(winkelNorm(a), Math.acos(Math.max(-1, Math.min(1, D))), v);
+  const f = (Math.hypot(x, y, z) + aus) / Math.hypot(x, y, z);
+  return new THREE.Vector3(x * f, y * f, z * f);
+}
+
+/**
+ * Eingerissenes Ohr: flache Muschel mit Kerbe hinten oben, Außenseite nach +x (seite −1: gespiegelt).
+ * @param {number} seite @param {number} zelle
+ */
+function ohrGeometrie(seite, zelle) {
+  return gemerkt(`ohrRiss|${seite}|${zelle}`, () => einfarbigUV(gitter(18, 8, (s, t) => {
+    const th = 2 * PI * (seite > 0 ? 1 - s : s);
+    const ph = PI * t;
+    const kerbe = 1 - 0.55 * Math.exp(-(((th - 2.25) / 0.22) ** 2));
+    const r = kerbe * Math.sin(ph);
+    const hz = 0.0165 * (1 - 0.3 * Math.max(0, -Math.sin(th)));
+    // Rand (Krempe) dicker, Muschel innen eingesenkt, Rückseite flach am Kopf
+    const c = Math.cos(ph);
+    const x = 0.004 * Math.sin(ph) ** 6 + (c > 0 ? 0.0015 : 0.0025) * c;
+    return [seite * x, 0.029 * r * Math.sin(th), hz * r * Math.cos(th)];
+  }), hautUV(zelle)));
+}
+
+/**
+ * Größte Dicke einer Frisur (für Riemen, die über das Haar laufen).
+ * @param {HaarStil | null} stil
+ */
+function haarDicke(stil) {
+  if (!stil) return 0;
+  if (stil === 'kranz') return 0.0075;
+  const f = FRISUR[stil] ?? FRISUR.voll;
+  return 0.0012 + f.grund + f.fuelle + f.rippe + (f.wirr ?? 0) + (f.locken ?? 0);
+}
+
+/**
+ * Augenklappe mit Riemen: Klappe über der Augenhöhle, ein Riemen schräg über die Stirn,
+ * einer über dem Ohr um den Hinterkopf; beide treffen sich hinter der anderen Schläfe.
+ * @param {typeof VARIANTEN[0]} v @param {number} seite @param {HaarStil | null} stil
+ */
+function klappeGeometrie(v, seite, stil) {
+  const hd = haarDicke(stil);
+  const ansatz = stil && stil !== 'kranz' ? /** @type {number[][]} */ (/** @type {any} */ (HAARANSATZ_NEU)[stil] ?? HAARANSATZ.voll) : null;
+  /** Abstand über der Haut: auf dem Haar dicker */
+  const dicke = (/** @type {number} */ a, /** @type {number} */ D) => {
+    if (!stil) return 0.0022;
+    const dl = ansatz ? kurve(ansatz, Math.abs(winkelNorm(a))) : 0.12;
+    return 0.0022 + hd * glatt(dl - 0.03, dl + 0.08, D);
+  };
+  const ua = Math.asin(0.41) * seite;
+  // Klappe: Scheibe um die Augenmitte (U ±0,19, D ±0,13), in der Mitte gewölbt
+  const klappe = gitter(18, 4, (s, t) => {
+    const w = 2 * PI * s;
+    const U = seite * 0.41 + 0.19 * t * Math.cos(w);
+    const D = 0.06 + 0.13 * t * Math.sin(w);
+    const p = aufKopf(v, Math.asin(U), D, 0.0022 + 0.0065 * (1 - t * t));
+    return [p.x, p.y, p.z];
+  }, undefined, (s, t) => [0.75 + 0.25 * (1 - t), 0]);
+  /**
+   * Riemen entlang a von a0 nach a1, Höhe D(q) (q = 0…1), Breite 0,07 in D.
+   * @param {number} a0 @param {number} a1 @param {(q: number) => number} Dq
+   */
+  const riemen = (a0, a1, Dq) => {
+    const r = Math.sign(a1 - a0);
+    return gitter(34, 2, (s, t) => {
+      const a = a0 + (a1 - a0) * s;
+      const D = Dq(s) + (r > 0 ? 0.5 - t : t - 0.5) * 0.07;
+      const p = aufKopf(v, a, D, dicke(a, D) + 0.0008);
+      return [p.x, p.y, p.z];
+    }, undefined, (s, t) => [t > 0.01 && t < 0.99 ? 1 : 0.8, 0]);
+  };
+  const ende = -seite * 1.75;
+  return verbinde([
+    klappe,
+    // über die Stirn steil nach oben zur anderen Seite
+    riemen(ua - seite * 0.12, ende, (q) => 0.17 + 0.36 * (1 - (1 - q) ** 2.5)),
+    // vom äußeren Rand über das Ohr um den Hinterkopf
+    riemen(ua + seite * 0.22, seite * (2 * PI - 1.75), (q) => 0.08 + 0.45 * (1 - (1 - q) ** 2)),
+  ]);
+}
+
+/**
+ * Nickelbrille (Ringe, Steg, Bügel bis hinter die Ohren) oder Monokel (Ring vor dem Auge bei +x).
+ * Ohne Gläser. Alle Teile mit Index, Normalen und uv (für das gemeinsame Vertex-Farben-Material).
+ * @param {typeof VARIANTEN[0]} v @param {'nickel' | 'monokel'} art
+ */
+function brillenGeometrie(v, art) {
+  const ea = Math.asin(0.41);
+  const auge = aufKopf(v, ea, 0.05);
+  const braue = aufKopf(v, ea, 0.2);
+  const wange = aufKopf(v, ea, -0.12);
+  if (art === 'monokel') {
+    // klemmt zwischen Braue und Wange in der Augenhöhle
+    const ring = new THREE.TorusGeometry(0.0155, 0.0016, 6, 24);
+    ring.translate(auge.x, auge.y, braue.z - 0.002);
+    return ring;
+  }
+  const r = 0.0165;
+  const z = Math.max(braue.z, wange.z) + 0.004;
+  /** @type {THREE.BufferGeometry[]} */
+  const teile = [];
+  for (const s of [-1, 1]) {
+    const ring = new THREE.TorusGeometry(r, 0.0011, 5, 22);
+    ring.translate(s * auge.x, auge.y, z);
+    teile.push(ring);
+    const buegel = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(s * (auge.x + r), auge.y, z),
+      aufKopf(v, s * 0.95, 0.09, 0.004), aufKopf(v, s * 1.25, 0.09, 0.0045),
+      aufKopf(v, s * 1.55, 0.1, 0.0045), aufKopf(v, s * 1.78, -0.02, 0.003),
+    ]);
+    teile.push(new THREE.TubeGeometry(buegel, 16, 0.001, 4, false));
+  }
+  const xi = auge.x - r;
+  const steg = new THREE.CatmullRomCurve3([new THREE.Vector3(-xi, auge.y, z), new THREE.Vector3(0, auge.y + 0.005, z + 0.004), new THREE.Vector3(xi, auge.y, z)]);
+  teile.push(new THREE.TubeGeometry(steg, 6, 0.001, 4, false));
+  return /** @type {THREE.BufferGeometry} */ (mergeGeometries(teile));
+}
+
+/** Rand der Schiebermütze (Höhe D) über |a| */
+const MUETZE_RAND = [[0, 0.5], [1.2, 0.42], [2.0, 0.33], [PI, 0.3]];
+
+/**
+ * Schiebermütze: flacher, nach vorn überstehender Deckel und kurzer Schirm (doppelt, damit von
+ * oben und unten sichtbar). Haar darunter: Frisur 'unterHut'.
+ * @param {typeof VARIANTEN[0]} v
+ */
+function muetzeGeometrie(v) {
+  const deckel = kopfSchale(v, 24, 6, (s, t) => {
+    const a = PI * (2 * s - 1);
+    return [a, 1 - t * (1 - kurve(MUETZE_RAND, Math.abs(a)))];
+  }, (s, t) => {
+    const vorn = glatt(1.7, 0.3, Math.abs(PI * (2 * s - 1)));
+    return 0.0075 + 0.013 * vorn * Math.sin(PI * Math.min(1, t * 1.25)) ** 0.8 + 0.003 * Math.sin(PI * t);
+  }, (s, t) => [0.92 + 0.06 * Math.sin(s * 70 + t * 3) + 0.1 * (1 - t), 0]);
+  /** Schirm: s quer (a), t vom Rand nach außen; `unten` = Unterseite (gespiegelte Laufrichtung) */
+  const schirm = (/** @type {boolean} */ unten) => gitter(12, 2, (s, t) => {
+    const a = 0.9 * (unten ? 1 - 2 * s : 2 * s - 1);
+    const b = aufKopf(v, a, kurve(MUETZE_RAND, Math.abs(a)) + 0.02, 0.0075);
+    const l = Math.hypot(b.x, b.z);
+    const lang = 0.05 * Math.max(0, Math.cos((a / 0.9) * (PI / 2))) ** 0.4;
+    return [b.x + (b.x / l) * lang * t, b.y - 0.014 * t - (unten ? 0.0022 : 0), b.z + (b.z / l) * lang * t];
+  }, undefined, () => [unten ? 0.7 : 0.9, 0]);
+  return verbinde([deckel, schirm(false), schirm(true)]);
+}
+
 /**
  * Kopf mit gemaltem Gesicht, Haar und Bart. Ursprung in der Kopfmitte (Augenhöhe), Gesicht nach +z;
  * Kinn bei y ≈ −0,105, Scheitel bei +0,112.
@@ -584,11 +757,16 @@ function bartGeometrie(variante, stil, fein, alt = 0) {
  * @param {Stoff | null} [o.bartMaterial] sonst wie Haar
  * @param {number} [o.alter=0] Altersstufe der Kopfform (0 jung = Form wie bisher, 1 mittel, 2 alt)
  * @param {number[] | null} [o.raster=null] eigenes Kopfgitter [quer, längs] (z. B. sparsamer für Schrankköpfe)
+ * @param {Merkmale | null} [o.merkmale=null] Entstellungen und Brille (Besetzung)
+ * @param {Stoff | null} [o.muetze=null] Schiebermütze in dieser Farbe (Haar dann als 'unterHut' angeben)
  * @returns {THREE.Group}
  */
-export function kopf({ haut, zelle = 0, variante = 0, fein = true, haar = null, haarStil = 'voll', bart = 'keiner', bartMaterial = null, alter = 0, raster = null }) {
+export function kopf({ haut, zelle = 0, variante = 0, fein = true, haar = null, haarStil = 'voll', bart = 'keiner', bartMaterial = null, alter = 0, raster = null, merkmale = null, muetze = null }) {
   const g = new THREE.Group();
-  g.add(new THREE.Mesh(kopfGeometrie(variante, zelle, fein, alter, raster), haut));
+  const mk = merkmale ?? {};
+  /** @type {{ schief?: number, ohrRiss?: number } | null} */
+  const mehr = mk.nase || mk.ohr ? { ...(mk.nase ? { schief: mk.nase } : {}), ...(mk.ohr ? { ohrRiss: mk.ohr } : {}) } : null;
+  g.add(new THREE.Mesh(kopfGeometrie(variante, zelle, fein, alter, raster, mehr), haut));
   if (haar) {
     const geo = istFarbe(haar)
       ? haarGeometrieNeu(variante, haarStil, fein, alter)
@@ -597,6 +775,23 @@ export function kopf({ haut, zelle = 0, variante = 0, fein = true, haar = null, 
   }
   const bm = bartMaterial ?? haar;
   if (bart !== 'keiner' && bm) g.add(stoffMesh(bartGeometrie(variante, bart, fein, alter), bm));
+  const v = form(variante, alter, mehr);
+  const schluessel = `${variante}|${alter}|${JSON.stringify(mehr)}`;
+  if (mk.ohr) {
+    const o = new THREE.Mesh(ohrGeometrie(mk.ohr, zelle), haut);
+    const p = aufKopf(v, mk.ohr * 1.62, 0.03);
+    o.position.set(p.x + mk.ohr * 0.002, p.y, p.z - 0.002);
+    o.rotation.set(-0.25, -mk.ohr * 0.35, 0);
+    g.add(o);
+  }
+  if (mk.klappe && mk.leder) {
+    const stil = haar ? haarStil : null;
+    g.add(stoffMesh(gemerkt(`klappe|${schluessel}|${mk.klappe}|${stil}`, () => klappeGeometrie(v, mk.klappe ?? 1, stil)), mk.leder));
+  }
+  if (mk.brille && mk.metall) {
+    g.add(stoffMesh(gemerkt(`brille|${schluessel}|${mk.brille}`, () => brillenGeometrie(v, mk.brille ?? 'nickel')), mk.metall));
+  }
+  if (muetze) g.add(stoffMesh(gemerkt(`muetze|${schluessel}`, () => muetzeGeometrie(v)), muetze));
   return g;
 }
 
@@ -722,12 +917,27 @@ function aermelGeometrie(punkte, radien) {
  * @param {Stoff | null} [o.manschette=null]
  * @param {number} [o.dicke=1]
  * @param {number} [o.kugel=1] Größe der Schulterkugel (Besetzung: kleiner, gegen klobige Schultern)
+ * @param {number} [o.krempel=0] hochgekrempelter Ärmel (Besetzung): Anteil des Unterarms, ab dem die
+ *   Haut zu sehen ist (z. B. 0,45); 0 = Ärmel bis zum Handgelenk
  * @returns {{ gruppe: THREE.Group, hand: THREE.Mesh }}
  */
-export function arm({ stoff, haut, zelle, seite, schulter, ellbogen, handgelenk, manschette = null, dicke = 1, kugel: kg = 1 }) {
+export function arm({ stoff, haut, zelle, seite, schulter, ellbogen, handgelenk, manschette = null, dicke = 1, kugel: kg = 1, krempel = 0 }) {
   const g = new THREE.Group();
   const p = [schulter, ellbogen, handgelenk].map((w) => new THREE.Vector3(...w));
-  g.add(stoffMesh(aermelGeometrie(p, [0.052 * dicke, 0.047 * dicke, 0.041 * dicke]), stoff, true));
+  if (krempel > 0) {
+    // Ärmel bis zur Mitte des Unterarms, dort ein dicker Umschlag, darunter Haut
+    const mitte = p[1].clone().lerp(p[2], krempel);
+    g.add(stoffMesh(aermelGeometrie([p[0], p[1], mitte], [0.052 * dicke, 0.047 * dicke, 0.046 * dicke]), stoff, true));
+    const unterarm = einfarbigUV(aermelGeometrie([mitte, p[2]], [0.036 * dicke, 0.031 * dicke]), hautUV(zelle));
+    g.add(new THREE.Mesh(unterarm, haut));
+    const um = stoffMesh(manschetteGeo, stoff);
+    um.position.copy(mitte);
+    um.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), p[2].clone().sub(p[1]).normalize());
+    um.scale.set(1.2 * dicke, 1.6, 1.2 * dicke);
+    g.add(um);
+  } else {
+    g.add(stoffMesh(aermelGeometrie(p, [0.052 * dicke, 0.047 * dicke, 0.041 * dicke]), stoff, true));
+  }
   const kugel = stoffMesh(kugelGeo, stoff);
   kugel.scale.set(0.05 * dicke * kg, 0.042 * dicke * kg, 0.054 * dicke * kg);
   kugel.position.copy(p[0]).add(new THREE.Vector3(0, -0.01, 0));
@@ -804,20 +1014,39 @@ function winkelBei(profil, y, x) {
 /**
  * Rumpfgeometrie: oben geschlossen (Hals), unten offen oder geschlossen.
  * @param {Profil} profil @param {boolean} untenZu
+ * @param {number} [abgetragen=0] Besetzung: fleckige, ausgeblichene Vertex-Farben (0…1)
  */
-function rumpfGeometrie(profil, untenZu) {
+function rumpfGeometrie(profil, untenZu, abgetragen = 0) {
   const y0 = profil[0][0];
   const y1 = profil[profil.length - 1][0];
   const reihen = Math.max(8, Math.round((y1 - y0) / 0.032));
   // Zeile 0: Deckel oben, dann von oben nach unten, ggf. Deckel unten
   const nt = reihen + 1 + (untenZu ? 1 : 0);
+  /** @type {FarbFn | undefined} */
+  const farbFn = abgetragen
+    ? (s, t) => [1 + abgetragen * (0.08 * Math.sin(s * 19 + t * 7) * Math.sin(t * 13 + s * 3) + 0.05 * Math.sin(s * 41 + t * 29) + 0.06 * glatt(0.3, 0, t) - 0.05 * glatt(0.6, 1, t)), 0]
+    : undefined;
   return gitter(26, nt, (s, t) => {
     const j = Math.round(t * nt);
     const th = PI * (2 * s - 1);
     if (j === 0) return [0, y1, profilBei(profil, y1)[2]];
     if (untenZu && j === nt) return [0, y0, profilBei(profil, y0)[2]];
     return rumpfPunkt(profil, th, y1 - ((j - 1) / reihen) * (y1 - y0));
-  });
+  }, undefined, farbFn);
+}
+
+/**
+ * Ausschnitt eines Profils zwischen y0 und y1 (Endpunkte eingefügt), optional verkleinert.
+ * @param {Profil} profil @param {number} y0 @param {number} y1 @param {number} [k=1] Faktor für Breite und Tiefe
+ * @returns {Profil}
+ */
+function profilZwischen(profil, y0, y1, k = 1) {
+  const punkt = (/** @type {number} */ y) => {
+    const [hw, hd, zo] = profilBei(profil, y);
+    return profil[0].length > 4 ? [y, hw, hd, zo, rundBei(profil, y)] : [y, hw, hd, zo];
+  };
+  const innen = profil.filter((p) => p[0] > y0 + 1e-6 && p[0] < y1 - 1e-6);
+  return [punkt(y0), ...innen, punkt(y1)].map((p) => [p[0], p[1] * k, p[2] * k, ...p.slice(3)]);
 }
 
 /**
@@ -826,16 +1055,16 @@ function rumpfGeometrie(profil, untenZu) {
  * @param {(y: number) => number[]} bereich Winkelbereich [th0, th1] in Höhe y
  * @param {number} aus Abstand zur Rumpfoberfläche
  * @param {number} [ns=8]
+ * @param {FarbFn} [farbFn]
  */
-function flicken(profil, yu, yo, bereich, aus, ns = 8) {
+function flicken(profil, yu, yo, bereich, aus, ns = 8, farbFn) {
   const nt = Math.max(3, Math.round((yo - yu) / 0.025));
   return gitter(ns, nt, (s, t) => {
     const y = yo - t * (yo - yu);
     const [a, b] = bereich(y);
     return rumpfPunkt(profil, a + (b - a) * s, y, aus);
-  });
+  }, undefined, farbFn);
 }
-
 /**
  * Revers (Schnitt 2): breiter, mit Kerbe oben, gewölbt und mit dunklen Kanten (Vertex-Farben),
  * dazu der Rockkragen hinten um den Hals.
@@ -876,21 +1105,40 @@ function reversGeometrie(profil, unten, vOben, oben, w) {
 /**
  * Oberkörper mit Kleidung: Rumpf (Rock), optional V-Ausschnitt mit Revers, Weste, Hemdbrust,
  * Krawatte, Knöpfen und Stehkragen. Stoffe als Material oder als Farbe (Vertex-Farben).
+ * Besetzung (Kleidung nach Stand): kurze Jacke (saum), Hemdsärmel mit Weste (schulter), Kittel (passe),
+ * Halstuch statt Krawatte (binder 'tuch'), Rollkragen, abgetragene Farben und aufgesetzte Flicken.
  * @param {object} o
  * @param {Profil} o.profil
- * @param {Stoff} o.rock
+ * @param {Stoff} o.rock Rock, Jacke, Weste, Kittel oder Pullover – was außen am Rumpf liegt
  * @param {boolean} [o.untenZu=false]
  * @param {{ unten: number, breite: number, weste: Stoff, hemd: Stoff,
  *   krawatte: Stoff, knopf: Stoff, rockKnoepfe?: number }} [o.ausschnitt]
- * @param {Stoff | null} [o.kragen=null] Hemdkragen am Hals
+ * @param {Stoff | null} [o.kragen=null] Hemdkragen am Hals (bei 'roll'/'tuch': Pullover bzw. Halstuch)
  * @param {number} [o.schnitt=1] 1 wie Feinschliff C; 2 (Besetzung) deutliches Revers mit Kerbe und Rockkragen
+ * @param {boolean} [o.revers=true] false: kein Revers (Weste, Kittel)
+ * @param {'krawatte' | 'tuch' | 'keiner'} [o.binder='krawatte'] Halstuch: großer Knoten, kurze Enden
+ * @param {'steh' | 'roll' | 'tuch'} [o.kragenForm='steh']
+ * @param {number} [o.abgetragen=0] fleckig, ausgeblichen (0…1)
+ * @param {number | null} [o.saum=null] Unterkante des Rocks, wenn höher als das Profil (kurze Jacke, Weste)
+ * @param {Stoff | null} [o.unterteil=null] Hose zwischen Saum und Beinen
+ * @param {Stoff | null} [o.schulter=null] Hemd über den Schultern (Weste ohne Ärmel)
+ * @param {Stoff | null} [o.passe=null] Naht der Kittelpasse (Band rund um die Brust)
+ * @param {boolean} [o.knoepfeMitte=false] Rockknöpfe einreihig auf der Mitte (Weste)
+ * @param {Array<{ stoff: Stoff, y: number, th: number, b?: number, h?: number }>} [o.flecken=[]] aufgesetzte Flicken
  * @returns {THREE.Group}
  */
-export function oberkoerper({ profil, rock, untenZu = false, ausschnitt, kragen = null, schnitt = 1 }) {
+export function oberkoerper({ profil: grundProfil, rock, untenZu = false, ausschnitt, kragen = null, schnitt = 1,
+  revers = true, binder = 'krawatte', kragenForm = 'steh', abgetragen = 0, saum = null, unterteil = null, schulter = null, passe = null, knoepfeMitte = false, flecken = [] }) {
   const g = new THREE.Group();
+  const oben = grundProfil[grundProfil.length - 1][0];
+  const profil = saum !== null && saum > grundProfil[0][0] ? profilZwischen(grundProfil, saum, oben) : grundProfil;
   const schluessel = JSON.stringify(profil) + untenZu;
-  g.add(stoffMesh(gemerkt(`rumpf|${schluessel}`, () => rumpfGeometrie(profil, untenZu)), rock));
-  const oben = profil[profil.length - 1][0];
+  g.add(stoffMesh(gemerkt(`rumpf|${schluessel}|${abgetragen}`, () => rumpfGeometrie(profil, untenZu || profil !== grundProfil, abgetragen)), rock));
+  if (profil !== grundProfil && unterteil && saum !== null) {
+    // Hose: vom Schritt bis knapp über den Saum, etwas schmaler als der Rock
+    const hose = profilZwischen(grundProfil, Math.max(grundProfil[0][0], 0.74), saum + 0.05, 0.975);
+    g.add(stoffMesh(gemerkt(`hose|${JSON.stringify(hose)}`, () => rumpfGeometrie(hose, true)), unterteil));
+  }
   if (ausschnitt) {
     const { unten, breite, weste, hemd, krawatte, knopf, rockKnoepfe = 2 } = ausschnitt;
     // V bis knapp unter den Hals; halbe Breite w(y)
@@ -914,9 +1162,21 @@ export function oberkoerper({ profil, rock, untenZu = false, ausschnitt, kragen 
       };
       return geo;
     });
-    const revers = schnitt === 2 ? gemerkt(`revers2|${schluessel}|${unten}|${breite}`, () => reversGeometrie(profil, unten, vOben, oben, w)) : teile.revers;
-    g.add(stoffMesh(teile.weste, weste), stoffMesh(revers, rock), stoffMesh(teile.hemd, hemd), stoffMesh(teile.krawatte, krawatte));
-    // Westenknöpfe auf der Mittellinie, Rockknöpfe unter dem V (zweireihig)
+    g.add(stoffMesh(teile.weste, weste), stoffMesh(teile.hemd, hemd));
+    if (revers) {
+      const rv = schnitt === 2 ? gemerkt(`revers2|${schluessel}|${unten}|${breite}`, () => reversGeometrie(profil, unten, vOben, oben, w)) : teile.revers;
+      g.add(stoffMesh(rv, rock));
+    }
+    if (binder === 'krawatte') g.add(stoffMesh(teile.krawatte, krawatte));
+    if (binder === 'tuch') {
+      // Halstuch: kurze, breite Enden unter einem dicken Knoten
+      const enden = gemerkt(`tuchEnden|${schluessel}`, () => flicken(profil, vOben - 0.07, vOben, (y) => {
+        const q = (vOben - y) / 0.07;
+        return [-0.06 - 0.1 * q, 0.05 + 0.13 * q];
+      }, 0.0068, 4, (s, t) => [0.9 + 0.1 * Math.sin(s * 9 + t * 4), 0]));
+      g.add(stoffMesh(enden, krawatte));
+    }
+    // Westenknöpfe auf der Mittellinie, Rockknöpfe unter dem V (zweireihig oder auf der Mitte)
     for (let i = 0; i < 3; i++) {
       const y = unten + 0.02 + i * ((hemdAb - unten - 0.02) / 3);
       const k = stoffMesh(knopfGeo, knopf);
@@ -925,28 +1185,52 @@ export function oberkoerper({ profil, rock, untenZu = false, ausschnitt, kragen 
       g.add(k);
     }
     for (let i = 0; i < rockKnoepfe; i++) {
-      for (const sx of [-1, 1]) {
-        const y = unten - 0.035 - i * 0.1;
+      for (const sx of knoepfeMitte ? [0] : [-1, 1]) {
+        const y = unten - 0.035 - i * (knoepfeMitte ? 0.06 : 0.1);
+        if (y < profil[0][0] + 0.02) continue;
         const k = stoffMesh(knopfGeo, knopf);
-        k.scale.setScalar(0.008);
+        k.scale.setScalar(knoepfeMitte ? 0.006 : 0.008);
         k.position.set(...rumpfPunkt(profil, winkelBei(profil, y, sx * 0.05), y, 0.002));
         g.add(k);
       }
     }
-    // Krawattenknoten
-    const knoten = stoffMesh(knopfGeo, krawatte);
-    knoten.scale.set(0.016, 0.013, 0.01);
-    knoten.position.set(...rumpfPunkt(profil, 0, vOben - 0.002, 0.008));
-    g.add(knoten);
+    if (binder !== 'keiner') {
+      // Krawattenknoten bzw. dicker Knoten des Halstuchs
+      const knoten = stoffMesh(knopfGeo, krawatte);
+      if (binder === 'tuch') knoten.scale.set(0.021, 0.017, 0.014);
+      else knoten.scale.set(0.016, 0.013, 0.01);
+      knoten.position.set(...rumpfPunkt(profil, 0, vOben - 0.002, binder === 'tuch' ? 0.011 : 0.008));
+      g.add(knoten);
+    }
+  }
+  if (schulter) {
+    // Hemd über den Schultern (die Weste hat dort nur schmale Träger)
+    const sch = gemerkt(`schulter|${schluessel}`, () => mergeGeometries([0.62, -2.42].map((th0) =>
+      flicken(profil, oben - 0.12, oben - 0.006, (y) => [th0, th0 + 1.8 * glatt(oben - 0.12, oben - 0.07, y) + 0.001], 0.0022, 8))));
+    g.add(stoffMesh(/** @type {THREE.BufferGeometry} */ (sch), schulter));
+  }
+  if (passe) {
+    const ps = gemerkt(`passe|${schluessel}`, () => flicken(profil, oben - 0.175, oben - 0.155, () => [-PI, PI], 0.0025, 26));
+    g.add(stoffMesh(ps, passe));
+  }
+  for (const f of flecken) {
+    const b = f.b ?? 0.16;
+    const h = f.h ?? 0.08;
+    const fl = gemerkt(`fleck|${schluessel}|${f.y}|${f.th}|${b}|${h}`, () => flicken(profil, f.y - h / 2, f.y + h / 2, () => [f.th - b, f.th + b], 0.0035, 4,
+      (s, t) => [Math.min(s, 1 - s, t, 1 - t) < 0.01 ? 0.7 : 1, 0]));
+    g.add(stoffMesh(fl, f.stoff));
   }
   if (kragen) {
-    const k = stoffMesh(gemerkt('kragen', () => new THREE.CylinderGeometry(0.064, 0.067, 0.045, 16, 1)), kragen);
-    k.position.set(0, oben + 0.012, profil[profil.length - 1][3] - 0.012);
+    const art = kragenForm;
+    const geo = gemerkt(`kragen|${art}`, () => (art === 'roll'
+      ? new THREE.CylinderGeometry(0.071, 0.078, 0.06, 18, 1)
+      : art === 'tuch' ? new THREE.CylinderGeometry(0.066, 0.072, 0.034, 16, 1) : new THREE.CylinderGeometry(0.064, 0.067, 0.045, 16, 1)));
+    const k = stoffMesh(geo, kragen);
+    k.position.set(0, oben + (art === 'roll' ? 0.02 : art === 'tuch' ? 0.006 : 0.012), profil[profil.length - 1][3] - 0.012);
     g.add(k);
   }
   return g;
 }
-
 /**
  * Mesh aus einer beliebigen Geometrie und einem Stoff (Material oder Farbe), z. B. Hut, Beine, Schuhe.
  * Geteilte Geometrien werden je Farbe einmal gefärbt.

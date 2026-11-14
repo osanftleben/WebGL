@@ -194,12 +194,13 @@ export function skaliereUV(geometrie, su, sv) {
 // ---------- Gesichtstafel (Feinschliff C) ----------
 
 /**
- * Aufteilung der Gesichtstafel: 4 × 4 Zellen zu 256 Bildpunkten. Zellen 0–11: Wachsgesichter,
- * 12: Leiche (blass, Augen geschlossen), 13: Schutzmann Kranich (lebendige Haut), 14–15 frei.
+ * Aufteilung der Gesichtstafel: 4 × 6 Zellen zu 256 Bildpunkten. Zellen 0–11: Wachsgesichter,
+ * 12: Leiche (blass, Augen geschlossen), 13: Schutzmann Kranich (lebendige Haut), 14–15 frei (für
+ * Frauengesichter, Sitzung B), 16–22: Wachsgesichter mit Narben (Kopien von 0–11, siehe NARBEN), 23 frei.
  * Innerhalb einer Zelle: u = 0,5 + 0,5·U (U = Sinus des Winkels um den Kopf, vorn 0), v = 0,5 + 0,5·D
  * (D = Höhe auf der Kopfkugel, oben 1). Der Rand der Zelle ist einfarbige Haut (für Hals, Hände, Hinterkopf).
  */
-export const GESICHT = { breite: 1024, hoehe: 1024, zelle: 256, rand: 4, spalten: 4, leiche: 12, kranich: 13, wachsZellen: 12 };
+export const GESICHT = { breite: 1024, hoehe: 1536, zelle: 256, rand: 4, spalten: 4, leiche: 12, kranich: 13, wachsZellen: 12 };
 
 /**
  * Texturkoordinaten eines Punkts (u, v ∈ [0, 1]) in einer Zelle der Gesichtstafel.
@@ -217,12 +218,14 @@ export function zellenUV(zelle, u, v) {
  * @typedef {{ grund: number[], auge?: string, braue: string, brauDicke: number, lippe: number[], roete: number,
  *   bart: number, alter?: number, falte?: boolean, geschlossen?: boolean, ringe?: number,
  *   augAbst?: number, augGr?: number, brauWinkel?: number, mund?: number, mal?: number[] | null,
- *   stufe?: number, bartFarbe?: number[], finster?: number }} Gesicht
+ *   stufe?: number, bartFarbe?: number[], finster?: number,
+ *   narben?: Array<{ art: 'schmiss' | 'pocken' | 'wange' | 'auge' | 'stirn' | 'kinn', seite?: number }> }} Gesicht
  * grund: Hautton (sRGB); auge: Irisfarbe; braue: Farbe, brauDicke: Stärke; lippe: Lippenfarbe; roete: Wangenröte;
  * bart: Bartschatten; alter: Falten; falte: Zornesfalte; geschlossen: Augen zu; ringe: Augenringe;
  * augAbst: Augenmitte (U), augGr: Augengröße, brauWinkel: Neigung der Brauen außen, mund: Mundbreite, mal: Muttermal [U, D];
  * stufe: Altersstufe der Besetzung (0 jung, 1 mittel, 2 alt; fehlt = alte Malweise); bartFarbe: Farbe des Bartschattens;
- * finster: finsterer Ausdruck 0…1 (tiefere, schräge Brauen, Augenschatten, harte Mundwinkel)
+ * finster: finsterer Ausdruck 0…1 (tiefere, schräge Brauen, Augenschatten, harte Mundwinkel);
+ * narben: Narben der Besetzung (siehe maleNarben)
  */
 
 const AUGEN = ['#4d6d8c', '#5a3d26', '#6c767c', '#3b2b1f', '#56718b', '#6e5e3e', '#4a5a4c'];
@@ -278,12 +281,29 @@ const UEBERARBEITUNG = {
   11: { stufe: 1, braue: '#7a3e20', bartFarbe: [120, 72, 50], bart: 0.35, finster: 1 },
 };
 
-/** @type {Gesicht[]} */
+/**
+ * Gesichter mit Narben (Besetzung; Gestaltung, keine belegte Angabe): Zelle → [Vorlage, Narben].
+ * Die Vorlage bleibt unverändert (sie wird auch von anderen Köpfen benutzt). Stilisiert, ohne Blut.
+ * @type {Record<number, [number, NonNullable<Gesicht['narben']>]>}
+ */
+const NARBEN = {
+  16: [1, [{ art: 'schmiss', seite: -1 }]], // „feiner“ Betrüger mit Mensurschmiss auf der linken Wange
+  17: [8, [{ art: 'pocken' }]], // jung, pockennarbig
+  18: [9, [{ art: 'pocken' }, { art: 'kinn' }]], // mittel, Pocken und Kinnnarbe
+  19: [3, [{ art: 'wange', seite: 1 }]], // mittel, Messernarbe über die Wange
+  20: [11, [{ art: 'wange', seite: -1 }]], // mittel, rot, Messernarbe
+  21: [9, [{ art: 'auge', seite: -1 }]], // Narbe durch Braue und Auge (unter der Augenklappe)
+  22: [4, [{ art: 'stirn' }]], // jung, rot, Narbe quer über die Stirn
+};
+
+/** @type {Array<Gesicht | null>} */
 const GESICHTER = [
   ...wachsGesichter().map((f, k) => ({ ...f, ...(UEBERARBEITUNG[k] ?? {}) })),
   { grund: [205, 196, 182], braue: '#4e4236', brauDicke: 1.5, lippe: [146, 128, 126], roete: 0, bart: 0.26, geschlossen: true, ringe: 0.32 },
   { grund: [214, 172, 146], auge: '#4c6c90', braue: '#4a3524', brauDicke: 1.6, lippe: [172, 118, 102], roete: 0.16, bart: 0.24 },
+  null, null,
 ];
+for (const [zelle, [vorlage, narben]] of Object.entries(NARBEN)) GESICHTER[Number(zelle)] = { .../** @type {Gesicht} */ (GESICHTER[vorlage]), narben };
 
 /**
  * Ob das Gesicht einer Zelle älter gemalt ist (dann passt graues oder weißes Haar).
@@ -389,6 +409,93 @@ function maleFinster(ctx, P, fleck, bogen, fi) {
   }
 }
 
+/**
+ * Malt Narben (Besetzung), stilisiert und ohne Blut: heller, leicht glänzender Wulst mit dunklem Rand,
+ * bei Messernarben feine Stichspuren. Pocken: viele kleine Grübchen mit hellem Rand.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {(U: number, D: number) => [number, number]} P Bildpunkt zu (U, D)
+ * @param {Function} fleck
+ * @param {NonNullable<Gesicht['narben']>} narben
+ * @param {() => number} z Zufallsfolge der Zelle
+ */
+function maleNarben(ctx, P, fleck, narben, z) {
+  /**
+   * Narbe entlang einer Kurve durch a, m, e (U/D-Werte).
+   * @param {number[]} a @param {number[]} m @param {number[]} e @param {number} breite @param {boolean} [stiche=false]
+   */
+  const narbe = (a, m, e, breite, stiche = false) => {
+    const A = P(a[0], a[1]);
+    const M = P(m[0], m[1]);
+    const E = P(e[0], e[1]);
+    const K = [2 * M[0] - (A[0] + E[0]) / 2, 2 * M[1] - (A[1] + E[1]) / 2];
+    const pfad = () => {
+      ctx.beginPath();
+      ctx.moveTo(A[0], A[1]);
+      ctx.quadraticCurveTo(K[0], K[1], E[0], E[1]);
+    };
+    ctx.save();
+    ctx.lineCap = 'round';
+    pfad();
+    ctx.strokeStyle = 'rgba(122,66,54,0.34)';
+    ctx.lineWidth = breite + 3;
+    ctx.stroke();
+    pfad();
+    ctx.strokeStyle = 'rgba(238,210,196,0.88)';
+    ctx.lineWidth = breite;
+    ctx.stroke();
+    pfad();
+    ctx.strokeStyle = 'rgba(150,84,72,0.45)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    if (stiche) {
+      // feine Stichspuren quer zur Narbe
+      ctx.strokeStyle = 'rgba(140,82,70,0.5)';
+      ctx.lineWidth = 1;
+      for (let u = 0.1; u < 0.95; u += 0.13) {
+        const x = (1 - u) ** 2 * A[0] + 2 * u * (1 - u) * K[0] + u * u * E[0];
+        const y = (1 - u) ** 2 * A[1] + 2 * u * (1 - u) * K[1] + u * u * E[1];
+        const tx = 2 * (1 - u) * (K[0] - A[0]) + 2 * u * (E[0] - K[0]);
+        const ty = 2 * (1 - u) * (K[1] - A[1]) + 2 * u * (E[1] - K[1]);
+        const l = Math.hypot(tx, ty) || 1;
+        const q = breite * 0.5 + 3;
+        ctx.beginPath();
+        ctx.moveTo(x - (ty / l) * q, y + (tx / l) * q);
+        ctx.lineTo(x + (ty / l) * q, y - (tx / l) * q);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  };
+  for (const n of narben) {
+    const s = n.seite ?? 1;
+    if (n.art === 'schmiss') {
+      // Mensurschmiss: zwei schräge Hiebe auf der Wange, vom Ohr zum Mundwinkel
+      narbe([s * 0.66, 0.0], [s * 0.5, -0.17], [s * 0.3, -0.36], 3.2);
+      narbe([s * 0.7, -0.2], [s * 0.6, -0.3], [s * 0.48, -0.4], 2.4);
+    } else if (n.art === 'wange') {
+      narbe([s * 0.62, 0.14], [s * 0.5, -0.16], [s * 0.3, -0.5], 3.6, true);
+    } else if (n.art === 'auge') {
+      narbe([s * 0.34, 0.45], [s * 0.42, 0.06], [s * 0.5, -0.32], 3.4);
+    } else if (n.art === 'stirn') {
+      narbe([-0.42, 0.52], [-0.1, 0.42], [0.22, 0.28], 3.2, true);
+    } else if (n.art === 'kinn') {
+      narbe([-0.08, -0.7], [0.04, -0.8], [0.18, -0.86], 2.8);
+    } else if (n.art === 'pocken') {
+      for (let i = 0; i < 190; i++) {
+        const U = (z() * 2 - 1) * 0.78;
+        const D = -0.6 + z() * 1.15;
+        const au = Math.abs(U);
+        // nicht in Augen, Lippen und Nasenlöcher
+        if ((Math.abs(D - 0.06) < 0.08 && Math.abs(au - 0.41) < 0.19) || (D < -0.48 && D > -0.64 && au < 0.36) || (au < 0.14 && D < -0.28 && D > -0.4)) continue;
+        const [px, py] = P(U, D);
+        const r = 1.3 + z() * 1.4;
+        fleck([px + 0.8, py + 0.8], r + 0.8, [255, 236, 222], 0.28);
+        fleck([px, py], r, [112, 66, 52], 0.42);
+      }
+    }
+  }
+}
+
 /** @type {THREE.CanvasTexture | null} einmal gemalte Gesichtstafel (wird geteilt) */
 let tafel = null;
 
@@ -410,6 +517,7 @@ function maleGesichtsTafel() {
   const { canvas, ctx } = leinwand(breite, hoehe);
   const innen = gr - 2 * rand;
   GESICHTER.forEach((f, k) => {
+    if (!f) return;
     const x0 = (k % spalten) * gr;
     const y0 = Math.floor(k / spalten) * gr;
     /** Bildpunkt zu (U, D) der Zelle */
@@ -638,6 +746,7 @@ function maleGesichtsTafel() {
     bogen(PM(-0.329, -0.542), PM(0, -0.558), PM(0.329, -0.542));
     ctx.stroke();
     fleck(P(0, -0.69), 12, [100, 55, 40], 0.13, 0.3);
+    if (f.narben) maleNarben(ctx, P, fleck, f.narben, z);
     ctx.restore();
   });
   const textur = alsTextur(canvas);
