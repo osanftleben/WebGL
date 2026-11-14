@@ -882,6 +882,8 @@ export function fuss(haut, zelle = 0) {
 
 const kugelGeo = new THREE.SphereGeometry(1, 14, 10);
 const knopfGeo = new THREE.SphereGeometry(1, 8, 6);
+/** Winkel des Halstuch-Knotens um den Rumpf (vorn 0): seitlich, damit das Tuch nicht wie eine Krawatte wirkt */
+const TUCH_KNOTEN = 0.32;
 const manschetteGeo = new THREE.CylinderGeometry(0.041, 0.041, 0.02, 14, 1);
 
 /**
@@ -1116,8 +1118,9 @@ function reversGeometrie(profil, unten, vOben, oben, w) {
  * @param {Stoff | null} [o.kragen=null] Hemdkragen am Hals (bei 'roll'/'tuch': Pullover bzw. Halstuch)
  * @param {number} [o.schnitt=1] 1 wie Feinschliff C; 2 (Besetzung) deutliches Revers mit Kerbe und Rockkragen
  * @param {boolean} [o.revers=true] false: kein Revers (Weste, Kittel)
- * @param {'krawatte' | 'tuch' | 'keiner'} [o.binder='krawatte'] Halstuch: großer Knoten, kurze Enden
- * @param {'steh' | 'roll' | 'tuch'} [o.kragenForm='steh']
+ * @param {'krawatte' | 'tuch' | 'offen' | 'keiner'} [o.binder='krawatte'] Halstuch: Knoten seitlich, kurze Zipfel;
+ *   offen/keiner: keine Halsbinde (im V-Ausschnitt nur das Hemd)
+ * @param {'steh' | 'roll' | 'tuch' | 'offen'} [o.kragenForm='steh'] offen: Hemdkragen mit Lücke vorn
  * @param {number} [o.abgetragen=0] fleckig, ausgeblichen (0…1)
  * @param {number | null} [o.saum=null] Unterkante des Rocks, wenn höher als das Profil (kurze Jacke, Weste)
  * @param {Stoff | null} [o.unterteil=null] Hose zwischen Saum und Beinen
@@ -1168,12 +1171,27 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
       g.add(stoffMesh(rv, rock));
     }
     if (binder === 'krawatte') g.add(stoffMesh(teile.krawatte, krawatte));
+    if (binder === 'offen' || binder === 'keiner') {
+      // ohne Halsbinde: Hemd bis zum Hals, sonst ist zwischen V und Kragen der Rumpf (Rockfarbe) zu sehen
+      const hb = 0.9 * w(vOben) + 0.004;
+      const ho = gemerkt(`hemdOben|${schluessel}|${unten}|${breite}`, () => flicken(profil, vOben - 0.01, oben + 0.004,
+        (y) => [winkelBei(profil, y, -hb), winkelBei(profil, y, hb)], 0.0045, 3));
+      g.add(stoffMesh(ho, hemd));
+    }
     if (binder === 'tuch') {
-      // Halstuch: kurze, breite Enden unter einem dicken Knoten
-      const enden = gemerkt(`tuchEnden|${schluessel}`, () => flicken(profil, vOben - 0.07, vOben, (y) => {
-        const q = (vOben - y) / 0.07;
-        return [-0.06 - 0.1 * q, 0.05 + 0.13 * q];
-      }, 0.0068, 4, (s, t) => [0.9 + 0.1 * Math.sin(s * 9 + t * 4), 0]));
+      // Halstuch: Knoten seitlich am Hals, zwei kurze Zipfel schräg nach außen (keine Krawattenform in der Mitte)
+      const enden = gemerkt(`tuchEnden2|${schluessel}`, () => verbinde([
+        flicken(profil, vOben - 0.065, vOben, (y) => {
+          const q = (vOben - y) / 0.065;
+          const m = TUCH_KNOTEN + 0.3 * q;
+          return [m - 0.04 - 0.02 * q, m + 0.04 + 0.02 * q];
+        }, 0.0068, 3, (s, t) => [0.9 + 0.1 * Math.sin(s * 9 + t * 4), 0]),
+        flicken(profil, vOben - 0.045, vOben, (y) => {
+          const q = (vOben - y) / 0.045;
+          const m = TUCH_KNOTEN - 0.02 + 0.1 * q;
+          return [m - 0.035 - 0.015 * q, m + 0.035 + 0.015 * q];
+        }, 0.0062, 3, (s, t) => [0.85 + 0.1 * Math.sin(s * 7 + t * 5), 0]),
+      ]));
       g.add(stoffMesh(enden, krawatte));
     }
     // Westenknöpfe auf der Mittellinie, Rockknöpfe unter dem V (zweireihig oder auf der Mitte)
@@ -1194,12 +1212,12 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
         g.add(k);
       }
     }
-    if (binder !== 'keiner') {
-      // Krawattenknoten bzw. dicker Knoten des Halstuchs
+    if (binder === 'krawatte' || binder === 'tuch') {
+      // Krawattenknoten mittig bzw. dicker Knoten des Halstuchs seitlich
       const knoten = stoffMesh(knopfGeo, krawatte);
-      if (binder === 'tuch') knoten.scale.set(0.021, 0.017, 0.014);
+      if (binder === 'tuch') knoten.scale.set(0.02, 0.017, 0.014);
       else knoten.scale.set(0.016, 0.013, 0.01);
-      knoten.position.set(...rumpfPunkt(profil, 0, vOben - 0.002, binder === 'tuch' ? 0.011 : 0.008));
+      knoten.position.set(...rumpfPunkt(profil, binder === 'tuch' ? TUCH_KNOTEN : 0, vOben - 0.002, binder === 'tuch' ? 0.011 : 0.008));
       g.add(knoten);
     }
   }
@@ -1224,9 +1242,12 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
     const art = kragenForm;
     const geo = gemerkt(`kragen|${art}`, () => (art === 'roll'
       ? new THREE.CylinderGeometry(0.071, 0.078, 0.06, 18, 1)
-      : art === 'tuch' ? new THREE.CylinderGeometry(0.066, 0.072, 0.034, 16, 1) : new THREE.CylinderGeometry(0.064, 0.067, 0.045, 16, 1)));
+      : art === 'tuch' ? new THREE.CylinderGeometry(0.066, 0.072, 0.034, 16, 1)
+        // offener Hemdkragen: oben etwas weiter, vorn eine Lücke (dort sieht man den Hals)
+        : art === 'offen' ? new THREE.CylinderGeometry(0.073, 0.068, 0.036, 16, 1, true, 0.55, Math.PI * 2 - 1.1)
+          : new THREE.CylinderGeometry(0.064, 0.067, 0.045, 16, 1)));
     const k = stoffMesh(geo, kragen);
-    k.position.set(0, oben + (art === 'roll' ? 0.02 : art === 'tuch' ? 0.006 : 0.012), profil[profil.length - 1][3] - 0.012);
+    k.position.set(0, oben + (art === 'roll' ? 0.02 : art === 'tuch' || art === 'offen' ? 0.006 : 0.012), profil[profil.length - 1][3] - 0.012);
     g.add(k);
   }
   return g;

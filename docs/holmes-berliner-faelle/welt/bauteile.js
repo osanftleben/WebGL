@@ -330,19 +330,20 @@ export const STOFF = {
  * Stände der Schreckenskammer (Gestaltung): Tracht und Halsbinde, Hemdfarbe, wie abgetragen.
  * Trachten: gehrock (langer Rock, Weste, Revers), joppe (kurze Jacke mit Revers), weste (Hemdsärmel,
  * hochgekrempelt, mit Weste), kittel (Fuhrmannskittel mit Passe), troyer (Wollpullover mit Rollkragen).
- * Gehrock mit Krawatte nur bei den „feinen“ Betrügern.
+ * Halsbinde ist die Ausnahme (Wunsch des Nutzers): Krawatte nur bei den „feinen“ Betrügern, Halstuch mit
+ * seitlichem Knoten nur bei Zuhälter und Fuhrknecht, sonst offener Hemdkragen bzw. Rollkragen.
  * Frauenrollen für Sitzung B (bis dahin steht an diesen Plätzen ein Mann): dienstmagd, waescherin, giftmischerin.
- * @type {Record<string, { tracht: 'gehrock' | 'joppe' | 'weste' | 'kittel' | 'troyer', binder: 'krawatte' | 'tuch' | 'keiner', hemd: keyof typeof STOFF, abgetragen: number }>}
+ * @type {Record<string, { tracht: 'gehrock' | 'joppe' | 'weste' | 'kittel' | 'troyer', binder: 'krawatte' | 'tuch' | 'offen' | 'keiner', hemd: keyof typeof STOFF, abgetragen: number }>}
  */
 export const STAND = {
   betrueger: { tracht: 'gehrock', binder: 'krawatte', hemd: 'weiss', abgetragen: 0 }, // Hochstapler, Heiratsschwindler
-  hausierer: { tracht: 'gehrock', binder: 'tuch', hemd: 'leinen', abgetragen: 1 }, // alter, geflickter Rock
+  hausierer: { tracht: 'gehrock', binder: 'offen', hemd: 'leinen', abgetragen: 1 }, // alter, geflickter Rock
   zuhaelter: { tracht: 'joppe', binder: 'tuch', hemd: 'creme', abgetragen: 0 }, // auffällige Farben
-  einbrecher: { tracht: 'joppe', binder: 'tuch', hemd: 'grauweiss', abgetragen: 0.6 },
-  hehler: { tracht: 'joppe', binder: 'tuch', hemd: 'leinen', abgetragen: 0.8 },
-  wilddieb: { tracht: 'joppe', binder: 'tuch', hemd: 'leinen', abgetragen: 0.8 }, // Lodenjoppe
-  tageloehner: { tracht: 'weste', binder: 'tuch', hemd: 'leinen', abgetragen: 1 },
-  taschendieb: { tracht: 'weste', binder: 'tuch', hemd: 'grauweiss', abgetragen: 0.5 },
+  einbrecher: { tracht: 'joppe', binder: 'offen', hemd: 'grauweiss', abgetragen: 0.6 },
+  hehler: { tracht: 'joppe', binder: 'offen', hemd: 'leinen', abgetragen: 0.8 },
+  wilddieb: { tracht: 'joppe', binder: 'offen', hemd: 'leinen', abgetragen: 0.8 }, // Lodenjoppe
+  tageloehner: { tracht: 'weste', binder: 'offen', hemd: 'leinen', abgetragen: 1 },
+  taschendieb: { tracht: 'weste', binder: 'offen', hemd: 'grauweiss', abgetragen: 0.5 },
   fuhrknecht: { tracht: 'kittel', binder: 'tuch', hemd: 'leinen', abgetragen: 0.5 },
   seemann: { tracht: 'troyer', binder: 'keiner', hemd: 'grauweiss', abgetragen: 0.4 },
   schlaeger: { tracht: 'troyer', binder: 'keiner', hemd: 'grauweiss', abgetragen: 0.7 },
@@ -364,7 +365,7 @@ export const STAND = {
  * @property {keyof typeof STAND} [stand] Stand bzw. Rolle (bestimmt Tracht und Halsbinde)
  * @property {keyof typeof STOFF} [rock] Rock, Jacke, Weste (Tracht weste), Kittel oder Pullover
  * @property {keyof typeof STOFF} [weste] Weste unter Rock/Jacke
- * @property {keyof typeof STOFF} [krawatte] Krawatte bzw. Halstuch
+ * @property {keyof typeof STOFF} [krawatte] Krawatte bzw. Halstuch (nur wenn der Stand eine Halsbinde trägt)
  * @property {keyof typeof STOFF} [hose] @property {keyof typeof STOFF} [hemd] sonst nach Stand
  * @property {keyof typeof STOFF} [flicken] aufgesetzter Flicken in dieser Farbe
  * @property {keyof typeof STOFF} [muetze] Schiebermütze (Haar darunter kurz)
@@ -596,7 +597,7 @@ function kleidung(m, rolle, bueste) {
   /** @type {Omit<Parameters<typeof oberkoerper>[0], 'profil'>} */
   const o = {
     rock, schnitt: 2, untenZu: bueste, binder: st.binder, abgetragen: st.abgetragen,
-    kragen: tuch ? binde : hemd, kragenForm: tuch ? 'tuch' : 'steh',
+    kragen: tuch ? binde : hemd, kragenForm: tuch ? 'tuch' : st.binder === 'offen' ? 'offen' : 'steh',
   };
   /** @type {{ stoff: import('./menschen.js').Stoff, manschette: import('./menschen.js').Stoff | null, krempel: number }} */
   let aermel = { stoff: rock, manschette: hemd, krempel: 0 };
@@ -736,11 +737,13 @@ export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = 
 // Halsabschluss der Schrankköpfe sparsam (offene Zylinder, kleiner Knoten): 24 Köpfe im Blick
 const kragenStehGeo = new THREE.CylinderGeometry(0.064, 0.068, 0.04, 12, 1, true);
 const kragenRollGeo = new THREE.CylinderGeometry(0.068, 0.075, 0.05, 12, 1, true);
+// offener Hemdkragen: vorn eine Lücke, dort sieht man den Hals
+const kragenOffenGeo = new THREE.CylinderGeometry(0.07, 0.066, 0.034, 12, 1, true, 0.55, Math.PI * 2 - 1.1);
 const knotenGeo = new THREE.SphereGeometry(1, 7, 4);
 
 /**
- * Abschluss am Hals eines Schrankkopfs nach Stand: Rollkragen, Halstuch mit Knoten oder weißer
- * Stehkragen mit Krawattenknoten. Mitte am Halsansatz, vorn = +z.
+ * Abschluss am Hals eines Schrankkopfs nach Stand: Rollkragen, offener Hemdkragen, Halstuch mit
+ * seitlichem Knoten oder weißer Stehkragen mit Krawattenknoten. Mitte am Halsansatz, vorn = +z.
  * @param {Materialien} m @param {Rolle} rolle
  */
 function halsAbschluss(m, rolle) {
@@ -750,15 +753,24 @@ function halsAbschluss(m, rolle) {
     g.add(stoffTeil(kragenRollGeo, farbe(m, STOFF[rolle.rock ?? 'marine'])));
     return g;
   }
+  if (st.binder === 'offen' || st.binder === 'keiner') {
+    g.add(stoffTeil(kragenOffenGeo, farbe(m, STOFF[rolle.hemd ?? st.hemd])));
+    return g;
+  }
   const tuch = st.binder === 'tuch';
   const binde = farbe(m, STOFF[rolle.krawatte ?? (tuch ? 'rot' : 'schwarz')]);
   const ring = stoffTeil(kragenStehGeo, tuch ? binde : farbe(m, STOFF.weiss));
   if (tuch) ring.scale.set(1.04, 0.8, 1.04);
   g.add(ring);
   const knoten = stoffTeil(knotenGeo, binde);
-  if (tuch) knoten.scale.set(0.021, 0.017, 0.014);
-  else knoten.scale.set(0.014, 0.012, 0.009);
-  knoten.position.set(0, -0.006, 0.066);
+  if (tuch) {
+    // Halstuch-Knoten seitlich (wie bei den Ganzfiguren)
+    knoten.scale.set(0.02, 0.017, 0.014);
+    knoten.position.set(0.021, -0.006, 0.063);
+  } else {
+    knoten.scale.set(0.014, 0.012, 0.009);
+    knoten.position.set(0, -0.006, 0.066);
+  }
   g.add(knoten);
   return g;
 }
