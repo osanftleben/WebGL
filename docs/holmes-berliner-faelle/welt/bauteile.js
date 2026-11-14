@@ -54,6 +54,14 @@ function ohneDirektenGlanz(material) {
   return material;
 }
 
+// Aufhellung (Nutzer 14. 11.: Boden und dunkles Holz in Firefox zu dunkel), ohne neue Lichtberechnung:
+// Faktor auf die Grundfarbe der Dielen und des dunklen Holzes (Büstensockel, Türen, Geländer, Tische,
+// auch das Podest der Figurengruppe)
+const DIELEN_HELLIGKEIT = 1.5;
+const HOLZ_DUNKEL_HELLIGKEIT = 1.4;
+/** @param {[number, number, number]} rgb sRGB 0–255 @param {number} f @returns {[number, number, number]} */
+const heller = (rgb, f) => [Math.round(rgb[0] * f), Math.round(rgb[1] * f), Math.round(rgb[2] * f)];
+
 /**
  * Legt alle gemeinsam genutzten Materialien einmal an.
  */
@@ -62,7 +70,7 @@ export function erstelleMaterialien() {
   // Glänzende Oberflächen (Feinschliff B): spiegeln die Umgebung (scene.environment)
   const glanz = (/** @type {THREE.MeshStandardMaterialParameters} */ p) => new THREE.MeshStandardMaterial(p);
   return {
-    dielen: lambert({ map: dielenTextur() }),
+    dielen: lambert({ map: dielenTextur(DIELEN_HELLIGKEIT) }),
     // Säle hell (Werbeblatt 1888: „weit, bequem und hell“, Rokoko-Schmuck); Farbton angenommen
     putzSaal: lambert({ map: putzTextur('#ddd2bb', 5) }),
     putzHell: lambert({ map: putzTextur('#cdc6b6', 9) }),
@@ -71,7 +79,7 @@ export function erstelleMaterialien() {
     emaille: lambert({ color: 0x2f4637, side: THREE.DoubleSide }),
     gesims: lambert({ color: 0xe8e2d4 }),
     fussleiste: lambert({ map: holzTextur([58, 38, 24], 21) }),
-    holzDunkel: glanz({ map: holzTextur([66, 44, 28], 31), roughness: 0.55, metalness: 0, envMapIntensity: 0.3 }),
+    holzDunkel: glanz({ map: holzTextur(heller([66, 44, 28], HOLZ_DUNKEL_HELLIGKEIT), 31), roughness: 0.55, metalness: 0, envMapIntensity: 0.3 }),
     holzHell: lambert({ map: holzTextur([150, 112, 72], 41) }),
     fensterRahmen: lambert({ color: 0xe9e5db }),
     // Mattes Tageslicht hinter den Scheiben (bewusst ohne Außenansicht)
@@ -84,7 +92,7 @@ export function erstelleMaterialien() {
     // Säulenschäfte (Marmor angenommen; Marmortreppen im Haus belegt)
     marmor: glanz({ color: 0xece6da, metalness: 0, roughness: 0.15, envMapIntensity: 1.0 }),
     stoffRot: lambert({ color: 0x6e1d1d }),
-    podest: lambert({ color: 0x3b1f1a }),
+    podest: lambert({ color: new THREE.Color().setRGB(...heller([59, 31, 26], HOLZ_DUNKEL_HELLIGKEIT).map((c) => c / 255), THREE.SRGBColorSpace) }),
     metall: glanz({ color: 0xc8ccd0, metalness: 1, roughness: 0.14, envMapIntensity: 1.6 }),
     eisen: glanz({ color: 0x2e2e30, metalness: 0.6, roughness: 0.6, envMapIntensity: 0.3 }),
     // Wachs hat einen leichten, weichen Schimmer; Hautton und Gesichter kommen aus der Gesichtstafel

@@ -7,9 +7,11 @@ import * as THREE from 'three';
  * Gemessene mittlere Helligkeit (vor der Belichtung): übliche Raumblicke ≈ 0,033, Figurengruppe ≈ 0,024,
  * Fensterecke ≈ 0,066, Werkstatt ≈ 0,073. Bezug 0,04: übliche Blicke bleiben nahe der Grundbelichtung,
  * dunkle werden bis +30 % heller, helle nur bis −15 % dunkler (die Szene ist eher zu dunkel).
+ * Seit der Aufhellung von Boden, Holz und Ecken (14. 11.) misst die Szene rund 20–40 % heller;
+ * Bezug deshalb 0,05, damit die Augenanpassung die Aufhellung nicht wieder wegregelt.
  */
 export const AUGEN_OPTIONEN = {
-  bezugsHelligkeit: 0.04,
+  bezugsHelligkeit: 0.05,
   minFaktor: 0.85,
   maxFaktor: 1.3,
 };

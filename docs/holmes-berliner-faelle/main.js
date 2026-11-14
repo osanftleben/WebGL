@@ -43,6 +43,11 @@ aktiviereSchatten(kranich);
 const kranichHindernis = { minX: 5.0, maxX: 5.6, minZ: 15.3, maxZ: 15.9 };
 // Vorab berechnete Beleuchtung (Strahlverfolgung): Lichtkarte für statische Quader und Flächen,
 // Lichtgitter für alles andere. Fehlt sie, gilt die alte Näherung mit Lampen.
+// Aufhellung ohne Neuberechnung (Nutzer 14. 11.: Figuren und Ecken zu dunkel):
+/** Zusätzlicher Faktor fürs Lichtgitter (Wachsfiguren, Büsten, runde Teile) */
+const LICHTGITTER_FAKTOR = 1.3;
+/** Mindest-Grundhelligkeit im indirekten Licht (Einheit wie das Licht nach dem Faktor 22) */
+const LICHT_GRUND = 0.15;
 /** @type {any} */
 let lichtgitterWerte = null;
 /** @type {any} */
@@ -50,7 +55,12 @@ let bodenGlanzWerte = null;
 try {
   const gitter = await ladeLichtgitter(new URL('./licht/', import.meta.url), etage.lichtSzene.pruefsumme);
   // Helligkeitsfaktor: das Gitter rechnet mit Himmelsleuchtdichte 1, im Innenraum kommen nur wenige Prozent an
-  lichtgitterWerte = wendeLichtgitterAn(scene, gitter, 22);
+  lichtgitterWerte = wendeLichtgitterAn(scene, gitter, 22, {
+    // Figuren und runde Teile (Lichtgitter) heller als die Flächen mit Lichtkarte
+    gitterFaktor: LICHTGITTER_FAKTOR,
+    // Ecken und Stellen unter Möbeln saufen nicht ab; helle Stellen bleiben praktisch gleich
+    grund: LICHT_GRUND,
+  });
   // Kurze Meldung, welche Beleuchtung aktiv ist (hilft bei der Fehlersuche auf anderen Rechnern)
   console.info(gitter.karte
     ? `Beleuchtung: Lichtkarte aktiv (Prüfsumme ${etage.lichtSzene.pruefsumme})`

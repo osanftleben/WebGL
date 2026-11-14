@@ -85,3 +85,17 @@ Aktuelle Regeln und Arbeitsstand stehen in `.claude/rules/projekte/holmes-berlin
 - Pump-Test: 360° in 24 s bei (4,5, 4,75): Belichtung 1,06 … 1,39, folgt dem Blick; kleine Schwankungen nur ±1–2 %. 60 Bilder/s.
 - Kosten: Messbild hat dieselbe Zahl Draw-Calls wie das Hauptbild (z. B. Gruppe 37 + 37, Büsten 20 + 20, Kopfschrank 26 + 26), nur in den 4 Messbildern pro Sekunde; CPU ~0,4 ms je Messbild. Shader: je Material eine zweite Fassung (ohne Farbkurve), vorab mit `compileAsync` übersetzt.
 - Restpunkt (Ermessen): Helle Blicke (Werkstatt, Schräge) werden bis −15 % dunkler; falls das in Firefox stört, `minFaktor` auf 0,9–1,0.
+
+## Aufhellung Boden, Holz, Ecken, Figuren (14. 11. 2026, Aufgabensitzung, Runde 0/1)
+- Anlass: Nutzer (Firefox) „Szene sehr dunkel“, nach der Augenanpassung zur Büsten-Hofwand „wirkt noch zu dunkel“ – Dielen, dunkle Holzsockel, Figuren. Ohne Neuberechnung, Gesamtbelichtung 1,25 unverändert.
+- Stellgrößen:
+  - `DIELEN_HELLIGKEIT` 1,5 (welt/bauteile.js → `dielenTextur(helligkeit)`, Faktor auf die Brettfarbe 118|84|54; Maserung und Fugen bleiben). Bodenglanz unverändert.
+  - `HOLZ_DUNKEL_HELLIGKEIT` 1,4 auf `holzDunkel` (66|44|28 → 92|62|39; Büstensockel, Türen, Geländer, Tische, Schränke) und `podest` (0x3b1f1a → 83|43|36, Podest der Figurengruppe – der „schwarze Boden“ im Blick Gruppe war das Podest, nicht die Dielen).
+  - `LICHTGITTER_FAKTOR` 1,3 (main.js → `wendeLichtgitterAn(…, { gitterFaktor })`): nur Lichtgitter (Figuren, Büstenköpfe, runde Teile), Lichtkarte unverändert.
+  - `LICHT_GRUND` 0,15 (main.js → `grund`): weiches Maximum im Shader, `E += g² / (sqrt(L² + g²) + L)` als neutrales Grau auf das indirekte Licht (L = Helligkeit nach Faktor 22). Größenordnung: Wände L ≈ 0,8 (+2 %), Dielen ≈ 0,25 (+15–20 %), Ecken ≈ 0,05 (≈ ×3). Werte ≥ 0,3 hellen schon die Wände sichtbar auf.
+  - Augenanpassung: `bezugsHelligkeit` 0,04 → 0,05 (welt/licht.js), sonst regelt sie die Aufhellung (Messung +20–40 %) etwa zur Hälfte weg (Exponent 0,5). Belichtungen danach wie vorher: A 1,30 (vorher 1,38), Gruppe 1,58 (1,60), Hofwand 1,25 (1,32), Werkstatt 1,06 (1,06).
+  - Zum Abstimmen lokal: `__debug.lichtgitterWerte.lgGitterFaktor/lgGrund`, `__debug.belichtung.einstellungen.bezugsHelligkeit` (Farben nur per Neuladen).
+- Messung Chromium mit Augenanpassung, ganzes Bild 0–255 (mittel | Anteil < 25 | Anteil ≥ 250), vorher → nachher: Raum A 63|31 %|0,1 % → 72|18 %|0,1 %; Hofwand 55|31 %|0 → 65|12 %|0; Gruppe 51|40 %|0 → 60|33 %|0; Werkstatt 93|10 %|0,1 % → 103|6 %|0,1 %. Figuren (Bildmitte oben, Gruppe) 63–84 → 75–95. Draw-Calls 20/37/26 unverändert, keine Konsolenfehler, alle Anfragen 127.0.0.1, Rundgang (12 Blickpunkte) unauffällig.
+- Bildrate in dieser Sitzung nicht gemessen (Browserfenster verdeckt, keine Bildschleife); der Shader hat nur ein paar Rechenschritte mehr.
+- Hinweis Prüfen: Im verdeckten eingebauten Browser kommt `Image.decode()` nicht zurück, das Spiel lädt dann nicht fertig (kein Projektfehler). Behelf nur zum Messen: `decode` in der Konsole durch `onload` ersetzen und `main.js?p=…` neu importieren.
+- Restpunkte: Podest der Gruppe bleibt recht dunkel (eingeschlossen vom Geländer, wenig Licht); Firefox-Prüfung durch den Nutzer offen.

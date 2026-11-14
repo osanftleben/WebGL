@@ -9,8 +9,9 @@ paths:
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/` im Hauptordner (nicht lesen, nicht ändern).
 
 ## Arbeitsstand (zuletzt 14. 11. 2026)
-- **Augenanpassung fertig** (Bibliothek `belichtung-v1`, in `main.js`; Holmes-Werte `AUGEN_OPTIONEN` in `welt/licht.js`: Bezug 0,04, −15 %/+30 % um 1,25). Runden 0/2; **Firefox-Prüfung durch den Nutzer offen.** Einzelheiten, Messreihe: Verlauf.
-- **Als Nächstes: „Boden, Ecken, Figuren heller“ neu bewerten** (Nutzer: in Firefox zu dunkel). Halbfertige, wirkungslose Änderung (`gitterFaktor`, `grund`) liegt nicht committet in `welt/lichtgitter.js`. Danach Sichtbarkeit je Raum / LOD (Gruppe ~97 700 Dreiecke über A und B), dann **Sitzung B** (Frauenfiguren an `frauPlatz` nach `frauRolle`).
+- **Augenanpassung fertig** (Bibliothek `belichtung-v1`, in `main.js`; Holmes-Werte `AUGEN_OPTIONEN` in `welt/licht.js`: Bezug 0,05 (seit Aufhellung), −15 %/+30 % um 1,25). Runden 0/2; **Firefox-Prüfung durch den Nutzer offen.** Einzelheiten, Messreihe: Verlauf.
+- **Boden, Ecken, Figuren heller erledigt** (Runde 0/1, nicht committet): Dielen ×1,5, dunkles Holz/Podest ×1,4, Lichtgitter ×1,3, Grundhelligkeit 0,15 (main.js/bauteile.js), Augen-Bezug 0,05. **Firefox-Prüfung durch den Nutzer offen.** Werte: Verlauf.
+- **Als Nächstes:** Sichtbarkeit je Raum / LOD (Gruppe ~97 700 Dreiecke über A und B), dann **Sitzung B** (Frauenfiguren an `frauPlatz` nach `frauRolle`).
 - Besetzung A/A2 fertig (Runde 2/2, 65f1767); Messung 20/37/26 Draw-Calls, 60 Bilder/s. Frauen = Annahme (anonym).
 - Feinschliff C fertig (e191cab), Firefox-Abnahme offen. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben. Zurückgestellt: Lichtberechnung auf der Grafikkarte, Fenster-Überstrahlen.
 - **Danach:** D (Stuck, Beschläge), dann weitere Inhalte von Fall 1 (siehe Ausbaustufen).

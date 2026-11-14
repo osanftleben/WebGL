@@ -36,14 +36,15 @@ function alsTextur(canvas) {
 
 /**
  * Dielenboden: 8 Bretter je Kachel. Eine Kachel = 1,6 m × 1,6 m (Brett 20 cm breit).
+ * @param {number} [helligkeit=1] Faktor auf die Grundfarbe der Bretter (Maserung und Fugen bleiben)
  * @returns {THREE.CanvasTexture}
  */
-export function dielenTextur() {
+export function dielenTextur(helligkeit = 1) {
   const { canvas, ctx } = leinwand(512, 512);
   const z = zufall(7);
   const brett = 64;
   for (let i = 0; i < 8; i++) {
-    const ton = 0.85 + z() * 0.25;
+    const ton = (0.85 + z() * 0.25) * helligkeit;
     ctx.fillStyle = `rgb(${Math.round(118 * ton)},${Math.round(84 * ton)},${Math.round(54 * ton)})`;
     ctx.fillRect(0, i * brett, 512, brett);
     // Maserung

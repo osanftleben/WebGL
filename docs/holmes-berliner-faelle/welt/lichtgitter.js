@@ -72,8 +72,12 @@ export async function ladeLichtgitter(ordner, pruefsumme) {
  * @param {THREE.Object3D} wurzel
  * @param {Lichtgitter} gitter
  * @param {number} staerke Helligkeitsfaktor
+ * @param {{ gitterFaktor?: number, grund?: number }} [feinwerte]
+ *   gitterFaktor: zusätzlicher Faktor nur fürs Lichtgitter (Figuren, runde Teile), 1 = wie Lichtkarte;
+ *   grund: Mindest-Grundhelligkeit im indirekten Licht (gleiche Einheit wie das Licht nach `staerke`),
+ *   hebt nur dunkle Stellen weich an, helle bleiben praktisch gleich; 0 = aus
  */
-export function wendeLichtgitterAn(wurzel, gitter, staerke) {
+export function wendeLichtgitterAn(wurzel, gitter, staerke, feinwerte = {}) {
   const { info } = gitter;
   const uniforms = {
     lichtGitter: { value: gitter.textur },
@@ -83,6 +87,8 @@ export function wendeLichtgitterAn(wurzel, gitter, staerke) {
     lgMax: { value: info.hoechstwert },
     lgGamma: { value: info.gamma },
     lgStaerke: { value: staerke },
+    lgGitterFaktor: { value: feinwerte.gitterFaktor ?? 1 },
+    lgGrund: { value: feinwerte.grund ?? 0 },
     lkKarte: { value: gitter.karte },
     lkAn: { value: gitter.karte ? 1 : 0 },
     lkMax: { value: gitter.karte && info.lichtkarte ? info.lichtkarte.hoechstwert : 0 },
@@ -118,6 +124,8 @@ uniform vec3 lgN;
 uniform float lgMax;
 uniform float lgGamma;
 uniform float lgStaerke;
+uniform float lgGitterFaktor;
+uniform float lgGrund;
 uniform sampler2D lkKarte;
 uniform float lkAn;
 uniform float lkMax;
@@ -142,9 +150,14 @@ vec3 lgBestrahlung( vec3 p, vec3 n ) {
 			lgE = pow( lk.rgb, vec3( lgGamma ) ) * lkMax;
 		} else {
 			vec3 lgNormale = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz );
-			lgE = lgBestrahlung( vLgWelt + lgNormale * 0.15, lgNormale );
+			lgE = lgBestrahlung( vLgWelt + lgNormale * 0.15, lgNormale ) * lgGitterFaktor;
 		}
-		reflectedLight.indirectDiffuse = lgE * BRDF_Lambert( material.diffuseColor ) * lgStaerke;
+		lgE *= lgStaerke;
+		// Mindest-Grundhelligkeit: weiches Maximum aus Helligkeit l und lgGrund (sqrt(l² + g²)),
+		// als neutrales Grau addiert – bei l = 0 kommt g dazu, bei l ≫ g fast nichts
+		float lgL = dot( lgE, vec3( 0.2126, 0.7152, 0.0722 ) );
+		lgE += vec3( lgGrund * lgGrund / ( sqrt( lgL * lgL + lgGrund * lgGrund ) + lgL + 1e-6 ) );
+		reflectedLight.indirectDiffuse = lgE * BRDF_Lambert( material.diffuseColor );
 	}`);
     };
     mat.customProgramCacheKey = () => (vorherSchluessel ? vorherSchluessel.call(mat) : '') + '|lichtgitter';
