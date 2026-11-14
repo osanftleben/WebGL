@@ -84,6 +84,28 @@ Aktuelle Regeln und Arbeitsstand stehen in `.claude/rules/projekte/holmes-berlin
 
 ## Sichtbarkeit je Raum (aus dem Arbeitsstand verschoben, 14. 11. 2026)
 - Vorschlag vor Sitzung B: Im Blick „Figurengruppe nah“ stecken ~97 700 Dreiecke in zwei Paketen über Raum A und B (Büsten hinter der Wand werden mitgezeichnet), Werkstatt ~9 500 → großes Sparpotenzial ohne Detailverlust. Ohne Sichtbarkeit bleiben für B nur ~1 650 Dreiecke bis zur Grenze 135 000.
+- **Umgesetzt (Teil 1, 14. 11. 2026, Aufgabensitzung, keine Korrekturrunde):** `welt/sichtbarkeit.js`, Vorgabe des Nutzers: festes 1 × 1-m-Raster über die ganze Etage, Zellen an Trennwänden an der Raumgrenze geteilt, alle Teile (auch leichte) in Zellen; Draw-Calls egal, Maßstab ist die Bildrate.
+  - Zuordnung beim Verschmelzen (`verschmelze(gruppe, lichtkarte, { schluessel })`, je Zelle × Material): Zelle der Teilmitte; Teil ragt > 0,3 m über die Raumgrenze oder liegt in der Wandfuge → `allgemein` (immer gezeichnet: Boden, Decke, lange Wände, Trennwände); Teil > 2 m lang → Raumzelle `r:gross`. Einzeln gebliebenes Glas ebenso nach Lage. Kranich (Rand 0,4 m wegen Drehen) und Leiche sind in ihrer Zelle angemeldet (`registriere`). 117 Zellen, 276 Pakete (vorher 26).
+  - Test je Bild (in `main.js` nach Steuerung/Wendung, vor Antippen, Messbild und Hauptbild; erstes Bild zeichnet alles → alle Shader übersetzt): Standraum aus Kamera-z (±0,3 m an Grenzen → beide); Zellen im Sichtfeld; durch offene Durchgänge (A|B x 3,3–5,7 h 3,0; B|W x 1,4–2,6 h 2,5, je +0,1 m Rand) Sichtkegel von der Kamera durch die kameraseitige Öffnungsfläche, verkettet (A → B → W). ~2 µs je Bild. Spiegelungsaufnahme in `sichtbarkeit.alles(…)`. Ersatzweg ohne Lichtgitter (Schattenkarten): Prüfung aus.
+  - Messung Chromium (Fenster 694 × 630, Blick waagerecht), Draw-Calls / Dreiecke / CPU `render()` ms, vorher → nachher; immer 60–61 Bilder/s:
+    | Blick | vorher | nachher |
+    |---|---|---|
+    | 1 A gesamt | 66 / 147 278 / 1,4 | 149 / 62 444 / 1,8 |
+    | 2 Fensterwand | 23 / 115 594 / 0,8 | 36 / 2 310 / 0,8 |
+    | 3 Hofwand | 32 / 115 978 / 0,9 | 58 / 33 902 / 1,2 |
+    | 3 Büsten nah | 21 / 115 630 / 0,7 | 33 / 22 068 / 0,9 |
+    | 3a Gruppe nah | 35 / 133 998 / 1,0 | 48 / 46 692 / 1,1 |
+    | 3a Kopfschrank | 27 / 115 678 / 0,9 | 37 / 29 454 / 1,0 |
+    | 4 Ecke A\|B | 30 / 128 258 / 0,9 | 25 / 15 642 / 0,9 |
+    | 5 Fensterecke | 18 / 112 654 / 0,6 | 22 / 1 766 / 0,8 |
+    | 6 B Kranich | 55 / 146 906 / 1,0 | 100 / 42 302 / 1,4 |
+    | 6 B schräg | 56 / 147 098 / 1,1 | 104 / 37 006 / 1,3 |
+    | 7 Werkstatt | 30 / 28 408 / 0,7 | 48 / 6 322 / 0,9 |
+    | 8 Schräge | 19 / 24 106 / 0,6 | 13 / 4 132 / 0,7 |
+  - Prüfung „kein Aufploppen“: Bildvergleich mit Prüfung gegen alles gezeichnet (240 × 218, Abweichung > 3 Stufen) an 227 Orten um beide Durchgänge (z 5–14,5 und 15–24,5, Raster 1 × 0,75 m, plus Durchgangsmitten), je 12 Richtungen × Blick waagerecht/0,45 nach oben = 5 448 Bilder: **0 Abweichungen**; alle Rundgang-Blicke (waagerecht und 0,5 nach oben) 0. Gegenprobe (Raum B absichtlich versteckt, Blick aus A durch den Durchgang): 1 190 Bildpunkte → Test empfindlich. Aus A durch den Durchgang werden 26 von 47 Zellen in B gezeichnet.
+  - Augenanpassung bitgleich mit/ohne Prüfung (Messung Gruppe 0,0303, A gesamt 0,0597, Fensterecke 0,0829, Büsten 0,0484, B 0,0597, Werkstatt 0,0915). Antippen: Strahl trifft mit/ohne Prüfung dasselbe (Kranich 1,28 m). Prüfsumme 77bcb35e, `check.py` 0 Fehler, keine Konsolenfehler, alle Anfragen an 127.0.0.1.
+  - Offen: Bildrate auf dem Handy nicht gemessen (mehr Draw-Calls, bis 149 in „A gesamt“; CPU-Zeit am PC +0,1 … 0,4 ms). Wird es eng: Zellen gröber (`zelle` in `erstelleSichtbarkeit`) oder leichte Teile je Raum statt je Zelle.
+  - **Für Teil 2 (LOD):** Figuren-Stufen als eigene Objekte bauen (nicht in die Zellpakete verschmelzen) und mit `sichtbarkeit.registriere(objekt)` anmelden; Abstand zur Kamera dann nur für sichtbare Zellen auswerten (`zelleSichtbar(schluessel)`). Zellpakete tragen ihren Schlüssel in `userData.zelle`.
 
 ## Augenanpassung (14. 11. 2026, Aufgabensitzung, Bibliothek `belichtung-v1`)
 - Verfahren: Szene ~4×/s zusätzlich in ein 32×32-Gleitkomma-Messbild zeichnen (dort ohne Farbkurve und Belichtung → keine Rückkopplung), mit `readRenderTargetPixelsAsync` ohne Warten auslesen (Chromium ~20 ms bis zum Ergebnis), logarithmisches Mittel der Helligkeit, Bildmitte doppelt gewichtet. Ziel = Grund · (Bezug/Messung)^0,5, begrenzt; Totzone 3 %; Nachführen logarithmisch, heller Blick τ 0,5 s, dunkler τ 3 s.

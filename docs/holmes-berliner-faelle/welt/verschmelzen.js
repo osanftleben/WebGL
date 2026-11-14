@@ -8,11 +8,17 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
  * @param {THREE.Group} gruppe
  * @param {Map<THREE.Mesh, Float32Array>} [lichtkarte] Lichtkarten-Koordinaten je Mesh (Attribut `lkUv`);
  *   Meshes ohne Eintrag bekommen (0, 0) = „keine Lichtkarte“
+ * @param {{ schluessel?: (box: THREE.Box3) => string }} [optionen]
+ *   `schluessel`: teilt zusätzlich nach Ort auf (z. B. Sichtbarkeitszelle aus dem Weltquader des Teils);
+ *   die neuen Meshes tragen ihn in `userData.zelle`
  * @returns {THREE.Mesh[]} die neuen, zusammengefassten Meshes
  */
-export function verschmelze(gruppe, lichtkarte) {
-  /** @type {Map<THREE.Material, THREE.BufferGeometry[]>} */
+export function verschmelze(gruppe, lichtkarte, optionen = {}) {
+  /** @type {Map<string, { material: THREE.Material, zelle: string, geos: THREE.BufferGeometry[] }>} */
   const jeMaterial = new Map();
+  /** @type {Map<THREE.Material, number>} */
+  const materialNr = new Map();
+  const box = new THREE.Box3();
   /** @type {THREE.Mesh[]} */
   const alte = [];
   gruppe.traverse((o) => {
@@ -32,8 +38,15 @@ export function verschmelze(gruppe, lichtkarte) {
     geo.applyMatrix4(mesh.matrixWorld);
     const lk = lichtkarte?.get(mesh);
     if (lk) geo.setAttribute('lkUv', new THREE.BufferAttribute(lk, 2));
-    if (!jeMaterial.has(material)) jeMaterial.set(material, []);
-    /** @type {THREE.BufferGeometry[]} */ (jeMaterial.get(material)).push(geo);
+    let zelle = '';
+    if (optionen.schluessel) {
+      geo.computeBoundingBox();
+      zelle = optionen.schluessel(box.copy(/** @type {THREE.Box3} */ (geo.boundingBox)));
+    }
+    if (!materialNr.has(material)) materialNr.set(material, materialNr.size);
+    const k = `${materialNr.get(material)}|${zelle}`;
+    if (!jeMaterial.has(k)) jeMaterial.set(k, { material, zelle, geos: [] });
+    /** @type {{ geos: THREE.BufferGeometry[] }} */ (jeMaterial.get(k)).geos.push(geo);
     alte.push(mesh);
   });
   for (const mesh of alte) mesh.removeFromParent();
@@ -42,7 +55,7 @@ export function verschmelze(gruppe, lichtkarte) {
   const inverse = gruppe.matrixWorld.clone().invert();
   /** @type {THREE.Mesh[]} */
   const neue = [];
-  for (const [material, geos] of jeMaterial) {
+  for (const { material, zelle, geos } of jeMaterial.values()) {
     // Zusammenfassen geht nur mit gleichen Attributen: fehlende Lichtkarten-Koordinaten mit (0, 0) ergänzen
     if (geos.some((g) => g.getAttribute('lkUv'))) {
       for (const g of geos) {
@@ -54,6 +67,7 @@ export function verschmelze(gruppe, lichtkarte) {
     if (!zusammen) continue;
     zusammen.applyMatrix4(inverse);
     const mesh = new THREE.Mesh(zusammen, material);
+    if (optionen.schluessel) mesh.userData.zelle = zelle;
     gruppe.add(mesh);
     neue.push(mesh);
   }

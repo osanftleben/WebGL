@@ -47,6 +47,9 @@ scene.add(kranich);
 aktiviereSchatten(funde.gruppe);
 aktiviereSchatten(kranich);
 const kranichHindernis = { minX: 5.0, maxX: 5.6, minZ: 15.3, maxZ: 15.9 };
+// Sichtbarkeit je Zelle: Kranich (dreht sich zum Spieler → Rand) und Leiche gehören zu ihrer Zelle in Raum B
+etage.sichtbarkeit.registriere(kranich, { rand: 0.4 });
+for (const teil of funde.gruppe.children) if (teil.name === 'Leiche') etage.sichtbarkeit.registriere(teil);
 // Vorab berechnete Beleuchtung (Strahlverfolgung): Lichtkarte für statische Quader und Flächen,
 // Lichtgitter für alles andere. Fehlt sie, gilt die alte Näherung mit Lampen.
 // Aufhellung ohne Neuberechnung (Nutzer 14. 11.: Figuren und Ecken zu dunkel):
@@ -80,11 +83,14 @@ try {
 } catch (fehler) {
   console.warn('Lichtgitter nicht geladen, verwende Näherung:', fehler);
   fensterLichtAbfall(scene);
+  // Ersatzweg mit Schattenkarten: verborgene Zellen würfen keine Schatten → Sichtbarkeitsprüfung aus
+  etage.sichtbarkeit.setzeAktiv(false);
 }
 // Spiegelungen aus dem echten Raum, nur für glänzende Materialien (Gold, Messing, Glas, Holz, Wachs)
 // Aufnahmepunkt frei im Raum A, mit Abstand zu Vitrine und Kronleuchter (nahe Gegenstände
 // erscheinen in der Spiegelung sonst übergroß, z. B. die Messingkanten der Vitrine)
-erzeugeUmgebung(renderer, scene, new THREE.Vector3(4.5, 2.4, 2.4));
+// (Aufnahme mit allem sichtbar, unabhängig von der Sichtbarkeitsprüfung)
+etage.sichtbarkeit.alles(() => erzeugeUmgebung(renderer, scene, new THREE.Vector3(4.5, 2.4, 2.4)));
 
 // ---- Anzeige auf der Seite ----
 const istTouch = matchMedia('(pointer: coarse)').matches;
@@ -291,6 +297,7 @@ if (/** @type {any} */ (window).__debug) {
 // Schritte: alle ~0,7 m ein Schrittgeräusch
 const letzterOrt = camera.position.clone();
 let wegSeitSchritt = 0;
+let bildNr = 0;
 
 starteSchleife(renderer, ({ delta }) => {
   steuerung.aktualisiere(delta);
@@ -306,6 +313,9 @@ starteSchleife(renderer, ({ delta }) => {
   // Straßenlärm lauter nahe den Fenstern (Behrenstraße bei x = 9, Friedrichstraße bei z = 27,5)
   klaenge.setzeStrassenNaehe(Math.max((camera.position.x - 4) / 5, (camera.position.z - 22) / 5));
   aktualisiereWendung(delta);
+  // Nur zeichnen, was zu sehen sein kann (vor Messbild und Hauptbild). Das erste Bild zeichnet alles,
+  // damit alle Shader übersetzt sind und beim ersten Betreten eines Raums nichts ruckelt.
+  if (bildNr++ > 0) etage.sichtbarkeit.aktualisiere(camera);
   antippen.aktualisiere();
   auge.aktualisiere(delta);
   renderer.render(scene, camera);

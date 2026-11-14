@@ -9,15 +9,9 @@ paths:
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/` im Hauptordner (nicht lesen, nicht ändern).
 
 ## Arbeitsstand (zuletzt 14. 11. 2026)
-- **Lichtberechnung schneller umgesetzt** (nicht committet; Runden 0/2): Grafikkarte 2,6 s, CPU-Ersatzweg 101 s (bitgleich zum alten Weg), vorher ~11 min. GPU ↔ CPU ≤ 1 Stufe (Alpha vereinzelt 3). Lichtdateien mit dem neuen Modell geschrieben (Nutzer-Ja), Rundgang ok. Verlauf.
-- **Kontaktschatten fertig** (nicht committet; Runde 2/2): Hüllquader im Lichtmodell, Fleck unter Kranich, Kontaktflecken (`welt/fleck.js`, +1 Draw-Call). Firefox bestätigt. Verlauf.
-- **Augenanpassung fertig** (`belichtung-v1` 1.0.1; Werte `AUGEN_OPTIONEN` in `welt/licht.js`, Einzelheiten: Verlauf). Firefox bestätigt.
-- **Fensterausblick fertig** (d11b743, `welt/ausblick.js`, Grafikspeicher 5 MB; Verlauf). Restpunkt: Laibungen fast weiß (eigener Auftrag). Firefox offen.
-- **Boden, Ecken, Figuren heller erledigt** (cea5718; Verlauf). Firefox offen.
-- **Kranich-Helm sitzt tief** (3ae345f, `welt/helm.js`; Verlauf), Firefox offen.
-- **Als Nächstes:** Sichtbarkeit je Raum / LOD, dann **Sitzung B** (Frauenfiguren an `frauPlatz`), dann **Kranich neu** (Körper, Ausrüstung, Haltung; erst Uniform recherchieren; Helm 3ae345f bleibt). Einzelheiten: Verlauf.
-- Besetzung A/A2 fertig (65f1767; Verlauf).
-- Feinschliff C fertig (e191cab), Firefox-Abnahme offen. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben. Zurückgestellt: Fenster-Überstrahlen.
+- **Aktueller Auftrag: Sichtbarkeit je Raum + LOD Figuren** – weniger Dreiecke ohne sichtbaren Unterschied. Abnahme: Dreiecke je Rundgang-Blick vorher/nachher gemessen, kein Aufploppen an Durchgängen, keine sichtbaren LOD-Sprünge, 60 Bilder/s (Draw-Calls frei), Prüfsumme 77bcb35e. **Teil 1 fertig** (nicht committet; Runden 0/2): `welt/sichtbarkeit.js`, 1-m-Zellen + Sichtkegel durch Durchgänge; z. B. Gruppe nah 134 000 → 47 000 Dreiecke, bildgleich (Verlauf). Firefox offen. Teil 2 (LOD) 0/2.
+- Fertig (Einzelheiten: Verlauf): Lichtberechnung auf der Grafikkarte + Kontaktschatten (fcbfa13, Firefox ok), Augenanpassung (`belichtung-v1` 1.0.1, Firefox ok), Fensterausblick (d11b743; Restpunkt Laibungen fast weiß), Boden/Ecken/Figuren heller (cea5718), Kranich-Helm (3ae345f), Besetzung A/A2 (65f1767), Feinschliff C (e191cab). Firefox offen bei d11b743, cea5718, 3ae345f, e191cab. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben; zurückgestellt: Fenster-Überstrahlen.
+- **Als Nächstes:** Teil 2 LOD, dann **Sitzung B** (Frauenfiguren an `frauPlatz`), dann **Kranich neu** (Körper, Ausrüstung, Haltung; erst Uniform recherchieren; Helm 3ae345f bleibt).
 - **Danach:** D (Stuck, Beschläge), dann weitere Inhalte von Fall 1 (siehe Ausbaustufen).
 - Prüfhilfen: Vorschau `webgl-vorschau` (Pane mit `show_pane` einblenden, sonst keine Bilder); Blickpunkte: „Rundgang“. `ERR_CONNECTION_REFUSED` (Port 8765) harmlos.
 
@@ -31,6 +25,7 @@ paths:
 - Beleuchtung vorab berechnet (`.claude/scripts/holmes_licht.py`): Lichtkarte (10 cm) für statische Quader/Flächen, Lichtgitter (0,4 m) für den Rest; keine Lampen. Runde Teile verdecken nur mit `userData.lichtHuelle`.
 - **Nach jeder Änderung an Räumen, Möbeln, Fenstern neu berechnen:** `holmes_licht.py empfange` → im Spiel `await __debug.sendeLichtModell()` → `holmes_licht.py berechne` (über den Wächter; Grafikkarte ≈ 3 s, mit `--cpu` ≈ 100 s). Konsole beim Start: „Beleuchtung: Lichtkarte aktiv“.
 - Bodenglanz (`welt/bodenglanz.js`): Dielen spiegeln die Fenster weich.
+- Sichtbarkeit je 1-m-Zelle (`welt/sichtbarkeit.js`): statische Teile ordnet `verschmelze` selbst zu; eigene Objekte (Personen, Funde, LOD) mit `etage.sichtbarkeit.registriere()` anmelden. Neue offene Durchgänge dort eintragen, sonst fehlt der Nachbarraum.
 
 ## Rundgang (feste Blickpunkte für `/visuell-pruefen`)
 Im Browser: `__debug.steuerung.setzePosition(x, z, blick)` (Blick vorwärts = (−sin, −cos)); für Decke/Gesims mit der Maus nach oben ziehen.

@@ -12,6 +12,7 @@
 // Koordinaten: x zeigt zur Behrenstraße (Norden), z zur Friedrichstraße (Osten), Meter.
 import * as THREE from 'three';
 import { verschmelze } from './verschmelzen.js';
+import { erstelleSichtbarkeit } from './sichtbarkeit.js';
 import { kopf as rohKopf } from './menschen.js';
 import { sammleLichtSzene } from './lichtmodell.js';
 import { sammleKontaktFlecken } from './fleck.js';
@@ -29,6 +30,8 @@ const H = 4.0;
 /** Außenwand / Innenwand */
 const DA = 0.5;
 const DI = 0.25;
+/** Räume als z-Bereiche: Raum A, Raum B, Werkstatt (dazwischen die Trennwände) */
+const RAEUME_Z = [[0, 9.5], [9.75, 19.5], [19.75, 27.5]];
 
 /** Fenster im III. OG: tief herabgezogen mit Brüstungsgitter (Gitter am III. OG belegt, Maße angenommen). */
 const FENSTER = { breite: 1.3, hoehe: 2.7, unten: 0.35, art: /** @type {const} */ ('fenster') };
@@ -48,6 +51,7 @@ const FENSTER = { breite: 1.3, hoehe: 2.7, unten: 0.35, art: /** @type {const} *
  *   materialien: ReturnType<typeof erstelleMaterialien>,
  *   lichtSzene: import('./lichtmodell.js').LichtSzene,
  *   kontaktFlecken: import('./fleck.js').KontaktFleck[],
+ *   sichtbarkeit: ReturnType<typeof erstelleSichtbarkeit>,
  * }}
  */
 export function baueEtage3(scene) {
@@ -358,7 +362,28 @@ export function baueEtage3(scene) {
     ...[...fensterZ, 22.4].map((z) => ({ achse: 'x', ebene: 9 + DA, min: [z - FENSTER.breite / 2, FENSTER.unten], max: [z + FENSTER.breite / 2, FENSTER.unten + FENSTER.hoehe] })),
     ...[6.5 - 1.7, 6.5 - 4.7].map((x) => ({ achse: 'z', ebene: 27.5 + DA, min: [x - FENSTER.breite / 2, FENSTER.unten], max: [x + FENSTER.breite / 2, FENSTER.unten + FENSTER.hoehe] })),
   ];
-  const verdecker = verschmelze(gruppe, lichtSzene.koordinaten);
+  // Sichtbarkeit je 1-m-Zelle (welt/sichtbarkeit.js): je Zelle und Material verschmelzen, damit
+  // verdeckte Räume und Teile hinter dem Rücken nicht gezeichnet werden. Lichtkarten-Koordinaten
+  // hängen am einzelnen Teil, Atlas und Prüfsumme bleiben also gleich.
+  const sichtbarkeit = erstelleSichtbarkeit({
+    raeumeZ: RAEUME_Z,
+    durchgaenge: [
+      // Durchgang A|B (Breite 2,4 m, Höhe 3,0 m) und B|Werkstatt (Breite 1,2 m, Höhe 2,5 m), siehe Trennwände oben
+      { zwischen: [0, 1], x: [4.5 - 1.2, 4.5 + 1.2], y: [0, 3.0], z: [9.5, 9.75] },
+      { zwischen: [1, 2], x: [2.0 - 0.6, 2.0 + 0.6], y: [0, 2.5], z: [19.5, 19.75] },
+    ],
+  });
+  const verdecker = verschmelze(gruppe, lichtSzene.koordinaten, { schluessel: sichtbarkeit.schluessel });
+  for (const mesh of verdecker) sichtbarkeit.registriere(mesh, { schluessel: mesh.userData.zelle });
+  // Einzeln gebliebene Teile (Glas u. Ä.) ebenfalls nach Lage; unsichtbare Trefferkörper bleiben unberührt
+  const verschmolzen = new Set(verdecker);
+  /** @type {THREE.Mesh[]} */
+  const einzelne = [];
+  gruppe.traverse((o) => {
+    const mesh = /** @type {THREE.Mesh} */ (o);
+    if (mesh.isMesh && mesh.visible && !mesh.userData.nurTreffer && !verschmolzen.has(mesh)) einzelne.push(mesh);
+  });
+  for (const mesh of einzelne) sichtbarkeit.registriere(mesh);
   aktiviereSchatten(gruppe);
   // Straßenausblick hinter den Fenstern (nach Lichtmodell und Verschmelzen: nicht beleuchtet, ein Draw-Call)
   const ausblick = baueAusblick(lichtFenster);
@@ -371,8 +396,8 @@ export function baueEtage3(scene) {
   const direktLichter = [himmel, fensterSeite, fensterLicht, ostLicht];
   return {
     gruppe, hindernisse, verdecker, start: { x: 6.5, z: 1.3, blick: Math.PI }, materialien: m, lichtSzene, lichtFenster,
-    direktLichter, ausblick: ausblick.werte, kontaktFlecken,
+    direktLichter, ausblick: ausblick.werte, kontaktFlecken, sichtbarkeit,
     // Räume als z-Bereiche (Raum A, Raum B, Werkstatt), z. B. für die Fensterspiegelung im Boden
-    raeumeZ: [[0, 9.5], [9.75, 19.5], [19.75, 27.5]],
+    raeumeZ: RAEUME_Z,
   };
 }
