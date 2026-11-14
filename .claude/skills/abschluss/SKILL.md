@@ -1,6 +1,6 @@
 ---
 name: abschluss
-description: Schließt eine Aufgabe sauber ab – Prüfung, Arbeitsstand in den Projektnotizen, Commit auf Wunsch, neue Sitzung vorschlagen. Am Ende jeder Aufgabe oder wenn der Hook zur Sitzungslänge meldet.
+description: Schließt eine Aufgabe sauber ab – Prüfung, Arbeitsstand in den Projektnotizen, Commit auf Wunsch, Meldung an die Hauptsitzung. Am Ende jeder Aufgabe oder wenn der Hook zur Sitzungslänge meldet.
 argument-hint: <projekt>
 ---
 
@@ -16,4 +16,7 @@ Projekt: `$ARGUMENTS`
    - nur die Dateien dieser Aufgabe mit Pfad vormerken (`git add <pfade>`, nie `git add -A` oder `.`),
    - vorher `git diff --cached --stat` ansehen: nichts Fremdes dabei (auch keine früher vorgemerkten Löschungen)?
    - Nachricht auf Deutsch.
-4. **Neue Sitzung vorschlagen** für die nächste Aufgabe, mit einem Satz als Auftrag (z. B. „/auftrag holmes-berliner-faelle Wachsfiguren …“).
+4. **Melden statt neue Sitzung:** In einer Aufgabensitzung keine neue Sitzung vorschlagen. Zum Schluss kurz melden: erledigt, offen, nächster Schritt. Die Meldung erreicht die Hauptsitzung automatisch, dort wird die nächste Aufgabe vergeben.
+   - Die Hauptsitzung erhält nur die **ersten 400 Zeichen der letzten Antwort**. Die Meldung daher an den Anfang stellen, höchstens 400 Zeichen, eingeleitet mit „**Meldung an die Hauptsitzung:**“.
+   - Stellt der Nutzer danach noch Fragen, **jede weitere Antwort mit derselben Meldung beginnen** (bei neuem Stand aktualisiert), sonst kommt in der Hauptsitzung nur die letzte Nebenantwort an.
+   - Dem Nutzer sagen: Die Meldung kommt in der Hauptsitzung an, sobald er dort wieder schreibt.

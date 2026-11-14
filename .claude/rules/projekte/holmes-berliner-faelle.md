@@ -9,11 +9,12 @@ paths:
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/` im Hauptordner (nicht lesen, nicht ändern).
 
 ## Arbeitsstand (zuletzt 13. 11. 2026)
+- **Feinschliff C (Wachsfiguren) fertig, 14. 11.** (`welt/menschen.js`, Gesichtstafel in `texturen.js`; 2 Korrekturrunden), committet (e191cab), Firefox-Abnahme durch den Nutzer offen. Restfehler: Schultern etwas klobig, Revers schwach, Haar kappenartig, Handy-Leistung nicht gemessen (Dreiecke im Blick ~135 000). **Nutzer danach:** nur Männer, fast gleiche Haarfarbe, kaum Altersunterschiede → eigene Aufgabe „Besetzung“ (Vorschlag in `holmes-verlauf.md`). Einzelheiten dort.
 - **Fertig und committet:** Version 1 (bis e104b58), Grafik-Feinschliff A und B (baf7cd9).
-- **Licht committet** (Flächen-Lichtkarten, zuletzt im Commit „Beleuchtung: Flächen-Lichtkarten …“). **Offen:** Rundgang und Prüfung durch den Nutzer in Firefox („Beleuchtung: Lichtkarte aktiv“, schräge Werkstattwand glatt). Zurückgestellt: Lichtberechnung auf der Grafikkarte (erst beim nächsten Ort).
-- **Vereinbart mit dem Nutzer (Nov. 2026):** Beim Licht keine weiteren Feinschliff-Schleifen. Kleine Schönheitsfehler hier notieren und weitermachen, nur echte Fehler sofort beheben. Für jede größere Teilaufgabe eine neue Sitzung.
+- **Licht abgeschlossen** (Flächen-Lichtkarten, 776b9ed), vom Nutzer am 13. 11. 2026 in Firefox abgenommen. Zurückgestellt: Lichtberechnung auf der Grafikkarte (erst beim nächsten Ort).
+- **Vereinbart mit dem Nutzer (Nov. 2026):** Beim Licht keine weiteren Feinschliff-Schleifen. Kleine Schönheitsfehler hier notieren und weitermachen, nur echte Fehler sofort beheben.
 - **Bekannte kleine Schönheitsfehler Licht:** Fenster ohne Überstrahlen (Geschmackssache, kostet Leistung).
-- **Danach:** Feinschliff C (bessere Wachsfiguren: Körperform, Hände, Gesichter, Kleidung) – vorher Abnahme festlegen (siehe CLAUDE.md „Grafik und Feinschliff“), dann D (Stuck, Beschläge). Danach weitere Inhalte von Fall 1 (siehe Ausbaustufen).
+- **Danach:** D (Stuck, Beschläge), dann weitere Inhalte von Fall 1 (siehe Ausbaustufen).
 - Prüfhilfen: Vorschau `webgl-vorschau`; Blickpunkte siehe „Rundgang“. `ERR_CONNECTION_REFUSED` (Port 8765) = Empfänger nicht gestartet, harmlos.
 
 ## Ziel und Rahmen (Kurzfassung; vollständig: `.claude/notizen/holmes-rahmen.md`)
@@ -22,7 +23,7 @@ paths:
 - Grafik stilisiert und selbst erzeugt; Leistung ≥ 30 Bilder/s Mittelklasse-Handy, 60 am PC; Ladegröße < 20 MB pro Fall. Pushen nur auf Wunsch.
 
 ## Grafik (Einzelheiten: `.claude/notizen/holmes-verlauf.md`)
-- Feinschliff A (Licht) und B (Glanz, Glas) fertig; C (Wachsfiguren) und D (Stuck, Beschläge) offen.
+- Feinschliff A (Licht), B (Glanz, Glas) und C (Wachsfiguren, `welt/menschen.js`) fertig; D (Stuck, Beschläge) offen.
 - Beleuchtung vorab berechnet (`.claude/scripts/holmes_licht.py`): Lichtkarte (10 cm) für statische Quader/Flächen, Lichtgitter (0,4 m) für den Rest; keine Lampen. Runde Teile verdecken nur mit `userData.lichtHuelle`.
 - **Nach jeder Änderung an Räumen, Möbeln, Fenstern neu berechnen:** `holmes_licht.py empfange` → im Spiel `await __debug.sendeLichtModell()` → `holmes_licht.py berechne` (≈ 10 min, im Terminal-Panel). Konsole beim Start: „Beleuchtung: Lichtkarte aktiv“.
 - Bodenglanz (`welt/bodenglanz.js`): Dielen spiegeln die Fenster weich.
