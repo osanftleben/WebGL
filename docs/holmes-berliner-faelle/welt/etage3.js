@@ -12,6 +12,7 @@
 // Koordinaten: x zeigt zur Behrenstraße (Norden), z zur Friedrichstraße (Osten), Meter.
 import * as THREE from 'three';
 import { verschmelze } from './verschmelzen.js';
+import { kopf as rohKopf } from './menschen.js';
 import { sammleLichtSzene } from './lichtmodell.js';
 import { aktiviereSchatten, schattenLicht } from './licht.js';
 import { alsHindernis } from 'steuerung/kollision.js';
@@ -267,11 +268,11 @@ export function baueEtage3(scene) {
   gruppe.add(r);
   kollision.push(r);
   // Unfertige Wachsköpfe auf dem Regal
-  const rohkopf = new THREE.SphereGeometry(0.1, 16, 12);
+  // geformt, aber noch unbemalt und ohne Haar (Wachs ohne Gesichtstafel), Gesicht zum Raum
   for (let fach = 1; fach <= 3; fach++) {
     for (let k = 0; k < 3; k++) {
-      const kopf = new THREE.Mesh(rohkopf, m.wachsBlass);
-      kopf.scale.set(0.9, 1.15, 1);
+      const kopf = rohKopf({ haut: m.wachsBlass, variante: (fach * 3 + k) % 6, fein: false });
+      kopf.rotation.y = Math.PI / 2;
       kopf.position.set(0.25, 0.1 + (fach * 2.05) / 4 + 0.13, 20.6 + k * 0.6);
       gruppe.add(kopf);
     }

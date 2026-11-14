@@ -1,7 +1,8 @@
 // Bauteile für Innenräume: Wände mit Öffnungen, Möbel, Ausstellungsstücke.
 // Alles stilisiert aus einfachen Formen; Maße in Metern.
 import * as THREE from 'three';
-import { dielenTextur, putzTextur, holzTextur, heizkoerperTextur, nummernAtlas, glasTextur, NUMMERN_RASTER, skaliereUV, zufall } from './texturen.js';
+import { dielenTextur, putzTextur, holzTextur, heizkoerperTextur, nummernAtlas, glasTextur, gesichtsTafel, gesichtIstAlt, GESICHT, NUMMERN_RASTER, skaliereUV, zufall } from './texturen.js';
+import { kopf, hals, arm, oberkoerper } from './menschen.js';
 
 /** @type {Map<number, THREE.BufferGeometry>} Vorhang-Geometrien je Höhe (werden geteilt) */
 const vorhangCache = new Map();
@@ -86,8 +87,8 @@ export function erstelleMaterialien() {
     podest: lambert({ color: 0x3b1f1a }),
     metall: glanz({ color: 0xc8ccd0, metalness: 1, roughness: 0.14, envMapIntensity: 1.6 }),
     eisen: glanz({ color: 0x2e2e30, metalness: 0.6, roughness: 0.6, envMapIntensity: 0.3 }),
-    // Wachs hat einen leichten, weichen Schimmer
-    wachs: glanz({ color: 0xd8b597, metalness: 0, roughness: 0.42, envMapIntensity: 0.5 }),
+    // Wachs hat einen leichten, weichen Schimmer; Hautton und Gesichter kommen aus der Gesichtstafel
+    wachs: glanz({ map: gesichtsTafel(), color: 0xffffff, metalness: 0, roughness: 0.42, envMapIntensity: 0.5 }),
     wachsBlass: glanz({ color: 0xe6dac4, metalness: 0, roughness: 0.48, envMapIntensity: 0.4 }),
     haar: lambert({ color: 0x2a211b }),
     // Dunkle Stoffe nicht zu dunkel wählen, damit Licht und Schatten darauf sichtbar bleiben
@@ -303,11 +304,37 @@ export function heizkoerper(m, breite) {
 
 // ---------- Ausstellungsstücke ----------
 
-const kopfGeo = new THREE.SphereGeometry(0.1, 20, 14);
-const halsGeo = new THREE.CylinderGeometry(0.045, 0.05, 0.12, 12);
-const schulterGeo = new THREE.SphereGeometry(0.2, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2);
-const haarGeo = new THREE.SphereGeometry(0.104, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.45);
-const bartGeo = new THREE.SphereGeometry(0.1, 16, 8, 0, Math.PI * 2, Math.PI * 0.66, Math.PI * 0.34);
+/**
+ * Wählt aus der Saat Gesicht, Kopfform, Haar und Bart einer Wachsfigur.
+ * @param {Materialien} m @param {() => number} z Zufallsfolge
+ * @param {boolean} [fein=true]
+ * @param {boolean} [mitHaar=true] false unter einem Hut (Bart bleibt)
+ */
+function wachskopf(m, z, fein = true, mitHaar = true) {
+  // Eigene, gut durchmischte Zufallsfolge: Nachbarn mit fast gleicher Saat bekamen sonst dasselbe Gesicht
+  let h = Math.floor(z() * 2147483646) ^ 0x5bd1e995;
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  const r = zufall(((h ^ (h >>> 16)) >>> 0) % 2147483646 + 1);
+  const wahl = (/** @type {any[]} */ liste) => liste[Math.floor(r() * liste.length)];
+  const zelle = Math.floor(r() * GESICHT.wachsZellen);
+  const variante = Math.floor(r() * 6);
+  const alt = gesichtIstAlt(zelle);
+  // Haarfarbe: ältere Gesichter grau oder weiß, sonst schwarz oder dunkelbraun
+  // (nur Materialien, die an Büsten und Schrank schon gezeichnet werden – kleidBraun kostete einen Draw-Call)
+  const haarFarbe = alt ? wahl([m.kleidGrau, m.gips]) : wahl([m.haar, m.haar, m.kleidDunkel]);
+  /** @type {import('./menschen.js').HaarStil} */
+  const haarStil = alt ? wahl(['kranz', 'kranz', 'kurz']) : wahl(['voll', 'kurz', 'lang', 'voll', 'kurz', 'kranz']);
+  const b = r();
+  /** @type {import('./menschen.js').BartStil} */
+  const bart = b < 0.25 ? 'voll' : b < 0.55 ? 'schnurr' : b < 0.7 ? 'backen' : b < 0.82 ? 'kinn' : 'keiner';
+  const k = kopf({ haut: m.wachs, zelle, variante, fein, haar: mitHaar ? haarFarbe : null, bartMaterial: haarFarbe, haarStil, bart });
+  k.scale.set(0.93 + r() * 0.14, 0.94 + r() * 0.12, 0.95 + r() * 0.1);
+  return k;
+}
+
+/** Schultern einer Büste (Profil: y, halbe Breite, halbe Tiefe, Versatz z) */
+const BUESTE = [[1.15, 0.165, 0.1, 0], [1.22, 0.18, 0.11, 0.005], [1.27, 0.186, 0.106, 0.003], [1.3, 0.165, 0.088, 0], [1.325, 0.105, 0.068, 0], [1.345, 0.062, 0.055, 0]];
 
 /**
  * Wachskopf als Büste auf einem Sockel (Kopf eines Verbrechers – ohne Namen, stilisiert).
@@ -318,29 +345,17 @@ export function buesteAufSockel(m, saat) {
   const g = new THREE.Group();
   g.add(box(0.36, 1.1, 0.36, 0, 0.55, 0, m.holzDunkel));
   g.add(box(0.42, 0.05, 0.42, 0, 1.125, 0, m.holzDunkel));
-  const schulter = new THREE.Mesh(schulterGeo, z() < 0.5 ? m.kleidDunkel : m.kleidBraun);
-  schulter.scale.set(1, 0.55, 0.6);
-  schulter.position.y = 1.15;
-  g.add(schulter);
-  const hals = new THREE.Mesh(halsGeo, m.wachs);
-  hals.position.y = 1.31;
-  g.add(hals);
-  const kopf = new THREE.Mesh(kopfGeo, m.wachs);
-  kopf.scale.set(0.88 + z() * 0.12, 1.15 + z() * 0.12, 1);
-  kopf.position.y = 1.44;
-  g.add(kopf);
-  const haar = new THREE.Mesh(haarGeo, m.haar);
-  haar.scale.copy(kopf.scale).multiplyScalar(1.04);
-  haar.position.y = 1.45;
-  haar.rotation.x = -0.5;
-  g.add(haar);
-  if (z() < 0.55) {
-    // Vollbart: bedeckt die untere Gesichtshälfte von Ohr zu Ohr
-    const bart = new THREE.Mesh(bartGeo, m.haar);
-    bart.scale.copy(kopf.scale).multiplyScalar(1.03);
-    bart.position.set(0, 1.42, 0.006);
-    g.add(bart);
-  }
+  const rock = z() < 0.5 ? m.kleidDunkel : m.kleidBraun;
+  g.add(oberkoerper({
+    profil: BUESTE, rock, untenZu: true, kragen: m.gips,
+    ausschnitt: { unten: 1.2, breite: 0.055, weste: rock === m.kleidDunkel ? m.kleidGrau : m.kleidDunkel, hemd: m.gips, krawatte: z() < 0.5 ? m.kleidDunkel : m.stoffRot, knopf: m.eisen, rockKnoepfe: 0 },
+  }));
+  const h = hals(m.wachs);
+  h.position.set(0, 1.39, -0.012);
+  g.add(h);
+  const k = wachskopf(m, z);
+  k.position.y = 1.46;
+  g.add(k);
   return g;
 }
 
@@ -411,16 +426,16 @@ export function vitrine(m, breite, tiefe) {
   return g;
 }
 
-const rumpfGeo = new THREE.CylinderGeometry(0.17, 0.24, 0.75, 16);
-const rockGeo = new THREE.CylinderGeometry(0.24, 0.3, 0.45, 16);
 const beinGeo = new THREE.CylinderGeometry(0.065, 0.06, 0.82, 10);
-const armGeo = new THREE.CylinderGeometry(0.05, 0.045, 0.62, 10);
-const handGeo = new THREE.SphereGeometry(0.045, 10, 8);
 const hutGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.16, 16);
 const krempeGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.015, 20);
 
+/** Körper im Gehrock (Profil: y, halbe Breite, halbe Tiefe, Versatz z); Saum bei 0,6 m, Hals bei 1,52 m */
+export const GEHROCK = [[0.6, 0.205, 0.15, -0.005], [0.8, 0.19, 0.135, 0], [0.98, 0.172, 0.118, 0], [1.06, 0.16, 0.11, 0], [1.2, 0.17, 0.118, 0.006],
+  [1.33, 0.182, 0.122, 0.01], [1.4, 0.184, 0.112, 0.005], [1.44, 0.168, 0.1, 0.002], [1.47, 0.138, 0.085, 0], [1.5, 0.1, 0.07, 0], [1.52, 0.065, 0.058, 0]];
+
 /**
- * Lebensgroße, stilisierte Wachsfigur (etwa 1,75 m) in Straßenkleidung.
+ * Lebensgroße, stilisierte Wachsfigur (etwa 1,75 m) im Gehrock mit Weste, Hemd und Krawatte.
  * Die Figur schaut nach +z.
  * @param {Materialien} m
  * @param {THREE.Material} kleid
@@ -438,47 +453,32 @@ export function figur(m, kleid, { hut = false, armWinkel = 0.12, saat = 1 } = {}
     g.add(bein);
     g.add(box(0.1, 0.06, 0.24, s * 0.09, 0.03, 0.05, m.eisen));
   }
-  const rock = new THREE.Mesh(rockGeo, kleid);
-  rock.position.y = 0.9;
-  g.add(rock);
-  const rumpf = new THREE.Mesh(rumpfGeo, kleid);
-  rumpf.position.y = 1.28;
-  g.add(rumpf);
+  g.add(oberkoerper({
+    profil: GEHROCK, rock: kleid, kragen: m.gips,
+    ausschnitt: { unten: 1.28, breite: 0.07, weste: kleid === m.kleidGrau ? m.kleidDunkel : m.kleidGrau, hemd: m.gips, krawatte: z() < 0.5 ? m.kleidDunkel : m.stoffRot, knopf: m.eisen },
+  }));
+  const sw = Math.sin(armWinkel);
   for (const s of [-1, 1]) {
-    const arm = new THREE.Mesh(armGeo, kleid);
-    arm.position.set(s * 0.25, 1.33, 0);
-    arm.rotation.z = s * armWinkel;
-    g.add(arm);
-    const hand = new THREE.Mesh(handGeo, m.wachs);
-    hand.position.set(s * (0.25 + Math.sin(armWinkel) * 0.33), 1.0, 0.01);
-    g.add(hand);
+    g.add(arm({
+      stoff: kleid, haut: m.wachs, zelle: 0, seite: s, manschette: m.gips,
+      schulter: [s * 0.158, 1.405, 0], ellbogen: [s * (0.195 + sw * 0.26), 1.14, 0.03], handgelenk: [s * (0.205 + sw * 0.5), 0.9, 0.05],
+    }).gruppe);
   }
-  const hals = new THREE.Mesh(halsGeo, m.wachs);
-  hals.position.y = 1.68;
-  g.add(hals);
-  const kopf = new THREE.Mesh(kopfGeo, m.wachs);
-  kopf.scale.set(0.9, 1.15 + z() * 0.1, 1);
-  kopf.position.y = 1.8;
-  g.add(kopf);
+  const h = hals(m.wachs);
+  h.position.set(0, 1.555, -0.012);
+  g.add(h);
+  const k = wachskopf(m, z, true, !hut);
+  k.position.y = 1.635;
+  g.add(k);
   if (hut) {
-    const h = new THREE.Mesh(hutGeo, m.kleidDunkel);
-    h.position.y = 1.97;
-    g.add(h);
-    const k = new THREE.Mesh(krempeGeo, m.kleidDunkel);
-    k.position.y = 1.895;
-    g.add(k);
-  } else {
-    const haar = new THREE.Mesh(haarGeo, m.haar);
-    haar.scale.copy(kopf.scale).multiplyScalar(1.04);
-    haar.position.y = 1.81;
-    haar.rotation.x = -0.5;
-    g.add(haar);
-  }
-  if (z() < 0.6) {
-    const bart = new THREE.Mesh(bartGeo, m.haar);
-    bart.scale.copy(kopf.scale).multiplyScalar(1.03);
-    bart.position.set(0, 1.78, 0.006);
-    g.add(bart);
+    const hh = new THREE.Mesh(hutGeo, m.kleidDunkel);
+    hh.scale.set(0.85, 1, 1);
+    hh.position.set(0, 1.787, -0.004);
+    g.add(hh);
+    const kr = new THREE.Mesh(krempeGeo, m.kleidDunkel);
+    kr.scale.set(0.88, 1, 1);
+    kr.position.set(0, 1.707, -0.004);
+    g.add(kr);
   }
   return g;
 }
@@ -717,24 +717,12 @@ export function kopfschrank(m, breite, saat) {
     const anzahl = Math.max(2, Math.floor(breite / 0.45));
     for (let k = 0; k < anzahl; k++) {
       const x = -breite / 2 + ((k + 0.5) * breite) / anzahl;
-      const hals = new THREE.Mesh(halsGeo, m.wachs);
-      hals.position.set(x, y + 0.08, tiefe / 2);
-      g.add(hals);
-      const kopf = new THREE.Mesh(kopfGeo, m.wachs);
-      kopf.scale.set(0.88 + z() * 0.12, 1.15 + z() * 0.1, 1);
-      kopf.position.set(x, y + 0.24, tiefe / 2);
-      g.add(kopf);
-      const haar = new THREE.Mesh(haarGeo, m.haar);
-      haar.scale.copy(kopf.scale).multiplyScalar(1.04);
-      haar.position.set(x, y + 0.25, tiefe / 2);
-      haar.rotation.x = -0.5;
-      g.add(haar);
-      if (z() < 0.5) {
-        const bart = new THREE.Mesh(bartGeo, m.haar);
-        bart.scale.copy(kopf.scale).multiplyScalar(1.03);
-        bart.position.set(x, y + 0.22, tiefe / 2 + 0.006);
-        g.add(bart);
-      }
+      const h = hals(m.wachs);
+      h.position.set(x, y + 0.09, tiefe / 2 - 0.012);
+      g.add(h);
+      const wk = wachskopf(m, z, false);
+      wk.position.set(x, y + 0.235, tiefe / 2);
+      g.add(wk);
     }
   }
   // Glasfront mit Messingrahmen

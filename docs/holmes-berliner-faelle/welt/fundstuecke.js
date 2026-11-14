@@ -3,7 +3,9 @@
 // Antippbare Teile bleiben einzelne Objekte (nicht verschmolzen) und bekommen eigene
 // Material-Kopien, damit eine Hervorhebung nur sie betrifft.
 import * as THREE from 'three';
-import { box } from './bauteile.js';
+import { box, GEHROCK } from './bauteile.js';
+import { kopf, hals, arm, fuss, oberkoerper, fingerspitzen } from './menschen.js';
+import { gesichtsTafel, GESICHT } from './texturen.js';
 import { alsHindernis } from 'steuerung/kollision.js';
 import { verschmelze } from './verschmelzen.js';
 
@@ -47,7 +49,9 @@ function trefferKugel(radius) {
  */
 function baueLeiche(m) {
   const koerper = new THREE.Group();
-  const haut = new THREE.MeshLambertMaterial({ color: 0xcdc3b4 });
+  // Blasse Haut mit geschlossenen Augen (eigene Zelle der Gesichtstafel)
+  const haut = new THREE.MeshLambertMaterial({ color: 0xffffff, map: gesichtsTafel() });
+  const zelle = GESICHT.leiche;
   const mantel = m.kleidDunkel;
 
   // Beine, Schuhe
@@ -57,66 +61,72 @@ function baueLeiche(m) {
     koerper.add(bein);
     koerper.add(box(0.1, 0.06, 0.24, s * 0.09, 0.03, 0.05, m.eisen));
   }
-  // Langer Mantel (Kostüm), Oberkörper leicht nach vorn gesackt
-  const rock = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.32, 0.6, 16), mantel);
-  rock.position.y = 0.88;
-  koerper.add(rock);
-  const rumpf = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 0.72, 16), mantel);
-  rumpf.position.set(0, 1.26, 0.03);
-  rumpf.rotation.x = 0.08;
-  koerper.add(rumpf);
+  // Oberkörper leicht nach vorn gesackt (Drehung um die Hüfte); innen Maße wie bei stehenden Figuren
+  const gesackt = () => {
+    const aussen = new THREE.Group();
+    aussen.position.y = 0.95;
+    aussen.rotation.x = 0.07;
+    const innen = new THREE.Group();
+    innen.position.y = -0.95;
+    aussen.add(innen);
+    return { aussen, innen };
+  };
+  const oben = gesackt();
+  koerper.add(oben.aussen);
+  // Langer Mantel des Kostüms mit Weste, Hemd und Krawatte
+  oben.innen.add(oberkoerper({
+    profil: GEHROCK, rock: mantel, kragen: m.leinen,
+    ausschnitt: { unten: 1.28, breite: 0.07, weste: m.kleidGrau, hemd: m.leinen, krawatte: mantel, knopf: m.eisen },
+  }));
   // Linker Arm hängt schlaff
-  const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.64, 10), mantel);
-  armL.position.set(0.25, 1.3, 0.02);
-  armL.rotation.z = 0.06;
-  koerper.add(armL);
-  const handL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), haut);
-  handL.position.set(0.27, 0.95, 0.03);
-  koerper.add(handL);
+  oben.innen.add(arm({
+    stoff: mantel, haut, zelle, seite: 1, manschette: m.leinen,
+    schulter: [0.158, 1.405, 0], ellbogen: [0.185, 1.14, 0.02], handgelenk: [0.195, 0.9, 0.03],
+  }).gruppe);
   // Kopf gesenkt und leicht zur Seite geneigt, darauf der Hut des Kostüms
   const kopfGruppe = new THREE.Group();
-  kopfGruppe.position.set(0, 1.66, 0.05);
+  kopfGruppe.position.set(0, 1.5, 0);
   kopfGruppe.rotation.set(0.42, 0, 0.12);
-  const hals = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.12, 12), haut);
-  hals.position.y = 0.02;
-  kopfGruppe.add(hals);
-  const kopf = new THREE.Mesh(new THREE.SphereGeometry(0.1, 20, 14), haut);
-  kopf.scale.set(0.9, 1.18, 1);
-  kopf.position.y = 0.14;
-  kopfGruppe.add(kopf);
+  const h = hals(haut, zelle);
+  h.position.set(0, 0.055, -0.012);
+  kopfGruppe.add(h);
+  const k = kopf({ haut, zelle, variante: 1, haar: mantel, haarStil: 'kurz' });
+  k.position.y = 0.135;
+  kopfGruppe.add(k);
   const hut = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.15, 16), mantel);
-  hut.position.y = 0.3;
+  hut.scale.set(0.85, 1, 1);
+  hut.position.set(0, 0.282, -0.004);
   kopfGruppe.add(hut);
   const krempe = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.015, 20), mantel);
-  krempe.position.y = 0.23;
+  krempe.scale.set(0.88, 1, 1);
+  krempe.position.set(0, 0.207, -0.004);
   kopfGruppe.add(krempe);
-  koerper.add(kopfGruppe);
+  oben.innen.add(kopfGruppe);
   // Eisernes Standgestell hinter dem Körper mit Schnur um die Brust (Annahme)
   koerper.add(box(0.035, 1.5, 0.035, 0, 0.75, -0.3, m.eisen));
   koerper.add(box(0.34, 0.03, 0.03, 0, 1.42, -0.3, m.eisen));
   koerper.add(box(0.3, 0.025, 0.04, 0, 0.02, -0.25, m.eisen));
-  const schnur = new THREE.Mesh(new THREE.TorusGeometry(0.235, 0.008, 6, 32), m.leinen);
+  const schnur = new THREE.Mesh(new THREE.TorusGeometry(0.195, 0.008, 6, 32), m.leinen);
   schnur.rotation.x = Math.PI / 2;
-  schnur.scale.set(1, 1.35, 1);
-  schnur.position.set(0, 1.38, -0.05);
-  koerper.add(schnur);
+  schnur.scale.set(1, 1.17, 1);
+  schnur.position.set(0, 1.36, -0.085);
+  oben.innen.add(schnur);
 
-  // Rechter Arm mit Hand: antippbar (Hinweis 2)
+  // Rechter Arm mit Hand: antippbar (Hinweis 2); gleiche Haltung des Oberkörpers
   const hand = new THREE.Group();
-  const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.64, 10), mantel.clone());
-  armR.position.set(-0.26, 1.3, 0.04);
-  armR.rotation.set(-0.12, 0, -0.1);
-  hand.add(armR);
-  const handR = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), haut.clone());
-  handR.scale.set(0.9, 1.2, 0.7);
-  handR.position.set(-0.29, 0.95, 0.09);
-  hand.add(handR);
-  // Dunkle Ränder unter den Nägeln, nur aus der Nähe zu erkennen
-  const naegel = box(0.05, 0.012, 0.02, -0.29, 0.9, 0.12, new THREE.MeshLambertMaterial({ color: 0x2e2419 }));
-  hand.add(naegel);
+  const rechts = gesackt();
+  hand.add(rechts.aussen);
+  const { gruppe: armR, hand: handR } = arm({
+    stoff: mantel, haut, zelle, seite: -1,
+    schulter: [-0.158, 1.405, 0], ellbogen: [-0.195, 1.14, 0.06], handgelenk: [-0.205, 0.91, 0.1],
+  });
+  rechts.innen.add(armR);
+  // Dunkle Ränder unter den Nägeln an den Fingerspitzen (Handrücken außen), nur aus der Nähe zu erkennen
+  const nagelRand = new THREE.MeshLambertMaterial({ color: 0x2e2419 });
+  for (const [x, y, z] of fingerspitzen(-1)) handR.add(box(0.004, 0.009, 0.013, x, y, z, nagelRand));
   const treffer = trefferKugel(0.16);
-  treffer.position.set(-0.28, 1.0, 0.08);
-  hand.add(treffer);
+  treffer.position.set(-0.21, 0.86, 0.09);
+  rechts.innen.add(treffer);
 
   return { koerper, hand };
 }
@@ -143,15 +153,16 @@ function baueVerdeckteFigur(m) {
   // Herabhängende Tuchkanten
   g.add(box(0.015, 0.22, 1.55, -0.27, 0.4, -0.05, m.leinen));
   g.add(box(0.015, 0.22, 1.55, 0.27, 0.4, -0.05, m.leinen));
-  // Kopf (unbekleidete Wachsfigur, ohne Haar) am Ende +z
-  const kopf = new THREE.Mesh(new THREE.SphereGeometry(0.1, 18, 12), m.wachs);
-  kopf.scale.set(0.9, 1.0, 1.18);
-  kopf.position.set(0, 0.6, 0.86);
-  g.add(kopf);
-  // Wachsfüße am anderen Ende
+  // Kopf (fertige Wachsfigur, ohne Haar) am Ende +z: liegt auf dem Hinterkopf, Scheitel nach +z
+  const k = kopf({ haut: m.wachs, zelle: 0, variante: 2 });
+  k.rotation.set(-Math.PI / 2, Math.PI, 0, 'YXZ');
+  k.position.set(0, 0.595, 0.86);
+  g.add(k);
+  // Wachsfüße am anderen Ende, Zehen nach oben
   for (const x of [-0.08, 0.08]) {
-    const fuss = box(0.08, 0.2, 0.06, x, 0.6, -0.86, m.wachs);
-    g.add(fuss);
+    const f = fuss(m.wachs);
+    f.position.set(x, 0.6, -0.86);
+    g.add(f);
   }
   return g;
 }

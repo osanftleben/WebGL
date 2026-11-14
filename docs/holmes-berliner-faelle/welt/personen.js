@@ -5,6 +5,12 @@
 // Annahmen: Farbe von Rock und Hose (dunkelblau), Knöpfe, Koppel, Schnurrbart, Statur.
 import * as THREE from 'three';
 import { verschmelze } from './verschmelzen.js';
+import { kopf, hals, arm, oberkoerper, band, rumpfPunkt } from './menschen.js';
+import { gesichtsTafel, GESICHT } from './texturen.js';
+
+/** Waffenrock (Profil: y, halbe Breite, halbe Tiefe, Versatz z); Schoß bis 0,8 m, Kragen bei 1,61 m */
+const WAFFENROCK = [[0.8, 0.215, 0.15, 0], [0.95, 0.205, 0.145, 0], [1.08, 0.19, 0.135, 0], [1.2, 0.195, 0.13, 0.005], [1.4, 0.205, 0.13, 0.01],
+  [1.52, 0.205, 0.115, 0.005], [1.565, 0.17, 0.09, 0], [1.59, 0.11, 0.075, 0], [1.61, 0.07, 0.065, 0]];
 
 /**
  * Hilfsfunktion: Mesh mit Lage.
@@ -29,7 +35,9 @@ export function baueSchutzmann() {
   const hose = lambert(0x2a3042);
   const leder = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.38, metalness: 0, envMapIntensity: 0.8 });
   const messing = new THREE.MeshStandardMaterial({ color: 0xc8a050, roughness: 0.22, metalness: 1, envMapIntensity: 1.5 });
-  const haut = lambert(0xd9b49a);
+  // Lebendige Haut mit gemaltem Gesicht (eigene Zelle der Gesichtstafel)
+  const haut = new THREE.MeshLambertMaterial({ color: 0xffffff, map: gesichtsTafel() });
+  const zelle = GESICHT.kranich;
   const haar = lambert(0x4a3524);
   const stahl = new THREE.MeshStandardMaterial({ color: 0xb4b9be, roughness: 0.15, metalness: 1, envMapIntensity: 1.5 });
 
@@ -41,45 +49,52 @@ export function baueSchutzmann() {
     koerper.add(stiefel);
   }
   // Waffenrock mit Schößen, Koppel mit Schloss, Knopfreihe
-  koerper.add(teil(new THREE.CylinderGeometry(0.21, 0.25, 0.32, 16), rock, 0, 0.95, 0));
-  koerper.add(teil(new THREE.CylinderGeometry(0.19, 0.22, 0.5, 16), rock, 0, 1.33, 0));
-  koerper.add(teil(new THREE.CylinderGeometry(0.222, 0.222, 0.06, 16), leder, 0, 1.1, 0));
-  koerper.add(teil(new THREE.BoxGeometry(0.07, 0.055, 0.02), messing, 0, 1.1, 0.222));
-  for (let i = 0; i < 6; i++) koerper.add(teil(new THREE.SphereGeometry(0.012, 8, 6), messing, 0, 1.18 + i * 0.065, 0.2));
+  koerper.add(oberkoerper({ profil: WAFFENROCK, rock }));
+  koerper.add(band(WAFFENROCK, 1.07, 1.13, leder));
+  koerper.add(teil(new THREE.BoxGeometry(0.07, 0.055, 0.02), messing, 0, 1.1, rumpfPunkt(WAFFENROCK, 0, 1.1)[2] + 0.012));
+  for (let i = 0; i < 6; i++) {
+    const y = 1.18 + i * 0.065;
+    koerper.add(teil(new THREE.SphereGeometry(0.012, 8, 6), messing, 0, y, rumpfPunkt(WAFFENROCK, 0, y)[2] + 0.004));
+  }
   // Stehkragen
-  koerper.add(teil(new THREE.CylinderGeometry(0.075, 0.08, 0.07, 14), rock, 0, 1.6, 0));
+  koerper.add(teil(new THREE.CylinderGeometry(0.066, 0.07, 0.055, 14), rock, 0, 1.628, -0.008));
   // Schulterstücke mit Nummer (Messing)
   for (const s of [-1, 1]) {
-    koerper.add(teil(new THREE.BoxGeometry(0.1, 0.02, 0.07), rock, s * 0.16, 1.585, 0));
-    koerper.add(teil(new THREE.BoxGeometry(0.04, 0.012, 0.03), messing, s * 0.17, 1.6, 0.0));
+    // schräg auf der abfallenden Schulter
+    const stueck = teil(new THREE.BoxGeometry(0.1, 0.02, 0.07), rock, s * 0.15, 1.556, 0);
+    stueck.rotation.z = -s * 0.3;
+    koerper.add(stueck);
+    const nummer = teil(new THREE.BoxGeometry(0.04, 0.012, 0.03), messing, s * 0.16, 1.566, 0.0);
+    nummer.rotation.z = -s * 0.3;
+    koerper.add(nummer);
   }
   // Arme, Hände
   for (const s of [-1, 1]) {
-    const arm = teil(new THREE.CylinderGeometry(0.055, 0.05, 0.6, 10), rock, s * 0.255, 1.3, 0);
-    arm.rotation.z = s * 0.08;
-    koerper.add(arm);
-    koerper.add(teil(new THREE.SphereGeometry(0.046, 10, 8), haut, s * 0.285, 0.97, 0.01));
+    koerper.add(arm({
+      stoff: rock, haut, zelle, seite: s, dicke: 1.06,
+      schulter: [s * 0.172, 1.5, 0], ellbogen: [s * 0.21, 1.25, 0.02], handgelenk: [s * 0.235, 1.0, 0.03],
+    }).gruppe);
   }
-  // Kopf mit Schnurrbart
-  koerper.add(teil(new THREE.CylinderGeometry(0.045, 0.05, 0.08, 12), haut, 0, 1.66, 0));
-  const kopf = teil(new THREE.SphereGeometry(0.1, 20, 14), haut, 0, 1.77, 0);
-  kopf.scale.set(0.9, 1.15, 1);
-  koerper.add(kopf);
-  const bart = teil(new THREE.BoxGeometry(0.1, 0.018, 0.03), haar, 0, 1.735, 0.085);
-  koerper.add(bart);
+  // Kopf mit Schnurrbart (Haar kurz unter dem Helm)
+  const h = hals(haut, zelle);
+  h.position.set(0, 1.665, -0.012);
+  koerper.add(h);
+  const k = kopf({ haut, zelle, variante: 1, haar, haarStil: 'kurz', bart: 'schnurr' });
+  k.position.y = 1.75;
+  koerper.add(k);
   // Helm mit Spitze: Lederglocke, Vorder- und Nackenschirm, Beschlag vorn, Spitze aus Messing
-  const glocke = teil(new THREE.SphereGeometry(0.115, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), leder, 0, 1.84, 0);
+  const glocke = teil(new THREE.SphereGeometry(0.115, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), leder, 0, 1.82, 0);
   glocke.scale.set(0.95, 1.05, 1.08);
   koerper.add(glocke);
-  const schirmV = teil(new THREE.BoxGeometry(0.17, 0.012, 0.08), leder, 0, 1.845, 0.12);
+  const schirmV = teil(new THREE.BoxGeometry(0.17, 0.012, 0.08), leder, 0, 1.825, 0.12);
   schirmV.rotation.x = 0.25;
   koerper.add(schirmV);
-  const schirmH = teil(new THREE.BoxGeometry(0.15, 0.012, 0.08), leder, 0, 1.85, -0.12);
+  const schirmH = teil(new THREE.BoxGeometry(0.15, 0.012, 0.08), leder, 0, 1.83, -0.12);
   schirmH.rotation.x = -0.35;
   koerper.add(schirmH);
-  koerper.add(teil(new THREE.CylinderGeometry(0.03, 0.035, 0.03, 12), messing, 0, 1.97, 0));
-  koerper.add(teil(new THREE.ConeGeometry(0.018, 0.1, 10), messing, 0, 2.03, 0));
-  const beschlag = teil(new THREE.CircleGeometry(0.05, 14), messing, 0, 1.9, 0.122);
+  koerper.add(teil(new THREE.CylinderGeometry(0.03, 0.035, 0.03, 12), messing, 0, 1.95, 0));
+  koerper.add(teil(new THREE.ConeGeometry(0.018, 0.1, 10), messing, 0, 2.01, 0));
+  const beschlag = teil(new THREE.CircleGeometry(0.05, 14), messing, 0, 1.88, 0.122);
   beschlag.rotation.x = -0.35;
   koerper.add(beschlag);
   // Säbel an der linken Hüfte (Scheide schräg nach hinten), Griff mit Messingbügel
