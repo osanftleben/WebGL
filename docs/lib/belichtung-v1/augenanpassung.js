@@ -43,7 +43,7 @@ import * as THREE from 'three';
  * @property {number} messungen Anzahl ausgewerteter Messungen
  * @property {number} messDrawCalls Draw-Calls des letzten Messbilds (zusätzlich zum normalen Bild)
  * @property {number | null} lesedauerMs Zeit vom Start des Auslesens bis zum Ergebnis
- * @property {'float' | 'byte'} messart Gleitkomma-Messbild oder (Ersatz) 8-Bit-Messbild
+ * @property {'half' | 'byte'} messart 16-Bit-Gleitkomma-Messbild oder (Ersatz) 8-Bit-Messbild
  * @property {string | null} fehler Meldung, falls das Auslesen nicht klappt (dann ist die Anpassung aus)
  */
 
@@ -96,19 +96,34 @@ export function erstelleAugenanpassung(renderer, scene, camera, optionen = {}) {
     ...rest,
   };
 
-  // Gleitkomma-Messbild, wenn die Grafikkarte es kann (fast überall); sonst 8 Bit (helle Fenster
-  // werden dann bei 1,0 abgeschnitten, dunkle Stellen grob gestuft – die Anpassung bleibt grob nutzbar).
-  const kannFloat = renderer.extensions.has('EXT_color_buffer_float');
+  // Messbild mit 16 Bit je Kanal („half“), wenn die Grafikkarte es zeichnen kann (fast überall, auch
+  // auf Handys): Es lässt sich ohne die Erweiterung EXT_float_blend überblenden (durchsichtige Teile),
+  // die 32-Bit-Ziele brauchen und die manchen Handys fehlt. Reicht der Wertebereich (bis 65504) locker.
+  // Ersatz: 8 Bit (helle Fenster werden dann bei 1,0 abgeschnitten, dunkle Stellen grob gestuft –
+  // die Anpassung bleibt grob nutzbar).
+  const kannHalf = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float');
   const n = Math.max(4, Math.round(einstellungen.aufloesung));
-  const ziel = new THREE.WebGLRenderTarget(n, n, {
-    type: kannFloat ? THREE.FloatType : THREE.UnsignedByteType,
-    depthBuffer: true,
-    generateMipmaps: false,
-    minFilter: THREE.NearestFilter,
-    magFilter: THREE.NearestFilter,
-  });
-  const puffer = kannFloat ? new Float32Array(n * n * 4) : new Uint8Array(n * n * 4);
-  const teiler = kannFloat ? 1 : 255;
+  /** @type {'half' | 'byte'} */
+  let messart = kannHalf ? 'half' : 'byte';
+  /** @type {THREE.WebGLRenderTarget} */
+  let ziel;
+  /** @type {Uint16Array | Uint8Array} */
+  let puffer;
+  /** Legt Messbild und Lesepuffer für die gewählte Art an. */
+  function legeZielAn() {
+    ziel = new THREE.WebGLRenderTarget(n, n, {
+      type: messart === 'half' ? THREE.HalfFloatType : THREE.UnsignedByteType,
+      depthBuffer: true,
+      generateMipmaps: false,
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+    });
+    puffer = messart === 'half' ? new Uint16Array(n * n * 4) : new Uint8Array(n * n * 4);
+  }
+  legeZielAn();
+  // 16-Bit-Werte → Zahl: Tabelle für alle 65536 Werte einmal vorab (kein Umrechnen pro Pixel und Bild)
+  const halbTabelle = new Float32Array(65536);
+  for (let i = 0; i < 65536; i++) halbTabelle[i] = THREE.DataUtils.fromHalfFloat(i);
 
   // Gewicht jedes Pixels einmal vorab: Bildmitte stärker (wie die mittenbetonte Messung einer Kamera)
   const gewichte = new Float32Array(n * n);
@@ -135,7 +150,7 @@ export function erstelleAugenanpassung(renderer, scene, camera, optionen = {}) {
     messungen: 0,
     messDrawCalls: 0,
     lesedauerMs: null,
-    messart: kannFloat ? 'float' : 'byte',
+    messart,
     fehler: null,
   };
 
@@ -149,13 +164,15 @@ export function erstelleAugenanpassung(renderer, scene, camera, optionen = {}) {
 
   // Shader-Fassungen für das Messbild vorab und möglichst parallel übersetzen, damit die erste
   // Messung nicht ruckelt. Bis dahin wird nicht gemessen.
-  {
+  function uebersetze() {
+    bereit = false;
     const vorher = renderer.getRenderTarget();
     renderer.setRenderTarget(ziel);
     const warten = renderer.compileAsync(scene, camera);
     renderer.setRenderTarget(vorher);
     warten.then(() => { bereit = true; }, () => { bereit = true; });
   }
+  uebersetze();
 
   /** Wertet das ausgelesene Messbild aus (logarithmisches Mittel der Helligkeit). */
   function auswerten() {
@@ -166,9 +183,11 @@ export function erstelleAugenanpassung(renderer, scene, camera, optionen = {}) {
     let summe = 0;
     let summeGewicht = 0;
     for (let i = 0, p = 0; i < n * n; i++, p += 4) {
-      const hell = (0.2126 * puffer[p] + 0.7152 * puffer[p + 1] + 0.0722 * puffer[p + 2]) / teiler;
+      const hell = messart === 'half'
+        ? 0.2126 * halbTabelle[puffer[p]] + 0.7152 * halbTabelle[puffer[p + 1]] + 0.0722 * halbTabelle[puffer[p + 2]]
+        : (0.2126 * puffer[p] + 0.7152 * puffer[p + 1] + 0.0722 * puffer[p + 2]) / 255;
       // Untergrenze gegen log(0); Obergrenze, damit einzelne extreme Lichter nicht alles bestimmen
-      const h = Math.min(Math.max(hell, 1e-4), 1e4);
+      const h = hell >= 1e-4 ? Math.min(hell, 1e4) : 1e-4; // auch NaN landet unten
       const g = gewichte[i];
       summe += g * Math.log(h);
       summeGewicht += g;
@@ -201,6 +220,17 @@ export function erstelleAugenanpassung(renderer, scene, camera, optionen = {}) {
         auswerten();
       })
       .catch((/** @type {any} */ e) => {
+        if (entfernt) return;
+        if (messart === 'half') {
+          // 16-Bit-Messbild nicht lesbar (z. B. Browser-Eigenheit): auf 8 Bit zurückfallen
+          console.warn('Augenanpassung: 16-Bit-Messbild nicht lesbar, weiter mit 8 Bit:', String(e && e.message ? e.message : e));
+          ziel.dispose();
+          messart = 'byte';
+          werte.messart = messart;
+          legeZielAn();
+          uebersetze();
+          return;
+        }
         // Auslesen klappt hier nicht: Anpassung ausschalten statt in jedem Bild Fehler zu werfen
         werte.fehler = String(e && e.message ? e.message : e);
         console.warn('Augenanpassung ausgeschaltet, Messbild nicht lesbar:', werte.fehler);

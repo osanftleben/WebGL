@@ -1,6 +1,6 @@
 {
   "name": "belichtung",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "beschreibung": "Augenanpassung: Belichtung per Bildmessung weich nachführen",
   "three": [
     "r187"

@@ -3,16 +3,16 @@
 import * as THREE from 'three';
 
 /**
- * Einstellungen der Augenanpassung (Bibliothek belichtung-v1) für diese Szene.
- * Gemessene mittlere Helligkeit (vor der Belichtung): übliche Raumblicke ≈ 0,033, Figurengruppe ≈ 0,024,
- * Fensterecke ≈ 0,066, Werkstatt ≈ 0,073. Bezug 0,04: übliche Blicke bleiben nahe der Grundbelichtung,
- * dunkle werden bis +30 % heller, helle nur bis −15 % dunkler (die Szene ist eher zu dunkel).
- * Seit der Aufhellung von Boden, Holz und Ecken (14. 11.) misst die Szene rund 20–40 % heller;
- * Bezug deshalb 0,05, damit die Augenanpassung die Aufhellung nicht wieder wegregelt.
+ * Einstellungen der Augenanpassung (Bibliothek belichtung-v1) für diese Szene: nur aufhellen, nie abdunkeln
+ * (die Szene ist eher zu dunkel; minFaktor 1 = Grundbelichtung 1,25 ist die Untergrenze).
+ * Gemessene mittlere Helligkeit (vor der Belichtung, Stand 14. 11. nach der Aufhellung): Figurengruppe
+ * hinter dem Kranich ≈ 0,052, nah ≈ 0,034, übliche Raumblicke ≈ 0,045–0,054, Fensterecke ≈ 0,075,
+ * Werkstatt ≈ 0,09. Faktor = (Bezug / Messung)^0,5: Bezug 0,075 → Gruppe ≈ 1,2, Fensterecke und
+ * Werkstatt 1,0, dunkle Blicke bis 1,3 (+30 %).
  */
 export const AUGEN_OPTIONEN = {
-  bezugsHelligkeit: 0.05,
-  minFaktor: 0.85,
+  bezugsHelligkeit: 0.075,
+  minFaktor: 1,
   maxFaktor: 1.3,
 };
 
