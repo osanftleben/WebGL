@@ -13,6 +13,7 @@ Projekt: `$ARGUMENTS`
    erledigt (mit Commit-Kürzel, falls committet), offen, bekannte Restfehler, nächster Schritt.
    Den Block „Aktueller Auftrag“ entfernen. Einzelheiten und Verlauf nach `.claude/notizen/`.
    **Protokoll** (`.claude/notizen/protokolle/…`): Schlusseintrag „## <HH:MM> Abschluss“ mit Ergebnis, Commit-Kürzel (falls committet) und Restfehlern. Die Datei bleibt liegen; beim Commit mit vormerken.
+   **Server:** alle Vorschau-Server, die diese Sitzung gestartet hat, mit `preview_stop` beenden (Liste: `preview_list`). Der Hook `server_aufraeumen.py` räumt danach sonst selbst auf.
 3. **Commit nur auf Wunsch anbieten.** Dann:
    - nur die Dateien dieser Aufgabe mit Pfad vormerken (`git add <pfade>`, nie `git add -A` oder `.`),
    - vorher `git diff --cached --stat` ansehen: nichts Fremdes dabei (auch keine früher vorgemerkten Löschungen)?

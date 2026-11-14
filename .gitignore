@@ -14,6 +14,7 @@
 /.claude/worktrees/
 /.claude/laufzeiten.json
 /.claude/laufzeiten.*.tmp
+/.claude/server_aufraeumen.log
 
 # Abhängigkeiten und Build-Ausgaben
 node_modules/
