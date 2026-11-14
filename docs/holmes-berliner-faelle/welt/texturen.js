@@ -217,11 +217,12 @@ export function zellenUV(zelle, u, v) {
  * @typedef {{ grund: number[], auge?: string, braue: string, brauDicke: number, lippe: number[], roete: number,
  *   bart: number, alter?: number, falte?: boolean, geschlossen?: boolean, ringe?: number,
  *   augAbst?: number, augGr?: number, brauWinkel?: number, mund?: number, mal?: number[] | null,
- *   stufe?: number, bartFarbe?: number[] }} Gesicht
+ *   stufe?: number, bartFarbe?: number[], finster?: number }} Gesicht
  * grund: Hautton (sRGB); auge: Irisfarbe; braue: Farbe, brauDicke: Stärke; lippe: Lippenfarbe; roete: Wangenröte;
  * bart: Bartschatten; alter: Falten; falte: Zornesfalte; geschlossen: Augen zu; ringe: Augenringe;
  * augAbst: Augenmitte (U), augGr: Augengröße, brauWinkel: Neigung der Brauen außen, mund: Mundbreite, mal: Muttermal [U, D];
- * stufe: Altersstufe der Besetzung (0 jung, 1 mittel, 2 alt; fehlt = alte Malweise); bartFarbe: Farbe des Bartschattens
+ * stufe: Altersstufe der Besetzung (0 jung, 1 mittel, 2 alt; fehlt = alte Malweise); bartFarbe: Farbe des Bartschattens;
+ * finster: finsterer Ausdruck 0…1 (tiefere, schräge Brauen, Augenschatten, harte Mundwinkel)
  */
 
 const AUGEN = ['#4d6d8c', '#5a3d26', '#6c767c', '#3b2b1f', '#56718b', '#6e5e3e', '#4a5a4c'];
@@ -263,17 +264,18 @@ function wachsGesichter() {
  * @type {Record<number, Partial<Gesicht>>}
  */
 const UEBERARBEITUNG = {
-  1: { stufe: 0, braue: '#a07e4c', bart: 0.1, bartFarbe: [120, 96, 70], roete: 0.1 },
-  2: { stufe: 2, alter: 1, braue: '#d0cac0', brauDicke: 1.9 },
-  3: { stufe: 1, braue: '#2a1d14' },
-  4: { stufe: 0, braue: '#8e4c2a', bart: 0.12, bartFarbe: [130, 80, 56], roete: 0.12 },
-  5: { stufe: 1, braue: '#86683f', bartFarbe: [110, 90, 66] },
-  6: { stufe: 2, alter: 1, braue: '#a29c92', brauDicke: 1.8 },
-  7: { stufe: 2, alter: 1, braue: '#c8c2b6', brauDicke: 2.0 },
-  8: { stufe: 0, braue: '#1e1612', roete: 0.08 },
-  9: { stufe: 1, braue: '#5c524a' },
-  10: { stufe: 2, alter: 1, braue: '#b8b2a8', brauDicke: 1.7 },
-  11: { stufe: 1, braue: '#7a3e20', bartFarbe: [120, 72, 50] },
+  // 1: der einzige gepflegte, freundlich-glatte Kopf (der „feine“ Betrüger)
+  1: { stufe: 0, braue: '#a07e4c', bart: 0.1, bartFarbe: [120, 96, 70], roete: 0.1, finster: 0.3 },
+  2: { stufe: 2, alter: 1, braue: '#d0cac0', brauDicke: 1.9, finster: 1, bart: 0.4, bartFarbe: [120, 118, 116] },
+  3: { stufe: 1, braue: '#2a1d14', brauDicke: 2.0, finster: 1, bart: 0.45 },
+  4: { stufe: 0, braue: '#8e4c2a', bart: 0.3, bartFarbe: [130, 80, 56], roete: 0.12, finster: 0.8 },
+  5: { stufe: 1, braue: '#86683f', bartFarbe: [110, 90, 66], bart: 0.35, finster: 0.9 },
+  6: { stufe: 2, alter: 1, braue: '#a29c92', brauDicke: 1.8, finster: 1, bart: 0.4, bartFarbe: [110, 108, 106] },
+  7: { stufe: 2, alter: 1, braue: '#c8c2b6', brauDicke: 2.0, finster: 0.8 },
+  8: { stufe: 0, braue: '#1e1612', roete: 0.08, brauDicke: 1.9, finster: 1, bart: 0.42 },
+  9: { stufe: 1, braue: '#5c524a', finster: 1, bart: 0.4 },
+  10: { stufe: 2, alter: 1, braue: '#b8b2a8', brauDicke: 1.7, finster: 0.9 },
+  11: { stufe: 1, braue: '#7a3e20', bartFarbe: [120, 72, 50], bart: 0.35, finster: 1 },
 };
 
 /** @type {Gesicht[]} */
@@ -357,6 +359,33 @@ function maleAlter(ctx, P, fleck, bogen, stufe, z) {
       bogen(P(s * 0.06, 0.26), P(s * 0.05, 0.2), P(s * 0.065, 0.14));
       ctx.stroke();
     }
+  }
+}
+
+/**
+ * Malt einen finsteren Ausdruck: Schatten in den Augenhöhlen und unter den Brauen, harte, herabgezogene
+ * Mundwinkel, Zornesfalte.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {(U: number, D: number) => [number, number]} P Bildpunkt zu (U, D)
+ * @param {Function} fleck @param {Function} bogen
+ * @param {number} fi Stärke 0…1
+ */
+function maleFinster(ctx, P, fleck, bogen, fi) {
+  for (const s of [-1, 1]) {
+    fleck(P(s * 0.4, 0.1), 30, [70, 42, 34], 0.22 * fi, 0.6);
+    fleck(P(s * 0.42, -0.02), 20, [80, 56, 60], 0.16 * fi, 0.5);
+    ctx.strokeStyle = `rgba(90,48,38,${0.38 * fi})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    bogen(P(s * 0.31, -0.535), P(s * 0.345, -0.565), P(s * 0.37, -0.61));
+    ctx.stroke();
+  }
+  ctx.strokeStyle = `rgba(96,52,40,${0.3 * fi})`;
+  ctx.lineWidth = 1.3;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    bogen(P(s * 0.055, 0.25), P(s * 0.045, 0.19), P(s * 0.06, 0.13));
+    ctx.stroke();
   }
 }
 
@@ -486,6 +515,7 @@ function maleGesichtsTafel() {
       }
     }
     if (f.stufe) maleAlter(ctx, P, fleck, bogen, f.stufe, z);
+    if (f.finster) maleFinster(ctx, P, fleck, bogen, f.finster);
     if (f.falte) {
       ctx.strokeStyle = 'rgba(100,58,42,0.3)';
       ctx.lineWidth = 1.2;
@@ -498,9 +528,12 @@ function maleGesichtsTafel() {
     // Augen (Lage, Größe und Brauenneigung je Gesicht)
     const am = f.augAbst ?? 0.41;
     const ag = f.augGr ?? 1;
-    const bw = f.brauWinkel ?? 0;
+    // finster: Brauen tiefer, außen angehoben (innen zur Nase herabgezogen)
+    const fi = f.finster ?? 0;
+    const bw = (f.brauWinkel ?? 0) + 0.06 * fi;
+    const tief = 0.03 * fi;
     for (const s of [-1, 1]) {
-      const PA = (/** @type {number} */ X, /** @type {number} */ Y) => P(s * (am + (X - 0.41) * ag), 0.06 + (Y - 0.06) * ag + (Y > 0.15 ? (bw * (X - 0.41)) / 0.2 : 0));
+      const PA = (/** @type {number} */ X, /** @type {number} */ Y) => P(s * (am + (X - 0.41) * ag), 0.06 + (Y - 0.06) * ag + (Y > 0.15 ? (bw * (X - 0.41)) / 0.2 - tief : 0));
       const ai = PA(0.225, 0.05);
       const aa = PA(0.6, 0.07);
       if (f.geschlossen) {

@@ -326,11 +326,12 @@ function form(variante, alt) {
 /**
  * Kopfgeometrie (Mitte im Ursprung, Gesicht nach +z) mit uv auf eine Zelle der Gesichtstafel.
  * @param {number} variante @param {number} zelle @param {boolean} fein @param {number} [alt=0]
+ * @param {number[] | null} [raster=null] eigenes Gitter [quer, längs] statt fein/grob
  */
-function kopfGeometrie(variante, zelle, fein, alt = 0) {
-  return gemerkt(`kopf|${variante}|${zelle}|${fein}${alt ? `|${alt}` : ''}`, () => {
+function kopfGeometrie(variante, zelle, fein, alt = 0, raster = null) {
+  return gemerkt(`kopf|${variante}|${zelle}|${fein}${alt ? `|${alt}` : ''}${raster ? `|${raster}` : ''}`, () => {
     const v = form(variante, alt);
-    return gitter(fein ? 40 : 26, fein ? 30 : 20, (s, t) => {
+    return gitter(raster?.[0] ?? (fein ? 40 : 26), raster?.[1] ?? (fein ? 30 : 20), (s, t) => {
       const [a, p] = kopfWinkel(s, t);
       return kopfPunkt(a, p, v);
     }, (s, t) => {
@@ -372,10 +373,14 @@ const KRANZ_OBEN = [[0, 0.3], [1.0, 0.32], [1.5, 0.5], [2.2, 0.62], [PI, 0.66]];
 
 /**
  * Frisuren. Neu mit der Besetzung (nur mit Stoff-Farbe): scheitel (Seitenscheitel, voller oben),
- * locken, ecken (Geheimratsecken), licht (hohe Stirn, dünnes Haar), unterHut (nur unter dem Hutrand).
- * @typedef {'voll' | 'kurz' | 'lang' | 'kranz' | 'scheitel' | 'locken' | 'ecken' | 'licht' | 'unterHut'} HaarStil
+ * locken, ecken (Geheimratsecken), licht (hohe Stirn, dünnes Haar), unterHut (nur unter dem Hutrand);
+ * ungepflegt: zerzaust (wirr, Büschel in der Stirn), straehnig (zu lang, über Ohren und Nacken).
+ * @typedef {'voll' | 'kurz' | 'lang' | 'kranz' | 'scheitel' | 'locken' | 'ecken' | 'licht' | 'unterHut' | 'zerzaust' | 'straehnig'} HaarStil
  */
-/** @typedef {'voll' | 'schnurr' | 'kinn' | 'backen' | 'lang' | 'keiner'} BartStil */
+/**
+ * Bärte; ungepflegt (nur Besetzung): stoppel (Bartstoppeln), struppig (wirrer Vollbart), schnurrStruppig.
+ * @typedef {'voll' | 'schnurr' | 'kinn' | 'backen' | 'lang' | 'stoppel' | 'struppig' | 'schnurrStruppig' | 'keiner'} BartStil
+ */
 
 /** Haaransatz der neuen Frisuren (Höhe D über |a|) */
 const HAARANSATZ_NEU = {
@@ -387,11 +392,13 @@ const HAARANSATZ_NEU = {
   ecken: [[0, 0.6], [0.28, 0.64], [0.55, 0.8], [0.85, 0.6], [1.35, 0.27], [1.85, 0.04], [PI, -0.42]],
   licht: [[0, 0.82], [0.45, 0.9], [0.85, 0.68], [1.35, 0.3], [1.85, 0.06], [PI, -0.4]],
   unterHut: HAARANSATZ.kurz,
+  zerzaust: [[0, 0.52], [0.8, 0.38], [1.35, 0.14], [1.85, -0.12], [PI, -0.58]],
+  straehnig: [[0, 0.5], [0.8, 0.3], [1.35, -0.02], [1.85, -0.35], [PI, -0.78]],
 };
 /**
  * Form der neuen Frisuren: Grunddicke, Fülle oben, Strähnenrippen, Zacken im Haaransatz,
- * Scheitel (Winkel), Locken, obere Grenze (unter dem Hut).
- * @type {Record<string, { grund: number, fuelle: number, rippe: number, zacke: number, scheitel?: number, locken?: number, oben?: number }>}
+ * Scheitel (Winkel), Locken, obere Grenze (unter dem Hut), Wirrheit (ungepflegt).
+ * @type {Record<string, { grund: number, fuelle: number, rippe: number, zacke: number, scheitel?: number, locken?: number, oben?: number, wirr?: number }>}
  */
 const FRISUR = {
   voll: { grund: 0.006, fuelle: 0.005, rippe: 0.0014, zacke: 0.03 },
@@ -402,6 +409,8 @@ const FRISUR = {
   ecken: { grund: 0.0045, fuelle: 0.003, rippe: 0.001, zacke: 0.02 },
   licht: { grund: 0.003, fuelle: 0.0012, rippe: 0.0006, zacke: 0.015 },
   unterHut: { grund: 0.0035, fuelle: 0, rippe: 0.0008, zacke: 0.02, oben: 0.62 },
+  zerzaust: { grund: 0.006, fuelle: 0.005, rippe: 0.002, zacke: 0.06, wirr: 0.011 },
+  straehnig: { grund: 0.004, fuelle: 0.004, rippe: 0.004, zacke: 0.09, wirr: 0.005 },
 };
 
 /**
@@ -459,7 +468,9 @@ function haarGeometrieNeu(variante, stil, fein, alt) {
       const aa = Math.abs(a);
       // gezackter Haaransatz, vorn in der Mitte ruhiger
       const zacke = f.zacke * (0.6 * Math.sin(a * 9 + 1.3) + 0.4 * Math.sin(a * 17 + 0.4)) * glatt(0.12, 0.6, aa);
-      const dl = kurve(ansatz, aa) + zacke;
+      let dl = kurve(ansatz, aa) + zacke;
+      // ungepflegt: Büschel hängen in die Stirn
+      if (f.wirr) dl -= 0.09 * Math.max(0, Math.sin(a * 11 + 0.5)) * glatt(0.9, 0.1, aa);
       return [a, oben - t * (oben - dl)];
     }, (s, t) => {
       const a = PI * (2 * s - 1);
@@ -467,6 +478,7 @@ function haarGeometrieNeu(variante, stil, fein, alt) {
       let d = 0.0012 + (f.grund + f.fuelle * (1 - t * t)) * glatt(1, 0.75, t);
       d += f.rippe * (0.5 + 0.5 * Math.sin(a * 23 + 2 * Math.sin(a * 4))) * glatt(1, 0.6, t) * pol(t);
       if (f.locken) d += f.locken * (0.5 + 0.5 * Math.sin(a * 10) * Math.cos(t * PI * 5 + a * 3)) * glatt(1, 0.7, t) * pol(t);
+      if (f.wirr) d += f.wirr * (0.5 + 0.35 * Math.sin(a * 7 + 3 * Math.sin(t * 9 + a * 2)) * Math.cos(t * 11 + a * 5) + 0.25 * Math.sin(a * 13 + t * 17)) * glatt(1, 0.85, t) * pol(t);
       if (f.scheitel !== undefined) {
         // Scheitellinie vom Ansatz nach hinten oben; die größere Seite (a < Scheitel) ist voller
         d -= (f.grund + 0.6 * f.fuelle) * g2(a - f.scheitel, 0.06, (t - 0.65) / 0.45, 1) * glatt(0.1, 0.35, t);
@@ -475,7 +487,7 @@ function haarGeometrieNeu(variante, stil, fein, alt) {
       return d;
     }, (s, t) => {
       const a = PI * (2 * s - 1);
-      let h = 1 + (0.13 * Math.sin(a * 19 + 3 * Math.sin(a * 5)) + 0.07 * Math.sin(a * 41 + 1.7)) * pol(t);
+      let h = 1 + (0.13 * Math.sin(a * 19 + 3 * Math.sin(a * 5)) + 0.07 * Math.sin(a * 41 + 1.7) + (f.wirr ? 0.12 * Math.sin(a * 29 + t * 8) : 0)) * pol(t);
       if (f.scheitel !== undefined) h *= 1 - 0.35 * g2(a - f.scheitel, 0.05, (t - 0.65) / 0.45, 1) * glatt(0.1, 0.35, t);
       return [h, 0.55 * glatt(0.8, 1, t)];
     });
@@ -488,7 +500,8 @@ const BARTGRENZE = [[0, -0.64], [0.3, -0.5], [0.6, -0.26], [1.1, -0.03], [1.45, 
 /**
  * Bart: Schnurrbart allein oder mit Vollbart, Kinnbart oder Backenbart.
  * Mit Farbwerten (Strähnen, Rand zur Haut) für Stoff-Farben; die Form ist dieselbe wie in Feinschliff C.
- * 'lang' (Besetzung): Vollbart, unter dem Kinn deutlich dicker.
+ * 'lang' (Besetzung): Vollbart, unter dem Kinn deutlich dicker. Ungepflegt: 'stoppel' (dünne, halb
+ * hautfarbene Schicht über Wangen, Kinn und Oberlippe), 'struppig', 'schnurrStruppig' (ausgefranst).
  * @param {number} variante @param {Exclude<BartStil, 'keiner'>} stil @param {boolean} fein @param {number} [alt=0]
  */
 function bartGeometrie(variante, stil, fein, alt = 0) {
@@ -496,24 +509,44 @@ function bartGeometrie(variante, stil, fein, alt = 0) {
     const v = form(variante, alt);
     /** Strähnen quer (s) und weicher oberer Rand (t = 0) */
     const strich = (/** @type {number} */ k) => (/** @type {number} */ s, /** @type {number} */ t) => [0.9 + 0.12 * Math.sin(s * k + 2 * Math.sin(s * 7)), 0.45 * glatt(0.3, 0, t)];
-    // Schnurrbart: zwischen Nase und Oberlippe, Enden leicht herabhängend
-    const schnurr = kopfSchale(v, fein ? 18 : 10, fein ? 5 : 3, (s, t) => {
+    /** Fläche des Vollbarts (s quer, t von der oberen Grenze nach unten); `zack` macht die Grenze unregelmäßig */
+    const vollFlaeche = (/** @type {number} */ zack) => (/** @type {number} */ s, /** @type {number} */ t) => {
+      const a = 1.65 * (2 * s - 1);
+      const oben = kurve(BARTGRENZE, Math.abs(a)) + zack * Math.sin(a * 13 + 0.7);
+      return [a, oben + (-0.97 - zack * 0.5 - oben) * t];
+    };
+    /** Fläche des Schnurrbarts; `wild` lässt die Enden tiefer und ausgefranst hängen */
+    const schnurrFlaeche = (/** @type {number} */ wild) => (/** @type {number} */ s, /** @type {number} */ t) => {
       const a = 0.62 * (2 * s - 1);
       const e = (a / 0.62) ** 2;
       const oben = -0.352 - 0.1 * e;
-      const unten = -0.465 - 0.12 * e;
+      const unten = -0.465 - 0.12 * e - wild * (0.05 * e + 0.035 * Math.abs(Math.sin(s * 29)));
       return [a, oben + (unten - oben) * t];
-    }, (s, t) => 0.0012 + 0.005 * Math.sin(PI * t) * Math.sin(PI * s) ** 0.5, (s) => [0.9 + 0.12 * Math.sin(s * 60), 0]);
-    if (stil === 'schnurr') return schnurr;
+    };
+    if (stil === 'stoppel') {
+      // Stoppeln: hauchdünn, Farbe zur Hälfte Haut, körnig
+      const korn = (/** @type {number} */ s, /** @type {number} */ t) => [0.85 + 0.25 * Math.sin(s * 97 + t * 13), 0.5 + 0.1 * Math.sin(s * 53 + t * 5) + 0.3 * glatt(0.3, 0, t)];
+      return verbinde([
+        kopfSchale(v, fein ? 18 : 10, fein ? 4 : 3, schnurrFlaeche(0), () => 0.0012, korn),
+        kopfSchale(v, fein ? 28 : 16, fein ? 9 : 5, vollFlaeche(0.02), () => 0.0012, korn),
+      ]);
+    }
+    const wild = stil === 'struppig' || stil === 'schnurrStruppig' ? 1 : 0;
+    // Schnurrbart: zwischen Nase und Oberlippe, Enden leicht herabhängend (wild = 0: Form wie Feinschliff C)
+    const schnurr = kopfSchale(v, fein ? 18 : 10, fein ? 5 : 3, schnurrFlaeche(wild),
+      (s, t) => 0.0012 + 0.005 * (1 + 0.5 * wild) * Math.sin(PI * t) * Math.sin(PI * s) ** 0.5 * (1 + 0.5 * wild * Math.sin(s * 41 + t * 7)),
+      (s, t) => [0.9 + 0.12 * Math.sin(s * 60) + wild * 0.12 * Math.sin(s * 23 + t * 5), 0]);
+    if (stil === 'schnurr' || stil === 'schnurrStruppig') return schnurr;
     /** @type {THREE.BufferGeometry[]} */
     const teile = [schnurr];
-    if (stil === 'voll' || stil === 'lang') {
+    if (stil === 'struppig') {
+      // wirrer Vollbart: ungleich dick, ausgefranste Ränder
+      teile.push(kopfSchale(v, fein ? 28 : 16, fein ? 9 : 5, vollFlaeche(0.045),
+        (s, t, D) => 0.0012 + (0.006 + 0.018 * glatt(-0.5, -0.95, D)) * (0.75 + 0.25 * Math.sin(s * 47 + t * 9)) * glatt(0, 0.25, t) * glatt(1, 0.85, Math.abs(2 * s - 1)),
+        (s, t) => [0.85 + 0.25 * Math.sin(s * 47 + t * 9), 0.35 * glatt(0.3, 0, t)]));
+    } else if (stil === 'voll' || stil === 'lang') {
       const unten = stil === 'lang' ? 0.03 : 0.013;
-      teile.push(kopfSchale(v, fein ? 28 : 16, fein ? 9 : 5, (s, t) => {
-        const a = 1.65 * (2 * s - 1);
-        const oben = kurve(BARTGRENZE, Math.abs(a));
-        return [a, oben + (-0.97 - oben) * t];
-      }, (s, t, D) => 0.0012 + (0.004 + unten * glatt(-0.5, -0.95, D)) * glatt(0, 0.3, t) * glatt(1, 0.85, Math.abs(2 * s - 1)), strich(80)));
+      teile.push(kopfSchale(v, fein ? 28 : 16, fein ? 9 : 5, vollFlaeche(0), (s, t, D) => 0.0012 + (0.004 + unten * glatt(-0.5, -0.95, D)) * glatt(0, 0.3, t) * glatt(1, 0.85, Math.abs(2 * s - 1)), strich(80)));
     } else if (stil === 'kinn') {
       // Kinnbart unter der Unterlippe, nach unten schmaler
       teile.push(kopfSchale(v, fein ? 12 : 8, fein ? 7 : 4, (s, t) => {
@@ -550,11 +583,12 @@ function bartGeometrie(variante, stil, fein, alt = 0) {
  * @param {BartStil} [o.bart='keiner']
  * @param {Stoff | null} [o.bartMaterial] sonst wie Haar
  * @param {number} [o.alter=0] Altersstufe der Kopfform (0 jung = Form wie bisher, 1 mittel, 2 alt)
+ * @param {number[] | null} [o.raster=null] eigenes Kopfgitter [quer, längs] (z. B. sparsamer für Schrankköpfe)
  * @returns {THREE.Group}
  */
-export function kopf({ haut, zelle = 0, variante = 0, fein = true, haar = null, haarStil = 'voll', bart = 'keiner', bartMaterial = null, alter = 0 }) {
+export function kopf({ haut, zelle = 0, variante = 0, fein = true, haar = null, haarStil = 'voll', bart = 'keiner', bartMaterial = null, alter = 0, raster = null }) {
   const g = new THREE.Group();
-  g.add(new THREE.Mesh(kopfGeometrie(variante, zelle, fein, alter), haut));
+  g.add(new THREE.Mesh(kopfGeometrie(variante, zelle, fein, alter, raster), haut));
   if (haar) {
     const geo = istFarbe(haar)
       ? haarGeometrieNeu(variante, haarStil, fein, alter)

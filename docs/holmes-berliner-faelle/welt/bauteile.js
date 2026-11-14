@@ -350,41 +350,43 @@ export const STOFF = {
 const R = (alter, gesicht, form, haar, frisur = 'voll', bart = 'keiner', mehr = {}) => ({ alter, gesicht, form, haar, frisur, bart, ...mehr });
 
 /**
- * Besetzungsliste. Reihenfolge = Aufstellung in etage3.js. Nachbarn unterscheiden sich in Alter,
- * Haarfarbe und Frisur; jeder Blickpunkt zeigt drei Altersstufen und mindestens vier Haarfarben.
- * `frauPlatz` markiert die Plätze für Frauenfiguren (Sitzung B).
+ * Besetzungsliste der Schreckenskammer. Reihenfolge = Aufstellung in etage3.js. Gestaltung (keine
+ * historische Angabe): überwiegend jung bis mittelalt (etwa 20–40), nur wenige Alte; Haar und Bart
+ * meist ungepflegt (zerzaust, strähnig, Stoppeln, struppig). Gepflegt nur zwei „feine“ Betrüger
+ * (Büste 0 und 8). Nachbarn unterscheiden sich in Alter, Haarfarbe und Frisur; jeder Blickpunkt zeigt
+ * drei Altersstufen und mindestens vier Haarfarben. `frauPlatz` markiert die Plätze für Frauenfiguren.
  */
 export const BESETZUNG = {
   // Büsten in Raum A: 0–5 an der Hofwand (z 1,6 → 7,85), 6–8 an der Trennwand zu Raum B (x 6,75 → 8,45)
   buesten: [
     R(0, 1, 0, 'blond', 'scheitel', 'schnurr', { statur: 'schmal', rock: 'tabak', weste: 'creme', krawatte: 'blau' }),
-    R(2, 2, 4, 'weiss', 'kranz', 'voll', { rock: 'schwarz', weste: 'grau', krawatte: 'schwarz' }),
-    R(1, 11, 3, 'rot', 'ecken', 'backen', { statur: 'kraeftig', rock: 'gruen', weste: 'beige', krawatte: 'schwarz', frauPlatz: true }),
-    R(0, 8, 5, 'schwarz', 'locken', 'keiner', { statur: 'schmal', rock: 'blau', weste: 'hellgrau', krawatte: 'rot' }),
-    R(1, 9, 1, 'meliert', 'kurz', 'kinn', { statur: 'kraeftig', rock: 'grau', weste: 'schwarz', krawatte: 'bordeaux' }),
-    R(2, 6, 2, 'grau', 'licht', 'schnurr', { rock: 'braun', weste: 'beige', krawatte: 'schwarz' }),
-    R(0, 4, 2, 'rotblond', 'lang', 'keiner', { statur: 'schmal', rock: 'bordeaux', weste: 'schwarz', krawatte: 'schwarz' }),
-    R(2, 7, 0, null, 'voll', 'lang', { bartFarbe: 'weiss', statur: 'kraeftig', rock: 'schwarz', weste: 'hellgrau', krawatte: 'schwarz', frauPlatz: true }),
+    R(2, 6, 4, 'grau', 'kranz', 'stoppel', { rock: 'schwarz', weste: 'grau', krawatte: 'schwarz' }),
+    R(1, 11, 3, 'rot', 'zerzaust', 'struppig', { statur: 'kraeftig', rock: 'gruen', weste: 'beige', krawatte: 'schwarz', frauPlatz: true }),
+    R(0, 8, 5, 'schwarz', 'straehnig', 'stoppel', { statur: 'schmal', rock: 'blau', weste: 'hellgrau', krawatte: 'rot' }),
+    R(1, 9, 1, 'meliert', 'kurz', 'schnurrStruppig', { statur: 'kraeftig', rock: 'grau', weste: 'schwarz', krawatte: 'bordeaux' }),
+    R(0, 0, 2, 'dunkelbraun', 'zerzaust', 'stoppel', { rock: 'braun', weste: 'beige', krawatte: 'schwarz' }),
+    R(0, 4, 2, 'rotblond', 'straehnig', 'keiner', { statur: 'schmal', rock: 'bordeaux', weste: 'schwarz', krawatte: 'schwarz' }),
+    R(1, 3, 0, 'schwarz', 'ecken', 'struppig', { statur: 'kraeftig', rock: 'schwarz', weste: 'hellgrau', krawatte: 'schwarz', frauPlatz: true }),
     R(1, 5, 4, 'dunkelblond', 'scheitel', 'voll', { rock: 'tweed', weste: 'braun', krawatte: 'gruen' }),
   ],
-  // Glasschränke in Raum B (z 11,0 und 13,2): je 12 Köpfe, Boden 0 (unten) bis 2, je Boden 4 Plätze
+  // Glasschränke in Raum B (z 11,0 und 13,2): je 12 Köpfe, Boden 0 (unten) bis 2, je Boden 4 Plätze; je Schrank 2 Alte
   schrank: [
     [
-      R(0, 8, 0, 'schwarz', 'voll'), R(2, 10, 4, 'weiss', 'kranz', 'voll'), R(1, 11, 1, 'rot', 'kurz', 'schnurr'), R(0, 1, 2, 'blond', 'scheitel'),
-      R(2, 7, 3, 'grau', 'licht', 'schnurr'), R(0, 0, 5, 'braun', 'lang', 'backen'), R(1, 9, 2, 'meliert', 'ecken', 'kinn'), R(2, 6, 0, 'weiss', 'kranz', 'backen'),
-      R(1, 3, 4, 'dunkelbraun', 'scheitel', 'voll', { frauPlatz: true }), R(0, 4, 1, 'rotblond', 'locken'), R(2, 2, 5, null, 'voll', 'lang', { bartFarbe: 'grau' }), R(1, 5, 3, 'dunkelblond', 'kurz', 'schnurr'),
+      R(0, 8, 0, 'schwarz', 'zerzaust', 'stoppel'), R(1, 11, 1, 'rot', 'kurz', 'schnurrStruppig'), R(2, 10, 4, 'weiss', 'kranz', 'struppig'), R(0, 1, 2, 'blond', 'straehnig'),
+      R(1, 9, 2, 'meliert', 'ecken', 'stoppel'), R(0, 0, 5, 'braun', 'straehnig', 'backen'), R(0, 4, 3, 'rotblond', 'zerzaust'), R(1, 3, 0, 'schwarz', 'licht', 'schnurrStruppig'),
+      R(1, 3, 4, 'dunkelbraun', 'zerzaust', 'struppig', { frauPlatz: true }), R(0, 8, 1, 'schwarz', 'locken', 'stoppel'), R(1, 5, 5, 'dunkelblond', 'kurz', 'schnurr'), R(2, 7, 3, 'grau', 'licht', 'stoppel'),
     ],
     [
-      R(2, 6, 1, 'grau', 'ecken', 'voll'), R(1, 3, 0, 'schwarz', 'kurz', 'backen'), R(0, 4, 3, 'rot', 'scheitel'), R(1, 9, 5, 'meliert', 'licht', 'schnurr'),
-      R(0, 1, 4, 'blond', 'voll', 'kinn'), R(2, 10, 2, 'weiss', 'licht'), R(1, 5, 1, 'dunkelblond', 'ecken', 'voll', { frauPlatz: true }), R(0, 8, 3, 'schwarz', 'lang', 'schnurr'),
-      R(1, 11, 5, 'rotblond', 'kurz', 'backen'), R(0, 0, 2, 'dunkelbraun', 'scheitel'), R(2, 7, 4, null, 'voll', 'schnurr', { bartFarbe: 'weiss' }), R(2, 2, 0, 'grau', 'kranz', 'lang'),
+      R(1, 9, 1, 'meliert', 'zerzaust', 'struppig'), R(0, 4, 0, 'rot', 'straehnig', 'stoppel'), R(2, 6, 3, 'grau', 'ecken', 'schnurrStruppig'), R(0, 1, 5, 'blond', 'kurz', 'stoppel'),
+      R(0, 0, 4, 'dunkelbraun', 'locken'), R(1, 11, 2, 'rotblond', 'ecken', 'backen'), R(1, 5, 1, 'dunkelblond', 'zerzaust', 'stoppel', { frauPlatz: true }), R(0, 8, 3, 'schwarz', 'straehnig', 'schnurrStruppig'),
+      R(1, 3, 5, 'schwarz', 'kurz', 'struppig'), R(0, 0, 2, 'braun', 'zerzaust'), R(2, 2, 4, 'weiss', 'kranz', 'stoppel'), R(1, 9, 0, 'meliert', 'straehnig', 'schnurr'),
     ],
   ],
   // Figurengruppe in Raum B: 0 mit Hut, 1 ohne, 2 (neu) hinten links neben dem Platz der Leiche
   gruppe: [
-    R(1, 11, 1, 'rot', 'kurz', 'voll', { statur: 'kraeftig', rock: 'grau', weste: 'anthrazit', krawatte: 'bordeaux', hose: 'anthrazit' }),
-    R(2, 10, 4, 'weiss', 'kranz', 'backen', { rock: 'anthrazit', weste: 'grau', krawatte: 'schwarz', hose: 'schwarz' }),
-    R(0, 8, 0, 'schwarz', 'scheitel', 'keiner', { statur: 'schmal', rock: 'tabak', weste: 'creme', krawatte: 'gruen', hose: 'braun', frauPlatz: true }),
+    R(1, 11, 1, 'rot', 'kurz', 'struppig', { statur: 'kraeftig', rock: 'grau', weste: 'anthrazit', krawatte: 'bordeaux', hose: 'anthrazit' }),
+    R(2, 10, 4, 'weiss', 'kranz', 'schnurrStruppig', { rock: 'anthrazit', weste: 'grau', krawatte: 'schwarz', hose: 'schwarz' }),
+    R(0, 8, 0, 'schwarz', 'zerzaust', 'stoppel', { statur: 'schmal', rock: 'tabak', weste: 'creme', krawatte: 'gruen', hose: 'braun', frauPlatz: true }),
   ],
 };
 
@@ -424,6 +426,8 @@ function wachskopf(m, rolle, fein = true, hut = false) {
   const bartFarbe = rolle.bartFarbe ? farbe(m, HAARFARBE[rolle.bartFarbe]) : haar;
   const k = kopf({
     haut: m.wachs, zelle: rolle.gesicht, variante: rolle.form, fein, alter: rolle.alter,
+    // Schrankköpfe (grob) mit etwas sparsamerem Gitter: hält die Dreiecke im Blick unter ~135 000
+    raster: fein ? null : [22, 17],
     haar, haarStil: hut ? 'unterHut' : rolle.frisur, bart: rolle.bart, bartMaterial: bartFarbe,
   });
   k.scale.set(...STATUR[rolle.statur ?? 'mittel'].kopf);
