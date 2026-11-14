@@ -6,14 +6,14 @@ paths:
 # Projekt: Sherlock Holmes – Die Berliner Fälle
 
 - Ordner: `docs/holmes-berliner-faelle/`, online unter `…/WebGL/holmes-berliner-faelle/`
-- Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/` im Hauptordner (nicht lesen, nicht ändern).
+- Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/`.
 
 ## Arbeitsstand (zuletzt 14. 11. 2026)
-- **Aktueller Auftrag: Sichtbarkeit je Raum + LOD Figuren** – weniger Dreiecke ohne sichtbaren Unterschied. Abnahme: Dreiecke je Rundgang-Blick vorher/nachher gemessen, kein Aufploppen an Durchgängen, keine sichtbaren LOD-Sprünge, 60 Bilder/s (Draw-Calls frei), Prüfsumme 77bcb35e. **Teil 1 fertig** (4eb7f01; Runden 0/2): `welt/sichtbarkeit.js`, 1-m-Zellen + Sichtkegel durch Durchgänge; z. B. Gruppe nah 134 000 → 47 000 Dreiecke, bildgleich (Verlauf). Firefox offen. Teil 2 (LOD) 0/2.
-- Fertig (Einzelheiten: Verlauf): Lichtberechnung auf der Grafikkarte + Kontaktschatten (fcbfa13, Firefox ok), Augenanpassung (`belichtung-v1` 1.0.1, Firefox ok), Fensterausblick (d11b743; Restpunkt Laibungen fast weiß), Boden/Ecken/Figuren heller (cea5718), Kranich-Helm (3ae345f), Besetzung A/A2 (65f1767), Feinschliff C (e191cab). Firefox offen bei d11b743, cea5718, 3ae345f, e191cab. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben; zurückgestellt: Fenster-Überstrahlen.
-- **Als Nächstes:** Teil 2 LOD, dann **Sitzung B** (Frauenfiguren an `frauPlatz`), dann **Kranich neu** (Körper, Ausrüstung, Haltung; erst Uniform recherchieren; Helm 3ae345f bleibt).
+- **Sichtbarkeit + LOD Figuren** (Runde 1/2, Zahlen: Verlauf): Teil 1 (4eb7f01) 1-m-Zellen. Teil 2 LOD (`welt/stufen.js`, nicht committet): 40 Einheiten, 120 800 → 86 800 Dreiecke, 0 Flecken. Offen: Firefox, Bildrate; **Runde 2: Stufen je ≤ 50 % der vorigen, heutige ersetzen** (neue Sitzung). Protokoll: `notizen/protokolle/2026-11-14-holmes-lod.md`
+- Fertig (Einzelheiten: Verlauf): Lichtberechnung auf der Grafikkarte + Kontaktschatten (fcbfa13, Firefox ok), Augenanpassung (`belichtung-v1` 1.0.1, Firefox ok), Fensterausblick (d11b743; Restpunkt Laibungen fast weiß), Boden/Figuren heller (cea5718), Kranich-Helm (3ae345f), Besetzung (65f1767), Feinschliff C (e191cab). Firefox offen bei d11b743, cea5718, 3ae345f, e191cab. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben; zurückgestellt: Fenster-Überstrahlen.
+- **Als Nächstes:** **Sitzung B** (Frauenfiguren an `frauPlatz`), dann **Kranich neu** (Körper, Ausrüstung, Haltung; erst Uniform recherchieren; Helm 3ae345f bleibt).
 - **Danach:** D (Stuck, Beschläge), dann weitere Inhalte von Fall 1 (siehe Ausbaustufen).
-- Prüfhilfen: Vorschau `webgl-vorschau` (Pane mit `show_pane` einblenden, sonst keine Bilder); Blickpunkte: „Rundgang“. `ERR_CONNECTION_REFUSED` (Port 8765) harmlos.
+- Prüfhilfen: Vorschau `webgl-vorschau` (Pane einblenden, sonst keine Bildschleife); Blickpunkte: „Rundgang“. `ERR_CONNECTION_REFUSED` (Port 8765) harmlos.
 
 ## Ziel und Rahmen (Kurzfassung; vollständig: `.claude/notizen/holmes-rahmen.md`)
 - Browserspiel (Deutsch, Erwachsene), Ich-Perspektive, Handy und PC; Sherlock Holmes als „Sigerson“, Berlin 1892, mehrere Fälle.
@@ -25,7 +25,8 @@ paths:
 - Beleuchtung vorab berechnet (`.claude/scripts/holmes_licht.py`): Lichtkarte (10 cm) für statische Quader/Flächen, Lichtgitter (0,4 m) für den Rest; keine Lampen. Runde Teile verdecken nur mit `userData.lichtHuelle`.
 - **Nach jeder Änderung an Räumen, Möbeln, Fenstern neu berechnen:** `holmes_licht.py empfange` → im Spiel `await __debug.sendeLichtModell()` → `holmes_licht.py berechne` (über den Wächter; Grafikkarte ≈ 3 s, mit `--cpu` ≈ 100 s). Konsole beim Start: „Beleuchtung: Lichtkarte aktiv“.
 - Bodenglanz (`welt/bodenglanz.js`): Dielen spiegeln die Fenster weich.
-- Sichtbarkeit je 1-m-Zelle (`welt/sichtbarkeit.js`): statische Teile ordnet `verschmelze` selbst zu; eigene Objekte (Personen, Funde, LOD) mit `etage.sichtbarkeit.registriere()` anmelden. Neue offene Durchgänge dort eintragen, sonst fehlt der Nachbarraum.
+- Sichtbarkeit je 1-m-Zelle (`welt/sichtbarkeit.js`): statische Teile ordnet `verschmelze` selbst zu; eigene Objekte (Personen, Funde) mit `etage.sichtbarkeit.registriere()` anmelden. Neue offene Durchgänge dort eintragen, sonst fehlt der Nachbarraum.
+- Detailstufen (`welt/stufen.js`): jede neue Figur mit `alsStufe(teil, () => sparsam(bau), { abstand })` markieren (drehende: `beweglich: true`), vor dem Verschmelzen `baueStufen`; danach Fleckprüfung (Verlauf).
 
 ## Rundgang (feste Blickpunkte für `/visuell-pruefen`)
 Im Browser: `__debug.steuerung.setzePosition(x, z, blick)` (Blick vorwärts = (−sin, −cos)); für Decke/Gesims mit der Maus nach oben ziehen.

@@ -4,8 +4,11 @@
 // Gestaltung (stilisiert). Alle Maße werden an den Netzen des Kopfes gemessen (Haut, Haar, Bart),
 // damit der Helm auch nach einem Umbau von `kopf()` richtig sitzt.
 import * as THREE from 'three';
+import { istSparsam } from './menschen.js';
 
 const PI = Math.PI;
+/** Teilungen voll / sparsam (Detailstufe, welt/stufen.js); gemessen wird immer am vollen Kopf */
+const n = (/** @type {number} */ voll, /** @type {number} */ spar) => (istSparsam() ? spar : voll);
 /** Schrittweite der Kopfmessung in Metern */
 const SCHRITT = 0.005;
 
@@ -130,14 +133,14 @@ export function baueHelm(k, leder, messing) {
     return [Math.sin(th) * (b + m), y, c >= 0 ? c * (vo + m) : -c * (hi - m)];
   };
 
-  const glocke = gitter(28, 9, (s, t) => punkt(2 * PI * s, t), { geschlossen: true });
+  const glocke = gitter(n(28, 20), 9, (s, t) => punkt(2 * PI * s, t), { geschlossen: true });
 
   /**
    * Schirm: Streifen entlang der Unterkante, nach außen und unten geneigt; doppelt (oben und unten sichtbar)
    * @param {number} mitte Winkel der Mitte @param {number} halb halbe Breite (Bogenmaß)
    * @param {number} laenge größte Länge @param {number} neigung Abfall je Länge @param {boolean} unten Unterseite
    */
-  const schirm = (mitte, halb, laenge, neigung, unten) => gitter(16, 3, (s, t) => {
+  const schirm = (mitte, halb, laenge, neigung, unten) => gitter(n(16, 10), 3, (s, t) => {
     const phi = (2 * s - 1) * halb;
     const th = mitte + phi;
     const [x, y, z] = punkt(th, 1);
@@ -150,7 +153,7 @@ export function baueHelm(k, leder, messing) {
   }, { umdrehen: unten });
 
   /** Wappenplatte vorn: Teil der Glockenfläche, 2,5 mm davor (elliptisch) */
-  const platte = gitter(16, 3, (s, t) => {
+  const platte = gitter(n(16, 10), 3, (s, t) => {
     const phi = 2 * PI * s;
     return punkt(0.33 * t * Math.cos(phi), 0.46 + 0.27 * t * Math.sin(phi), 0.0025);
   }, { umdrehen: true });
@@ -163,10 +166,10 @@ export function baueHelm(k, leder, messing) {
   }
   helm.add(new THREE.Mesh(platte, messing));
   // Spitze: Sockel auf der Kuppel, darüber der Kegel
-  const sockel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.036, 0.03, 12), messing);
+  const sockel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.036, 0.03, n(12, 8)), messing);
   sockel.position.y = yTop + 0.008;
   helm.add(sockel);
-  const spitze = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.1, 10), messing);
+  const spitze = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.1, n(10, 7)), messing);
   spitze.position.y = yTop + 0.073;
   helm.add(spitze);
   return helm;

@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { verschmelze } from './verschmelzen.js';
 import { erstelleSichtbarkeit } from './sichtbarkeit.js';
+import { baueStufen } from './stufen.js';
 import { kopf as rohKopf } from './menschen.js';
 import { sammleLichtSzene } from './lichtmodell.js';
 import { sammleKontaktFlecken } from './fleck.js';
@@ -52,6 +53,7 @@ const FENSTER = { breite: 1.3, hoehe: 2.7, unten: 0.35, art: /** @type {const} *
  *   lichtSzene: import('./lichtmodell.js').LichtSzene,
  *   kontaktFlecken: import('./fleck.js').KontaktFleck[],
  *   sichtbarkeit: ReturnType<typeof erstelleSichtbarkeit>,
+ *   stufen: ReturnType<typeof baueStufen>,
  * }}
  */
 export function baueEtage3(scene) {
@@ -373,10 +375,16 @@ export function baueEtage3(scene) {
       { zwischen: [1, 2], x: [2.0 - 0.6, 2.0 + 0.6], y: [0, 2.5], z: [19.5, 19.75] },
     ],
   });
-  const verdecker = verschmelze(gruppe, lichtSzene.koordinaten, { schluessel: sichtbarkeit.schluessel });
-  for (const mesh of verdecker) sichtbarkeit.registriere(mesh, { schluessel: mesh.userData.zelle });
+  // Detailstufen (welt/stufen.js) für Büsten, Gruppenfiguren und Schrankköpfe: nach Lichtmodell und
+  // Kontaktflecken (die sehen nur die volle Form), vor dem Verschmelzen; je Einheit eigene Netze,
+  // nach dem Verschmelzen in ihrer Zelle eingehängt
+  const stufen = baueStufen(gruppe);
+  const zellNetze = verschmelze(gruppe, lichtSzene.koordinaten, { schluessel: sichtbarkeit.schluessel });
+  for (const mesh of zellNetze) sichtbarkeit.registriere(mesh, { schluessel: mesh.userData.zelle });
+  // Antippen: Zellpakete und die volle Stufe der Figuren verdecken wie bisher
+  const verdecker = [...zellNetze, ...stufen.verdecker];
   // Einzeln gebliebene Teile (Glas u. Ä.) ebenfalls nach Lage; unsichtbare Trefferkörper bleiben unberührt
-  const verschmolzen = new Set(verdecker);
+  const verschmolzen = new Set(zellNetze);
   /** @type {THREE.Mesh[]} */
   const einzelne = [];
   gruppe.traverse((o) => {
@@ -384,6 +392,7 @@ export function baueEtage3(scene) {
     if (mesh.isMesh && mesh.visible && !mesh.userData.nurTreffer && !verschmolzen.has(mesh)) einzelne.push(mesh);
   });
   for (const mesh of einzelne) sichtbarkeit.registriere(mesh);
+  stufen.einhaengen(sichtbarkeit);
   aktiviereSchatten(gruppe);
   // Straßenausblick hinter den Fenstern (nach Lichtmodell und Verschmelzen: nicht beleuchtet, ein Draw-Call)
   const ausblick = baueAusblick(lichtFenster);
@@ -396,7 +405,7 @@ export function baueEtage3(scene) {
   const direktLichter = [himmel, fensterSeite, fensterLicht, ostLicht];
   return {
     gruppe, hindernisse, verdecker, start: { x: 6.5, z: 1.3, blick: Math.PI }, materialien: m, lichtSzene, lichtFenster,
-    direktLichter, ausblick: ausblick.werte, kontaktFlecken, sichtbarkeit,
+    direktLichter, ausblick: ausblick.werte, kontaktFlecken, sichtbarkeit, stufen,
     // Räume als z-Bereiche (Raum A, Raum B, Werkstatt), z. B. für die Fensterspiegelung im Boden
     raeumeZ: RAEUME_Z,
   };

@@ -35,6 +35,7 @@ tools/                      ← nicht im Git: glslang (bin/), three.js-Vorrat (v
 - Vor dem Start mit dem Nutzer festlegen, was „gut genug“ ist (an Bildern/Blickwinkeln), und höchstens 2 Korrekturrunden. Danach Restfehler in den Projektnotizen festhalten und mit der nächsten Aufgabe weitermachen.
 - Stil ist stilisiert: robuste, einfache Lösungen vor physikalischer Genauigkeit. Vor einem aufwendigen neuen Verfahren (z. B. Vorberechnung) Aufwand, Risiko und eine einfache Alternative nennen.
 - Fehler nicht einzeln flicken: Beim zweiten Fehler mit derselben Ursache das Verfahren überdenken und dem Nutzer vorlegen.
+- LOD: jede Stufe höchstens 50 % der Dreiecke der vorherigen (je Objekt gemessen), beliebig viele Stufen; sonst keine Stufe.
 
 ## Sitzungen und Token sparen
 - Aufgaben mit `/auftrag` beginnen (Ziel, Abnahme, Runden) und mit `/abschluss` beenden.

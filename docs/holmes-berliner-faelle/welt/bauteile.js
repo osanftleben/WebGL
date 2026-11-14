@@ -2,7 +2,11 @@
 // Alles stilisiert aus einfachen Formen; Maße in Metern.
 import * as THREE from 'three';
 import { dielenTextur, putzTextur, holzTextur, heizkoerperTextur, nummernAtlas, glasTextur, gesichtsTafel, NUMMERN_RASTER, skaliereUV, zufall } from './texturen.js';
-import { kopf, hals, arm, oberkoerper, stoffTeil } from './menschen.js';
+import { kopf, hals, arm, oberkoerper, stoffTeil, sparsam, istSparsam } from './menschen.js';
+import { alsStufe } from './stufen.js';
+
+/** Umschaltabstände der Detailstufen (m bei 1080 Bildpunkten Bildhöhe), aus dem Bildvergleich */
+export const STUFEN_ABSTAND = { bueste: 3.0, figur: 3.5, schrankkopf: 2.5 };
 
 /** @type {Map<number, THREE.BufferGeometry>} Vorhang-Geometrien je Höhe (werden geteilt) */
 const vorhangCache = new Map();
@@ -504,14 +508,20 @@ export function buesteAufSockel(m, rolle) {
   g.add(box(0.36, 1.1, 0.36, 0, 0.55, 0, m.holzDunkel));
   g.add(box(0.42, 0.05, 0.42, 0, 1.125, 0, m.holzDunkel));
   const st = STATUR[rolle.statur ?? 'mittel'];
-  // Schultern und Kragen nach Stand (kleidung() steht weiter unten bei figur)
-  g.add(oberkoerper({ profil: profilNachStatur(BUESTE, { ...st, bauch: 0, taille: 0 }), ...kleidung(m, rolle, true).o }));
-  const h = hals(m.wachs);
-  h.position.set(0, 1.39, -0.012);
-  g.add(h);
-  const k = wachskopf(m, rolle);
-  k.position.y = 1.46;
-  g.add(k);
+  // Schultern, Hals und Kopf: Detailstufen (welt/stufen.js), der Sockel bleibt
+  const figurTeil = () => {
+    const t = new THREE.Group();
+    // Schultern und Kragen nach Stand (kleidung() steht weiter unten bei figur)
+    t.add(oberkoerper({ profil: profilNachStatur(BUESTE, { ...st, bauch: 0, taille: 0 }), ...kleidung(m, rolle, true).o }));
+    const h = hals(m.wachs);
+    h.position.set(0, 1.39, -0.012);
+    t.add(h);
+    const k = wachskopf(m, rolle);
+    k.position.y = 1.46;
+    t.add(k);
+    return t;
+  };
+  g.add(alsStufe(figurTeil(), () => sparsam(figurTeil), { abstand: STUFEN_ABSTAND.bueste }));
   return g;
 }
 
@@ -662,11 +672,11 @@ function kleidung(m, rolle, bueste) {
  * Hosenbein (0,82 m, Mitte im Ursprung): oben kräftig, über dem Knie schmal, Knie vorn angedeutet,
  * Wade hinten, zum Knöchel verjüngt. Gedrechselt (Naht hinten), dann Knie und Wade aus der Achse geschoben.
  */
-const beinGeo = (() => {
+function beinForm(/** @type {number} */ teile) {
   // [Radius, y] vom Knöchel zur Hüfte
   const punkte = [[0.035, -0.41], [0.034, -0.33], [0.042, -0.21], [0.048, -0.1], [0.045, 0.01], [0.047, 0.08], [0.049, 0.15],
     [0.055, 0.25], [0.06, 0.35], [0.062, 0.41]].map(([r, y]) => new THREE.Vector2(r, y));
-  const geo = new THREE.LatheGeometry(punkte, 10, Math.PI);
+  const geo = new THREE.LatheGeometry(punkte, teile, Math.PI);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i);
@@ -682,17 +692,29 @@ const beinGeo = (() => {
   const np = punkte.length;
   for (let j = 0; j < np; j++) {
     const a = j;
-    const b = 10 * np + j;
+    const b = teile * np + j;
     const n = new THREE.Vector3().fromBufferAttribute(nor, a).add(new THREE.Vector3().fromBufferAttribute(nor, b)).normalize();
     nor.setXYZ(a, n.x, n.y, n.z);
     nor.setXYZ(b, n.x, n.y, n.z);
   }
   return geo;
-})();
-const hutGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.16, 16);
-const krempeGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.015, 20);
-const meloneGeo = new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-const meloneRandGeo = new THREE.TorusGeometry(1, 0.06, 4, 22);
+}
+
+// Geteilte Formen der Figuren je Detailstufe (voll / sparsam, siehe jeStufe und welt/stufen.js)
+const BEIN_GEO = { voll: beinForm(10), spar: beinForm(7) };
+const HUT_GEO = { voll: new THREE.CylinderGeometry(0.1, 0.1, 0.16, 16), spar: new THREE.CylinderGeometry(0.1, 0.1, 0.16, 10) };
+const KREMPE_GEO = { voll: new THREE.CylinderGeometry(0.16, 0.16, 0.015, 20), spar: new THREE.CylinderGeometry(0.16, 0.16, 0.015, 12) };
+const MELONE_GEO = {
+  voll: new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+  spar: new THREE.SphereGeometry(1, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2),
+};
+const MELONE_RAND_GEO = { voll: new THREE.TorusGeometry(1, 0.06, 4, 22), spar: new THREE.TorusGeometry(1, 0.06, 4, 12) };
+
+/**
+ * Form der aktuellen Detailstufe: innerhalb von `sparsam(…)` die sparsame, sonst die volle.
+ * @template T @param {{ voll: T, spar: T }} f @returns {T}
+ */
+export const jeStufe = (f) => (istSparsam() ? f.spar : f.voll);
 
 /** Körper im Gehrock (Profil: y, halbe Breite, halbe Tiefe, Versatz z); Saum bei 0,6 m, Hals bei 1,52 m */
 export const GEHROCK = [[0.6, 0.205, 0.15, -0.005], [0.8, 0.19, 0.135, 0], [0.98, 0.172, 0.118, 0], [1.06, 0.16, 0.11, 0], [1.2, 0.17, 0.118, 0.006],
@@ -705,7 +727,7 @@ export const GEHROCK = [[0.6, 0.205, 0.15, -0.005], [0.8, 0.19, 0.135, 0], [0.98
 const GEHROCK_RUND = [[0.6, 0.198, 0.14, -0.005, 2.4], [0.8, 0.177, 0.122, 0, 2.3], [0.94, 0.157, 0.107, 0, 2.25], [1.04, 0.143, 0.099, 0.002, 2.2],
   [1.12, 0.147, 0.103, 0.004, 2.25], [1.22, 0.159, 0.111, 0.008, 2.35], [1.32, 0.166, 0.116, 0.01, 2.4], [1.38, 0.167, 0.107, 0.005, 2.3],
   [1.418, 0.155, 0.096, 0.002, 2.1], [1.452, 0.133, 0.085, 0, 2.0], [1.485, 0.103, 0.072, 0, 2.0], [1.52, 0.065, 0.058, 0, 2.0]];
-const schuhGeo = new THREE.SphereGeometry(1, 12, 8);
+const SCHUH_GEO = { voll: new THREE.SphereGeometry(1, 12, 8), spar: new THREE.SphereGeometry(1, 8, 6) };
 
 /**
  * Lebensgroße, stilisierte Wachsfigur (etwa 1,75 m), gekleidet nach Stand (Gehrock, Joppe,
@@ -723,15 +745,28 @@ export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = 
   g.userData.lichtZonen = FIGUR_ZONEN;
   g.userData.kontaktFleck = FIGUR_FLECK;
   const st = STATUR[rolle.statur ?? 'mittel'];
+  // Quader-Schuhe zählen im Lichtmodell (Lichtkarte) und bleiben außerhalb der Detailstufen
+  if (quaderSchuhe) for (const s of [-1, 1]) g.add(box(0.1, 0.06, 0.24, s * 0.09, 0.03, 0.05, m.eisen));
+  // Alles Runde (Beine, Rumpf, Arme, Kopf, Hut): Detailstufen (welt/stufen.js)
+  const figurTeil = () => figurKoerper(m, rolle, st, { hut, armWinkel, quaderSchuhe });
+  g.add(alsStufe(figurTeil(), () => sparsam(figurTeil), { abstand: STUFEN_ABSTAND.figur }));
+  return g;
+}
+
+/**
+ * Runde Teile einer Wachsfigur (siehe figur), als eigene Gruppe für die Detailstufen.
+ * @param {Materialien} m @param {Rolle} rolle @param {typeof STATUR[keyof typeof STATUR]} st
+ * @param {{ hut: boolean, armWinkel: number, quaderSchuhe: boolean }} o
+ */
+function figurKoerper(m, rolle, st, { hut, armWinkel, quaderSchuhe }) {
+  const g = new THREE.Group();
   for (const s of [-1, 1]) {
-    const bein = stoffTeil(beinGeo, farbe(m, STOFF[rolle.hose ?? 'anthrazit']));
+    const bein = stoffTeil(jeStufe(BEIN_GEO), farbe(m, STOFF[rolle.hose ?? 'anthrazit']));
     bein.scale.set(st.breite, 1, st.breite);
     bein.position.set(s * 0.08, 0.41, 0);
     g.add(bein);
-    if (quaderSchuhe) {
-      g.add(box(0.1, 0.06, 0.24, s * 0.09, 0.03, 0.05, m.eisen));
-    } else {
-      const schuh = stoffTeil(schuhGeo, farbe(m, STOFF.horn));
+    if (!quaderSchuhe) {
+      const schuh = stoffTeil(jeStufe(SCHUH_GEO), farbe(m, STOFF.horn));
       schuh.scale.set(0.05, 0.035, 0.125);
       schuh.position.set(s * 0.09, 0.03, 0.05);
       g.add(schuh);
@@ -764,25 +799,25 @@ export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = 
   if (hut && rolle.hut === 'melone') {
     // Melone: runder Kopf, schmale, am Rand aufgerollte Krempe
     const schwarz = farbe(m, STOFF.schwarz);
-    const kr = stoffTeil(meloneGeo, schwarz);
+    const kr = stoffTeil(jeStufe(MELONE_GEO), schwarz);
     kr.scale.set(0.092, 0.1, 0.104);
     kr.position.set(0, 1.71, -0.004);
     g.add(kr);
-    const rand = stoffTeil(krempeGeo, schwarz);
+    const rand = stoffTeil(jeStufe(KREMPE_GEO), schwarz);
     rand.scale.set(0.76, 0.7, 0.86);
     rand.position.set(0, 1.71, -0.004);
     g.add(rand);
-    const roll = stoffTeil(meloneRandGeo, schwarz);
+    const roll = stoffTeil(jeStufe(MELONE_RAND_GEO), schwarz);
     roll.scale.set(0.122, 0.137, 0.12);
     roll.rotation.x = Math.PI / 2;
     roll.position.set(0, 1.713, -0.004);
     g.add(roll);
   } else if (hut) {
-    const hh = stoffTeil(hutGeo, farbe(m, STOFF.schwarz));
+    const hh = stoffTeil(jeStufe(HUT_GEO), farbe(m, STOFF.schwarz));
     hh.scale.set(0.85, 1, 1);
     hh.position.set(0, 1.787, -0.004);
     g.add(hh);
-    const kr = stoffTeil(krempeGeo, farbe(m, STOFF.schwarz));
+    const kr = stoffTeil(jeStufe(KREMPE_GEO), farbe(m, STOFF.schwarz));
     kr.scale.set(0.88, 1, 1);
     kr.position.set(0, 1.707, -0.004);
     g.add(kr);
@@ -791,11 +826,15 @@ export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = 
 }
 
 // Halsabschluss der Schrankköpfe sparsam (offene Zylinder, kleiner Knoten): 24 Köpfe im Blick
-const kragenStehGeo = new THREE.CylinderGeometry(0.064, 0.068, 0.04, 12, 1, true);
-const kragenRollGeo = new THREE.CylinderGeometry(0.068, 0.075, 0.05, 12, 1, true);
+// sparsame Stufe: 10 Teilungen wie der Hals darunter
+const KRAGEN_STEH_GEO = { voll: new THREE.CylinderGeometry(0.064, 0.068, 0.04, 12, 1, true), spar: new THREE.CylinderGeometry(0.064, 0.068, 0.04, 10, 1, true) };
+const KRAGEN_ROLL_GEO = { voll: new THREE.CylinderGeometry(0.068, 0.075, 0.05, 12, 1, true), spar: new THREE.CylinderGeometry(0.068, 0.075, 0.05, 10, 1, true) };
 // offener Hemdkragen: vorn eine Lücke, dort sieht man den Hals
-const kragenOffenGeo = new THREE.CylinderGeometry(0.07, 0.066, 0.034, 12, 1, true, 0.55, Math.PI * 2 - 1.1);
-const knotenGeo = new THREE.SphereGeometry(1, 7, 4);
+const KRAGEN_OFFEN_GEO = {
+  voll: new THREE.CylinderGeometry(0.07, 0.066, 0.034, 12, 1, true, 0.55, Math.PI * 2 - 1.1),
+  spar: new THREE.CylinderGeometry(0.07, 0.066, 0.034, 10, 1, true, 0.55, Math.PI * 2 - 1.1),
+};
+const KNOTEN_GEO = { voll: new THREE.SphereGeometry(1, 7, 4), spar: new THREE.SphereGeometry(1, 5, 4) };
 
 /**
  * Abschluss am Hals eines Schrankkopfs nach Stand: Rollkragen, offener Hemdkragen, Halstuch mit
@@ -806,19 +845,19 @@ function halsAbschluss(m, rolle) {
   const st = STAND[rolle.stand ?? 'betrueger'];
   const g = new THREE.Group();
   if (st.tracht === 'troyer') {
-    g.add(stoffTeil(kragenRollGeo, farbe(m, STOFF[rolle.rock ?? 'marine'])));
+    g.add(stoffTeil(jeStufe(KRAGEN_ROLL_GEO), farbe(m, STOFF[rolle.rock ?? 'marine'])));
     return g;
   }
   if (st.binder === 'offen' || st.binder === 'keiner') {
-    g.add(stoffTeil(kragenOffenGeo, farbe(m, STOFF[rolle.hemd ?? st.hemd])));
+    g.add(stoffTeil(jeStufe(KRAGEN_OFFEN_GEO), farbe(m, STOFF[rolle.hemd ?? st.hemd])));
     return g;
   }
   const tuch = st.binder === 'tuch';
   const binde = farbe(m, STOFF[rolle.krawatte ?? (tuch ? 'rot' : 'schwarz')]);
-  const ring = stoffTeil(kragenStehGeo, tuch ? binde : farbe(m, STOFF.weiss));
+  const ring = stoffTeil(jeStufe(KRAGEN_STEH_GEO), tuch ? binde : farbe(m, STOFF.weiss));
   if (tuch) ring.scale.set(1.04, 0.8, 1.04);
   g.add(ring);
-  const knoten = stoffTeil(knotenGeo, binde);
+  const knoten = stoffTeil(jeStufe(KNOTEN_GEO), binde);
   if (tuch) {
     // Halstuch-Knoten seitlich (wie bei den Ganzfiguren)
     knoten.scale.set(0.02, 0.017, 0.014);
@@ -1070,15 +1109,21 @@ export function kopfschrank(m, breite, rollen) {
       const kg = new THREE.Group();
       kg.position.set(x, y, tiefe / 2);
       kg.userData.lichtZonen = [0.025, 0.16, 0.45];
-      const h = hals(m.wachs);
-      h.position.set(0, 0.09, -0.012);
-      kg.add(h);
-      const ab = halsAbschluss(m, rolle);
-      ab.position.set(0, 0.045, -0.012);
-      kg.add(ab);
-      const wk = wachskopf(m, rolle, false);
-      wk.position.set(0, 0.235, 0);
-      kg.add(wk);
+      // Hals, Kragen und Kopf: Detailstufen je Kopf (welt/stufen.js)
+      const kopfTeil = () => {
+        const t = new THREE.Group();
+        const h = hals(m.wachs);
+        h.position.set(0, 0.09, -0.012);
+        t.add(h);
+        const ab = halsAbschluss(m, rolle);
+        ab.position.set(0, 0.045, -0.012);
+        t.add(ab);
+        const wk = wachskopf(m, rolle, false);
+        wk.position.set(0, 0.235, 0);
+        t.add(wk);
+        return t;
+      };
+      kg.add(alsStufe(kopfTeil(), () => sparsam(kopfTeil), { abstand: STUFEN_ABSTAND.schrankkopf }));
       g.add(kg);
     }
   }

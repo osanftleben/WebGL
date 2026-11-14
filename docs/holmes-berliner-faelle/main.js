@@ -15,6 +15,7 @@ import { erstelleHinweiskarte } from './ui/hinweiskarte.js';
 import { erstelleNotizbuch } from './ui/notizbuch.js';
 import { erstelleGespraech } from './ui/gespraech.js';
 import { baueSchutzmann } from './welt/personen.js';
+import { alleStufen } from './welt/stufen.js';
 import { GESPRAECH_KRANICH } from './fall1/gespraech-kranich.js';
 import { ladeSpielstand, speichereSpielstand, loescheSpielstand, ladeTonAn, speichereTonAn } from './fall1/spielstand.js';
 import { erstelleKlaenge } from './ton/klaenge.js';
@@ -48,8 +49,15 @@ aktiviereSchatten(funde.gruppe);
 aktiviereSchatten(kranich);
 const kranichHindernis = { minX: 5.0, maxX: 5.6, minZ: 15.3, maxZ: 15.9 };
 // Sichtbarkeit je Zelle: Kranich (dreht sich zum Spieler → Rand) und Leiche gehören zu ihrer Zelle in Raum B
-etage.sichtbarkeit.registriere(kranich, { rand: 0.4 });
-for (const teil of funde.gruppe.children) if (teil.name === 'Leiche') etage.sichtbarkeit.registriere(teil);
+// Detailstufen von Kranich und Leiche folgen der Zelle, in der das ganze Objekt angemeldet ist
+kranich.userData.stufen.verknuepfe(etage.sichtbarkeit, etage.sichtbarkeit.registriere(kranich, { rand: 0.4 }));
+for (const teil of funde.gruppe.children) {
+  if (teil.name !== 'Leiche') continue;
+  const zelle = etage.sichtbarkeit.registriere(teil);
+  for (const s of funde.stufen.leiche) s.verknuepfe(etage.sichtbarkeit, zelle);
+}
+// Alle Detailstufen (welt/stufen.js) für die Bildschleife
+const stufen = alleStufen([etage.stufen, ...funde.stufen.leiche, funde.stufen.figur, kranich.userData.stufen]);
 // Vorab berechnete Beleuchtung (Strahlverfolgung): Lichtkarte für statische Quader und Flächen,
 // Lichtgitter für alles andere. Fehlt sie, gilt die alte Näherung mit Lampen.
 // Aufhellung ohne Neuberechnung (Nutzer 14. 11.: Figuren und Ecken zu dunkel):
@@ -279,7 +287,7 @@ const auge = erstelleAugenanpassung(renderer, scene, camera, AUGEN_OPTIONEN);
 // Nur lokal: window.__debug für Prüfungen (/perf-check); weitere Objekte für Tests
 stelleBereit({ renderer, scene, camera });
 if (/** @type {any} */ (window).__debug) {
-  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere, lichtgitterWerte, bodenGlanzWerte, belichtung: auge });
+  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, stufen, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere, lichtgitterWerte, bodenGlanzWerte, belichtung: auge });
   // Nur lokal: Raummodell an das Lichtberechnungs-Programm schicken (python .claude/scripts/holmes_licht.py empfange)
   /** @type {any} */ (window).__debug.sendeLichtModell = () =>
     // Gleicher Rechner wie die Vorschau, anderer Anschluss (8765); nur lokal aktiv
@@ -315,7 +323,11 @@ starteSchleife(renderer, ({ delta }) => {
   aktualisiereWendung(delta);
   // Nur zeichnen, was zu sehen sein kann (vor Messbild und Hauptbild). Das erste Bild zeichnet alles,
   // damit alle Shader übersetzt sind und beim ersten Betreten eines Raums nichts ruckelt.
-  if (bildNr++ > 0) etage.sichtbarkeit.aktualisiere(camera);
+  // Danach je sichtbarer Figur die Detailstufe nach Abstand (welt/stufen.js).
+  if (bildNr++ > 0) {
+    etage.sichtbarkeit.aktualisiere(camera);
+    stufen.aktualisiere(camera, renderer);
+  }
   antippen.aktualisiere();
   auge.aktualisiere(delta);
   renderer.render(scene, camera);

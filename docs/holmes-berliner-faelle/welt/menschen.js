@@ -296,12 +296,68 @@ function kopfWinkel(s, t) {
   return [a, p];
 }
 
+// ---------- Detailstufe (LOD) ----------
+// Innerhalb von `sparsam(() => …)` entstehen alle Formen dieses Moduls mit gröberem Gitter (ferne
+// Detailstufe, siehe welt/stufen.js). Kleine Teile (Ohren, Brille, Augenklappe, Mütze) bleiben gleich,
+// Knöpfe werden einfachere Kugeln. Außerhalb ist alles unverändert (volle Stufe).
+// Kleidung: Rumpf und alles Aufliegende (Weste, Hemd, Revers, Krawatte, Flicken, Gürtel, Knöpfe) liegen
+// in der sparsamen Stufe auf DERSELBEN groben Rumpffläche (gemeinsames Raster, `rumpfPunkt`), die
+// Zeilen der aufliegenden Teile fallen auf die Rasterzeilen des Rumpfs. So bleibt jede Lage wie in der
+// vollen Stufe über der darunter (sonst stach das Hemd stellenweise durch den Rock).
+let SPAR = false;
+/** Anteil der Gitterspalten/-zeilen in der sparsamen Stufe (Kopf, Ärmel, Rumpf) */
+const SPAR_ANTEIL = 0.55;
+/** Anteil beim Kopf (mit Haar und Bart): feiner, sonst verrutschen gemalte Augen und Brauen beim Umschalten */
+const KOPF_ANTEIL = 0.8;
+/** @param {number} n Gitterteilung der vollen Stufe @param {number} [min=3] @param {number} [anteil=SPAR_ANTEIL] */
+const teilung = (n, min = 3, anteil = SPAR_ANTEIL) => (SPAR ? Math.max(min, Math.round(n * anteil)) : n);
+/** Zeilenabstand des Rumpfs (m): voll, sparsam */
+const RUMPF_ZEILE = { voll: 0.032, spar: 0.045 };
+/** Spalten des Rumpfs rundum: voll, sparsam */
+const RUMPF_SPALTEN = { voll: 26, spar: 18 };
+
+/** @returns {boolean} true innerhalb von `sparsam(…)` (für Formen in anderen Modulen) */
+export function istSparsam() {
+  return SPAR;
+}
+
+/**
+ * Baut etwas in der sparsamen Detailstufe (gröberes Gitter für Kopf, Haar, Bart, Hals, Hände, Ärmel, Rumpf und Kleidung).
+ * @template T @param {() => T} bau @returns {T}
+ */
+export function sparsam(bau) {
+  return mitStufe(true, bau);
+}
+
+/**
+ * Baut etwas in der vollen Stufe, auch innerhalb von `sparsam` (z. B. eine Form, an der gemessen wird).
+ * @template T @param {() => T} bau @returns {T}
+ */
+export function vollStufe(bau) {
+  return mitStufe(false, bau);
+}
+
+/**
+ * @template T @param {boolean} spar @param {() => T} bau @returns {T}
+ */
+function mitStufe(spar, bau) {
+  const vorher = SPAR;
+  SPAR = spar;
+  try {
+    return bau();
+  } finally {
+    SPAR = vorher;
+  }
+}
+
 /** @type {Map<string, THREE.BufferGeometry>} */
 const cache = new Map();
 /**
  * @param {string} k @param {() => THREE.BufferGeometry} bau
  */
 function gemerkt(k, bau) {
+  // Sparsame Stufe getrennt merken (gleicher Schlüssel, gröberes Gitter)
+  if (SPAR) k = `spar|${k}`;
   let g = cache.get(k);
   if (!g) {
     g = bau();
@@ -338,7 +394,7 @@ function form(variante, alt, mehr = null) {
 function kopfGeometrie(variante, zelle, fein, alt = 0, raster = null, mehr = null) {
   return gemerkt(`kopf|${variante}|${zelle}|${fein}${alt ? `|${alt}` : ''}${raster ? `|${raster}` : ''}${mehr ? `|${JSON.stringify(mehr)}` : ''}`, () => {
     const v = form(variante, alt, mehr);
-    return gitter(raster?.[0] ?? (fein ? 40 : 26), raster?.[1] ?? (fein ? 30 : 20), (s, t) => {
+    return gitter(teilung(raster?.[0] ?? (fein ? 40 : 26), 3, KOPF_ANTEIL), teilung(raster?.[1] ?? (fein ? 30 : 20), 3, KOPF_ANTEIL), (s, t) => {
       const [a, p] = kopfWinkel(s, t);
       return kopfPunkt(a, p, v);
     }, (s, t) => {
@@ -800,7 +856,7 @@ export function kopf({ haut, zelle = 0, variante = 0, fein = true, haar = null, 
  * @param {THREE.Material} haut @param {number} [zelle=0]
  */
 export function hals(haut, zelle = 0) {
-  const geo = gemerkt(`hals|${zelle}`, () => einfarbigUV(new THREE.CylinderGeometry(0.055, 0.06, 0.13, 14, 1), hautUV(zelle)));
+  const geo = gemerkt(`hals|${zelle}`, () => einfarbigUV(new THREE.CylinderGeometry(0.055, 0.06, 0.13, SPAR ? 10 : 14, 1), hautUV(zelle)));
   return new THREE.Mesh(geo, haut);
 }
 
@@ -836,6 +892,8 @@ function handGeometrie(seite, zelle) {
     const q = new THREE.Quaternion();
     const e = new THREE.Euler();
     const teil = (/** @type {number[]} */ gr, /** @type {number[]} */ lage, rx = 0, rz = 0, fein = 12) => {
+      // sparsame Stufe: Handfläche 8, Finger 5 Teilungen
+      if (SPAR) fein = fein > 8 ? 8 : 5;
       const geo = new THREE.SphereGeometry(1, fein, Math.round(fein * 0.7));
       q.setFromEuler(e.set(rx, 0, rz));
       m.compose(new THREE.Vector3(...lage), q, new THREE.Vector3(...gr));
@@ -871,7 +929,7 @@ export function hand(haut, seite, zelle = 0) {
  */
 export function fuss(haut, zelle = 0) {
   const geo = gemerkt(`fuss|${zelle}`, () => {
-    const g = new THREE.SphereGeometry(1, 12, 8);
+    const g = SPAR ? new THREE.SphereGeometry(1, 8, 6) : new THREE.SphereGeometry(1, 12, 8);
     g.scale(0.042, 0.1, 0.034);
     return einfarbigUV(g, hautUV(zelle));
   });
@@ -880,11 +938,12 @@ export function fuss(haut, zelle = 0) {
 
 // ---------- Arme ----------
 
-const kugelGeo = new THREE.SphereGeometry(1, 14, 10);
-const knopfGeo = new THREE.SphereGeometry(1, 8, 6);
+const KUGEL_GEO = { voll: new THREE.SphereGeometry(1, 14, 10), spar: new THREE.SphereGeometry(1, 10, 7) };
+const KNOPF_GEO = { voll: new THREE.SphereGeometry(1, 8, 6), spar: new THREE.SphereGeometry(1, 5, 4) };
+const MANSCHETTE_GEO = { voll: new THREE.CylinderGeometry(0.041, 0.041, 0.02, 14, 1), spar: new THREE.CylinderGeometry(0.041, 0.041, 0.02, 10, 1) };/** Geteilte Grundformen der aktuellen Stufe */
+const stufenForm = (/** @type {{ voll: THREE.BufferGeometry, spar: THREE.BufferGeometry }} */ f) => (SPAR ? f.spar : f.voll);
 /** Winkel des Halstuch-Knotens um den Rumpf (vorn 0): seitlich, damit das Tuch nicht wie eine Krawatte wirkt */
 const TUCH_KNOTEN = 0.32;
-const manschetteGeo = new THREE.CylinderGeometry(0.041, 0.041, 0.02, 14, 1);
 
 /**
  * Ärmel als Röhre entlang einer Kurve mit abnehmendem Radius.
@@ -892,11 +951,12 @@ const manschetteGeo = new THREE.CylinderGeometry(0.041, 0.041, 0.02, 14, 1);
  */
 function aermelGeometrie(punkte, radien) {
   const weg = new THREE.CatmullRomCurve3(punkte);
-  const lang = 12;
+  const lang = teilung(12);
   const n = new THREE.Vector3();
   const b = new THREE.Vector3();
   const tang = new THREE.Vector3();
   const mitte = new THREE.Vector3();
+  // rundum in beiden Stufen 12 Kanten: gleicher Querschnitt am Handgelenk wie die Manschette erwartet
   return gitter(12, lang, (s, t) => {
     weg.getPointAt(t, mitte);
     weg.getTangentAt(t, tang);
@@ -939,7 +999,7 @@ export function arm({ stoff, haut, zelle, seite, schulter, ellbogen, handgelenk,
     g.add(stoffMesh(aermelGeometrie([p[0], p[1], mitte], [r0, r1, r1 * 0.98]), stoff, true));
     const unterarm = einfarbigUV(aermelGeometrie([mitte, p[2]], [r2 * 0.88, r2 * 0.76]), hautUV(zelle));
     g.add(new THREE.Mesh(unterarm, haut));
-    const um = stoffMesh(manschetteGeo, stoff);
+    const um = stoffMesh(stufenForm(MANSCHETTE_GEO), stoff);
     um.position.copy(mitte);
     um.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), p[2].clone().sub(p[1]).normalize());
     const ku = (1.2 * r1) / 0.047;
@@ -948,7 +1008,7 @@ export function arm({ stoff, haut, zelle, seite, schulter, ellbogen, handgelenk,
   } else {
     g.add(stoffMesh(aermelGeometrie(p, [r0, r1, r2]), stoff, true));
   }
-  const kugel = stoffMesh(kugelGeo, stoff);
+  const kugel = stoffMesh(stufenForm(KUGEL_GEO), stoff);
   const kk = (kg * r0) / 0.052;
   kugel.scale.set(0.05 * kk, 0.042 * kk, 0.054 * kk);
   kugel.position.copy(p[0]).add(new THREE.Vector3(0, -0.01, 0));
@@ -956,7 +1016,9 @@ export function arm({ stoff, haut, zelle, seite, schulter, ellbogen, handgelenk,
   const richtung = p[2].clone().sub(p[1]).normalize();
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), richtung);
   if (manschette) {
-    const m = stoffMesh(manschetteGeo, manschette);
+    // beide Stufen gleich (wie der Ärmelquerschnitt): die Ecken der Manschette stechen leicht durch den
+    // Ärmel; gröber stäche sie an anderen Stellen durch (heller Fleck beim Umschalten)
+    const m = stoffMesh(MANSCHETTE_GEO.voll, manschette);
     m.position.copy(p[2]).addScaledVector(richtung, -0.004);
     m.quaternion.copy(q);
     m.scale.set(km, 1, km);
@@ -1003,6 +1065,78 @@ function profilBei(profil, y) {
  * @returns {number[]}
  */
 export function rumpfPunkt(profil, th, y, aus = 0) {
+  if (!SPAR) return rumpfPunktGlatt(profil, th, y, aus);
+  // Sparsame Stufe: Punkt auf der groben Rumpffläche (dieselben Dreiecke wie rumpfGeometrie),
+  // versetzt entlang der Normale der glatten Fläche
+  const { y0, y1, reihen, spalten } = grobRaster(profil);
+  if (y > y1 || y < y0) return rumpfPunktGlatt(profil, th, y, aus);
+  // Winkel auf −π … π, Lage im Raster: Spalte (th = π(2s − 1)), Zeile von oben
+  const w = ((((th / PI + 1) % 2) + 2) % 2) - 1;
+  const fu = ((w + 1) / 2) * spalten;
+  const fv = ((y1 - y) / (y1 - y0)) * reihen;
+  const i = Math.min(spalten - 1, Math.floor(fu));
+  const j = Math.min(reihen - 1, Math.floor(fv));
+  const u = fu - i;
+  const v = fv - j;
+  const ecke = (/** @type {number} */ di, /** @type {number} */ dj) =>
+    rumpfPunktGlatt(profil, PI * ((2 * (i + di)) / spalten - 1), y1 - ((j + dj) / reihen) * (y1 - y0));
+  // Dreiecksteilung wie in gitter(): (a, c, a+1) für u + v ≤ 1, sonst (a+1, c, c+1)
+  /** @type {number[]} */
+  let p;
+  const b = ecke(1, 0);
+  const c = ecke(0, 1);
+  if (u + v <= 1) {
+    const a = ecke(0, 0);
+    p = [0, 1, 2].map((k) => a[k] + u * (b[k] - a[k]) + v * (c[k] - a[k]));
+  } else {
+    const d = ecke(1, 1);
+    p = [0, 1, 2].map((k) => d[k] + (1 - u) * (c[k] - d[k]) + (1 - v) * (b[k] - d[k]));
+  }
+  if (aus) {
+    const g = rumpfPunktGlatt(profil, th, y, 0);
+    const n = rumpfPunktGlatt(profil, th, y, 1);
+    for (const k of [0, 2]) p[k] += aus * (n[k] - g[k]);
+  }
+  return p;
+}
+
+/**
+ * Raster der groben Rumpffläche (sparsame Stufe), gemeinsam für Rumpf und alles Aufliegende.
+ * @param {Profil} profil
+ */
+function grobRaster(profil) {
+  const y0 = profil[0][0];
+  const y1 = profil[profil.length - 1][0];
+  return { y0, y1, reihen: Math.max(8, Math.round((y1 - y0) / RUMPF_ZEILE.spar)), spalten: RUMPF_SPALTEN.spar };
+}
+
+/**
+ * Höhen der Zeilen eines aufliegenden Teils von yo nach yu: gleichmäßig, `schritt` Abstand, mindestens
+ * `min` Zeilen. Sparsam zusätzlich die Rasterzeilen des groben Rumpfs, damit das Teil nicht über eine
+ * Kante der groben Fläche gespannt wird und in sie einsinkt (die eigenen Zeilen halten die Umrisse
+ * der Teile, z. B. geschwungene Ränder, wie in der vollen Stufe).
+ * @param {Profil} profil @param {number} yu @param {number} yo @param {number} schritt @param {number} min
+ * @returns {number[]}
+ */
+function zeilen(profil, yu, yo, schritt, min) {
+  const nt = Math.max(min, Math.round((yo - yu) / schritt));
+  const ys = Array.from({ length: nt + 1 }, (_, j) => yo - (j / nt) * (yo - yu));
+  if (!SPAR) return ys;
+  const { y0, y1, reihen } = grobRaster(profil);
+  for (let k = 0; k <= reihen; k++) {
+    const y = y1 - (k / reihen) * (y1 - y0);
+    // nur Rasterzeilen, die nicht (fast) auf einer eigenen Zeile liegen
+    if (y < yo && y > yu && ys.every((z) => Math.abs(z - y) > 0.002)) ys.push(y);
+  }
+  return ys.sort((a, b) => b - a);
+}
+
+/**
+ * Punkt auf der glatten Rumpffläche (volle Stufe), siehe rumpfPunkt.
+ * @param {Profil} profil @param {number} th @param {number} y @param {number} [aus=0]
+ * @returns {number[]}
+ */
+function rumpfPunktGlatt(profil, th, y, aus = 0) {
   const [hw, hd, zo] = profilBei(profil, y);
   const n = rundBei(profil, y);
   const s = Math.sin(th);
@@ -1032,19 +1166,20 @@ function winkelBei(profil, y, x) {
 function rumpfGeometrie(profil, untenZu, abgetragen = 0) {
   const y0 = profil[0][0];
   const y1 = profil[profil.length - 1][0];
-  const reihen = Math.max(8, Math.round((y1 - y0) / 0.032));
+  // sparsam: grobes Raster (gemeinsam mit allem Aufliegenden, siehe rumpfPunkt)
+  const reihen = SPAR ? grobRaster(profil).reihen : Math.max(8, Math.round((y1 - y0) / RUMPF_ZEILE.voll));
   // Zeile 0: Deckel oben, dann von oben nach unten, ggf. Deckel unten
   const nt = reihen + 1 + (untenZu ? 1 : 0);
   /** @type {FarbFn | undefined} */
   const farbFn = abgetragen
     ? (s, t) => [1 + abgetragen * (0.08 * Math.sin(s * 19 + t * 7) * Math.sin(t * 13 + s * 3) + 0.05 * Math.sin(s * 41 + t * 29) + 0.06 * glatt(0.3, 0, t) - 0.05 * glatt(0.6, 1, t)), 0]
     : undefined;
-  return gitter(26, nt, (s, t) => {
+  return gitter(SPAR ? grobRaster(profil).spalten : RUMPF_SPALTEN.voll, nt, (s, t) => {
     const j = Math.round(t * nt);
     const th = PI * (2 * s - 1);
     if (j === 0) return [0, y1, profilBei(profil, y1)[2]];
     if (untenZu && j === nt) return [0, y0, profilBei(profil, y0)[2]];
-    return rumpfPunkt(profil, th, y1 - ((j - 1) / reihen) * (y1 - y0));
+    return rumpfPunktGlatt(profil, th, y1 - ((j - 1) / reihen) * (y1 - y0));
   }, undefined, farbFn);
 }
 
@@ -1071,9 +1206,10 @@ function profilZwischen(profil, y0, y1, k = 1) {
  * @param {FarbFn} [farbFn]
  */
 function flicken(profil, yu, yo, bereich, aus, ns = 8, farbFn) {
-  const nt = Math.max(3, Math.round((yo - yu) / 0.025));
+  const ys = zeilen(profil, yu, yo, 0.025, 3);
+  const nt = ys.length - 1;
   return gitter(ns, nt, (s, t) => {
-    const y = yo - t * (yo - yu);
+    const y = ys[Math.round(t * nt)];
     const [a, b] = bereich(y);
     return rumpfPunkt(profil, a + (b - a) * s, y, aus);
   }, undefined, farbFn);
@@ -1088,14 +1224,15 @@ function reversGeometrie(profil, unten, vOben, oben, w) {
   const q = (/** @type {number} */ y) => Math.max(0, (y - unten) / (vOben - unten));
   // Breite des Revers; oben schmaler (Kerbe zum Kragen)
   const lw = (/** @type {number} */ y) => (0.026 + 0.05 * q(y)) * (1 - 0.45 * glatt(0.8, 0.9, q(y)));
-  const nt = Math.max(6, Math.round((vOben - unten) / 0.016));
+  const ys = zeilen(profil, unten, vOben, 0.016, 6);
+  const nt = ys.length - 1;
   /** @type {THREE.BufferGeometry[]} */
   const teile = [];
   for (const sx of [-1, 1]) {
     // s läuft mit x (Außenseite nach außen); innen (am V) 0, außen 1
     const innen = (/** @type {number} */ s) => (sx > 0 ? s : 1 - s);
     teile.push(gitter(6, nt, (s, t) => {
-      const y = vOben - t * (vOben - unten);
+      const y = ys[Math.round(t * nt)];
       const k = innen(s);
       const x = sx * (w(y) + lw(y) * k);
       return rumpfPunkt(profil, winkelBei(profil, y, x), y, 0.006 + 0.0045 * Math.sin(PI * k));
@@ -1103,7 +1240,7 @@ function reversGeometrie(profil, unten, vOben, oben, w) {
   }
   // Rockkragen: steht hinten und seitlich um den Hals, unten auf der Schulter
   const th0 = PI * 0.42;
-  const kragen = (/** @type {number} */ aus, /** @type {boolean} */ innenSeite) => gitter(18, 3, (s, t) => {
+  const kragen = (/** @type {number} */ aus, /** @type {boolean} */ innenSeite) => gitter(teilung(18, 12), 3, (s, t) => {
     const th = th0 + (innenSeite ? 1 - s : s) * (2 * PI - 2 * th0);
     const yo = oben + 0.03;
     const yu = oben - 0.03;
@@ -1216,7 +1353,7 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
     // Westenknöpfe auf der Mittellinie, Rockknöpfe unter dem V (zweireihig oder auf der Mitte)
     for (let i = 0; i < 3; i++) {
       const y = unten + 0.02 + i * ((hemdAb - unten - 0.02) / 3);
-      const k = stoffMesh(knopfGeo, knopf);
+      const k = stoffMesh(stufenForm(KNOPF_GEO), knopf);
       k.scale.setScalar(0.0055);
       k.position.set(...rumpfPunkt(profil, 0, y, 0.0045));
       g.add(k);
@@ -1225,7 +1362,7 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
       for (const sx of knoepfeMitte ? [0] : [-1, 1]) {
         const y = unten - 0.035 - i * (knoepfeMitte ? 0.06 : 0.1);
         if (y < profil[0][0] + 0.02) continue;
-        const k = stoffMesh(knopfGeo, knopf);
+        const k = stoffMesh(stufenForm(KNOPF_GEO), knopf);
         k.scale.setScalar(knoepfeMitte ? 0.006 : 0.008);
         k.position.set(...rumpfPunkt(profil, winkelBei(profil, y, sx * 0.05), y, 0.002));
         g.add(k);
@@ -1233,7 +1370,8 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
     }
     if (binder === 'krawatte' || binder === 'tuch') {
       // Krawattenknoten mittig bzw. dicker Knoten des Halstuchs seitlich
-      const knoten = stoffMesh(knopfGeo, krawatte);
+      // Knoten (bis 4 cm groß) auch in der sparsamen Stufe mit voller Kugel
+      const knoten = stoffMesh(KNOPF_GEO.voll, krawatte);
       if (binder === 'tuch') knoten.scale.set(0.02, 0.017, 0.014);
       else knoten.scale.set(0.016, 0.013, 0.01);
       knoten.position.set(...rumpfPunkt(profil, binder === 'tuch' ? TUCH_KNOTEN : 0, vOben - 0.002, binder === 'tuch' ? 0.011 : 0.008));
@@ -1259,12 +1397,14 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
   }
   if (kragen) {
     const art = kragenForm;
+    // sparsame Stufe: 10 Teilungen wie der Hals darunter (Ecken übereinander, kein Durchstechen)
+    const n = (/** @type {number} */ voll) => (SPAR ? 10 : voll);
     const geo = gemerkt(`kragen|${art}`, () => (art === 'roll'
-      ? new THREE.CylinderGeometry(0.071, 0.078, 0.06, 18, 1)
-      : art === 'tuch' ? new THREE.CylinderGeometry(0.066, 0.072, 0.034, 16, 1)
+      ? new THREE.CylinderGeometry(0.071, 0.078, 0.06, n(18), 1)
+      : art === 'tuch' ? new THREE.CylinderGeometry(0.066, 0.072, 0.034, n(16), 1)
         // offener Hemdkragen: oben etwas weiter, vorn eine Lücke (dort sieht man den Hals)
-        : art === 'offen' ? new THREE.CylinderGeometry(0.073, 0.068, 0.036, 16, 1, true, 0.55, Math.PI * 2 - 1.1)
-          : new THREE.CylinderGeometry(0.064, 0.067, 0.045, 16, 1)));
+        : art === 'offen' ? new THREE.CylinderGeometry(0.073, 0.068, 0.036, n(16), 1, true, 0.55, Math.PI * 2 - 1.1)
+          : new THREE.CylinderGeometry(0.064, 0.067, 0.045, n(16), 1)));
     const k = stoffMesh(geo, kragen);
     k.position.set(0, oben + (art === 'roll' ? 0.02 : art === 'tuch' || art === 'offen' ? 0.006 : 0.012), profil[profil.length - 1][3] - 0.012);
     g.add(k);
