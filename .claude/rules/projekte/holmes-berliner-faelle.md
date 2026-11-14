@@ -11,10 +11,9 @@ paths:
 ## Arbeitsstand (zuletzt 14. 11. 2026)
 - **LOD zurückgestellt** bis viele Details oder Einbußen bei der Bildrate (spätestens Projektende). Fertig: Sichtbarkeit (4eb7f01), Stufen voll/sparsam (019022f, Firefox ok). Offen: Umbau nach 50-%-Regel.
 - Fertig (Verlauf): Licht auf der Grafikkarte + Kontaktschatten (fcbfa13), Augenanpassung (`belichtung-v1` 1.0.1), Fensterausblick (d11b743; Laibungen fast weiß), Boden/Figuren heller (cea5718), Kranich-Helm (3ae345f), Besetzung (65f1767), Feinschliff C (e191cab). Firefox offen bei d11b743, cea5718, 3ae345f, e191cab. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben; zurückgestellt: Fenster-Überstrahlen.
-- **B1 Frauenköpfe** fertig (nicht committet, abgenommen, Firefox offen): Büsten 2/7, Schrank 0 Pl. 8, Schrank 1 Pl. 6; Draw-Calls gleich, 60 Bilder/s. Restpunkte: Schrank 1 Pl. 6 im Glasspiegel, Strähnen kaum sichtbar (Verlauf).
-- **Als Nächstes:** **B2** (Ganzfigur Frau, Gruppe 2), dann **Kranich neu** (Körper, Ausrüstung, Haltung; erst Uniform recherchieren; Helm 3ae345f bleibt).
-- **Danach:** D (Stuck, Beschläge), dann weitere Inhalte von Fall 1 (siehe Ausbaustufen).
-- Prüfhilfen: Vorschau `webgl-vorschau` (Pane einblenden); Draw-Calls bei 736 × 630 vergleichen. `ERR_CONNECTION_REFUSED` (Port 8765) harmlos.
+- **B1 Frauenköpfe** (9d3034b) und **B2 Dienstmagd als Ganzfigur** (Gruppe 2, Commit „B2 Dienstmagd …“) fertig, abgenommen, Firefox offen; Draw-Calls gleich, 60 Bilder/s, Licht neu berechnet. Restpunkte im Verlauf.
+- **Als Nächstes:** **Kranich neu** (Körper, Ausrüstung, Haltung; erst Uniform recherchieren; Helm 3ae345f bleibt), danach D (Stuck, Beschläge), dann Fall 1 (Ausbaustufen).
+- Prüfhilfen: Vorschau `webgl-vorschau` (Pane einblenden); Draw-Calls bei 736 × 630 vergleichen; `.claude/scripts/holmes_pruefhilfen.js` in die Konsole. Port-8765-Fehler harmlos.
 
 ## Ziel und Rahmen (Kurzfassung; vollständig: `.claude/notizen/holmes-rahmen.md`)
 - Browserspiel (Deutsch, Erwachsene), Ich-Perspektive, Handy und PC; Sherlock Holmes als „Sigerson“, Berlin 1892, mehrere Fälle.
@@ -33,7 +32,7 @@ Im Browser: `__debug.steuerung.setzePosition(x, z, blick)` (Blick vorwärts = (�
 1. Raum A gesamt: `(1,1, 0,5, π+0,45)`
 2. Raum A Fensterwand mit Gesims und Decke: `(5,5, 4,75, −π/2)`, nach oben schauen
 3. Raum A Hofwand mit Büsten: `(6,0, 3,0, π/2+0,3)`; Büsten nah: `(2,6, 6,2, 0,95)`
-3a. Figurengruppe nah `(4,6, 16,6, π/2)`, Kopfschrank nah `(2,6, 12,1, π/2)`
+3a. Figurengruppe nah `(4,6, 16,6, π/2)`, Kopfschrank nah `(2,6, 12,1, π/2)`, Dienstmagd seitlich `(3,0, 18,8, 0,85)`
 4. Ecke Fensterwand/Trennwand A|B: `(7,6, 8,0, −3π/4−0,15)`, leicht nach oben
 5. Fensterecke Raum A: `(7,0, 1,6, −1,25)`
 6. Raum B mit Kranich: `(5,3, 12,8, π)` und `(2,5, 11,0, π+0,6)`

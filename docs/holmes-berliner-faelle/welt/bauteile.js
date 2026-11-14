@@ -398,7 +398,7 @@ export const STAND = {
  * @property {boolean} [frauPlatz] vorgesehen für eine Frauenfigur (Sitzung B); bis dahin steht hier ein Mann
  * @property {'dienstmagd' | 'waescherin' | 'giftmischerin'} [frauRolle] Rolle der Frau (Kleidung nach FRAU_STAND)
  * @property {'mann' | 'frau'} [art] Figurenart; 'frau' (B1): Büste und Schrankkopf mit Frauenkopf, Taille, Stehkragen
- *   (Gesicht 14, 15 oder 23, Form 6 oder 7, Frisur 'hochgesteckt' oder 'dutt'). Ganzfiguren noch nicht (B2).
+ *   (Gesicht 14, 15 oder 23, Form 6 oder 7, Frisur 'hochgesteckt' oder 'dutt'); Ganzfigur (B2) mit bodenlangem Kleid.
  * @property {keyof typeof STOFF} [schuerze] @property {keyof typeof STOFF} [tuch] @property {keyof typeof STOFF} [kragen]
  *   Frauen: Farben von Schürze, Schultertuch und Kragen (sonst nach FRAU_STAND)
  */
@@ -455,11 +455,12 @@ export const BESETZUNG = {
       R(2, 2, 4, 'weiss', 'kranz', 'stoppel', { stand: 'wilddieb', krawatte: 'tabak' }), R(1, 9, 0, 'meliert', 'straehnig', 'schnurr', { stand: 'einbrecher', krawatte: 'bordeaux' }),
     ],
   ],
-  // Figurengruppe in Raum B: 0 mit Hut (Melone), 1 ohne, 2 hinten links neben dem Platz der Leiche (Schiebermütze)
+  // Figurengruppe in Raum B: 0 mit Hut (Melone), 1 ohne, 2 hinten links neben dem Platz der Leiche (Frau, B2)
   gruppe: [
     R(1, 20, 1, 'rot', 'kurz', 'struppig', { stand: 'zuhaelter', statur: 'kraeftig', rock: 'tabak', weste: 'senf', krawatte: 'rot', hose: 'hellgrau', hut: 'melone', merkmale: { nase: 0.06 } }),
     R(2, 10, 4, 'weiss', 'kranz', 'schnurrStruppig', { stand: 'hausierer', rock: 'braun', weste: 'grau', krawatte: 'schwarz', hose: 'tweed', flicken: 'tweed', merkmale: { ohr: 1 } }),
-    R(0, 8, 0, 'schwarz', 'zerzaust', 'stoppel', { stand: 'taschendieb', statur: 'schmal', rock: 'gruen', krawatte: 'blau', hose: 'braun', muetze: 'tweed', frauPlatz: true, frauRolle: 'dienstmagd' }),
+    // B2: Dienstmagd als Ganzfigur (bodenlanges dunkles Kleid, lange weiße Schürze, weißer Kragen)
+    R(1, 23, 6, 'dunkelblond', 'hochgesteckt', 'keiner', { art: 'frau', frauPlatz: true, frauRolle: 'dienstmagd' }),
   ],
 };
 
@@ -712,11 +713,13 @@ function kleidung(m, rolle, bueste) {
 /**
  * Kleidung einer Frauenbüste (B1): Taille mit hohem Stehkragen und Knopfreihe, nach Rolle Latzschürze
  * oder Schultertuch, ausgeblichen; Flicken wie bei den Männern.
- * @param {Materialien} m @param {Rolle} rolle
+ * @param {Materialien} m @param {Rolle} rolle @param {boolean} [ganz=false] Ganzfigur (B2) statt Büste
  * @returns {Omit<Parameters<typeof oberkoerper>[0], 'profil'>}
  */
-function kleidungFrau(m, rolle) {
+function kleidungFrau(m, rolle, ganz = false) {
   const fs = FRAU_STAND[rolle.frauRolle ?? 'waescherin'];
+  // Ganzfigur (B2): Oberteil wie die Büste, 0,085 m höher (KLEID_FRAU); Schürze lang bis knapp über den Saum
+  const dy = ganz ? KLEID_FRAU_HOEHER : 0;
   const f = (/** @type {keyof typeof STOFF} */ k) => farbe(m, STOFF[k]);
   const taille = f(rolle.rock ?? fs.taille);
   const schuerze = rolle.schuerze ?? fs.schuerze;
@@ -726,9 +729,12 @@ function kleidungFrau(m, rolle) {
     rock: taille, untenZu: true, revers: false, binder: 'keiner', abgetragen: fs.abgetragen,
     kragen: kragen ? f(kragen) : taille, kragenForm: 'hoch',
     knopfleiste: { stoff: f('horn'), anzahl: 6 },
-    schuerze: schuerze ? { stoff: f(schuerze), oben: 1.255, breite: 0.085, streifen: fs.streifen ?? false } : null,
+    schuerze: schuerze ? {
+      stoff: f(schuerze), oben: 1.255 + dy, breite: 0.085, streifen: fs.streifen ?? false,
+      ...(ganz ? { unten: 0.09, rockBreite: 0.18, taille: KLEID_FRAU_TAILLE, band: true } : {}),
+    } : null,
     schultertuch: tuch ? { stoff: f(tuch), tiefe: 0.15 } : null,
-    flecken: rolle.flicken ? [{ stoff: f(rolle.flicken), y: 1.215, th: 1.15, b: 0.2, h: 0.05 }] : [],
+    flecken: rolle.flicken ? [{ stoff: f(rolle.flicken), y: 1.215 + dy, th: 1.15, b: 0.2, h: 0.05 }] : [],
   };
 }
 
@@ -793,6 +799,22 @@ const GEHROCK_RUND = [[0.6, 0.198, 0.14, -0.005, 2.4], [0.8, 0.177, 0.122, 0, 2.
   [1.418, 0.155, 0.096, 0.002, 2.1], [1.452, 0.133, 0.085, 0, 2.0], [1.485, 0.103, 0.072, 0, 2.0], [1.52, 0.065, 0.058, 0, 2.0]];
 const SCHUH_GEO = { voll: new THREE.SphereGeometry(1, 12, 8), spar: new THREE.SphereGeometry(1, 8, 6) };
 
+/** Ganzfigur einer Frau (B2): Oberteil = BUESTE_FRAU um so viel höher, Taille (Schürzenband) in dieser Höhe */
+const KLEID_FRAU_HOEHER = 0.085;
+const KLEID_FRAU_TAILLE = 1.0;
+/**
+ * Kleid einer Frau (B2) vom Saum bis zum Hals, als ein Rumpfprofil (y, halbe Breite, halbe Tiefe, Versatz z,
+ * Rundlichkeit): weiter, bodenlanger Rock (Koch 1890, Limmer 1889), schmale Taille (Korsett), oben die Form
+ * der Frauenbüste. Etwa 1,66 m groß (Männer 1,76 m).
+ * @type {number[][]}
+ */
+const KLEID_FRAU = [[0.015, 0.272, 0.25, -0.012, 2.0], [0.1, 0.266, 0.244, -0.012, 2.0], [0.32, 0.243, 0.222, -0.011, 2.0],
+  [0.58, 0.205, 0.182, -0.008, 2.05], [0.78, 0.17, 0.138, -0.004, 2.1], [0.9, 0.148, 0.108, 0, 2.15],
+  [KLEID_FRAU_TAILLE, 0.124, 0.088, 0.003, 2.15], [1.09, 0.13, 0.094, 0.008, 2.2], [1.17, 0.142, 0.104, 0.014, 2.3],
+  ...BUESTE_FRAU.map(([y, ...r]) => [Math.round((y + KLEID_FRAU_HOEHER) * 1000) / 1000, ...r])];
+/** Kontaktfleck unter dem Rock (breiter als die Füße eines Mannes) */
+const FRAU_FLECK = { breite: 0.6, tiefe: 0.56, dz: -0.012 };
+
 /**
  * Lebensgroße, stilisierte Wachsfigur (etwa 1,75 m), gekleidet nach Stand (Gehrock, Joppe,
  * Hemdsärmel mit Weste, Kittel oder Troyer). Die Figur schaut nach +z.
@@ -806,13 +828,14 @@ const SCHUH_GEO = { voll: new THREE.SphereGeometry(1, 12, 8), spar: new THREE.Sp
  */
 export function figur(m, rolle, { hut = false, armWinkel = 0.12, quaderSchuhe = true } = {}) {
   const g = new THREE.Group();
+  const frau = rolle.art === 'frau';
   g.userData.lichtZonen = FIGUR_ZONEN;
-  g.userData.kontaktFleck = FIGUR_FLECK;
+  g.userData.kontaktFleck = frau ? FRAU_FLECK : FIGUR_FLECK;
   const st = STATUR[rolle.statur ?? 'mittel'];
   // Quader-Schuhe zählen im Lichtmodell (Lichtkarte) und bleiben außerhalb der Detailstufen
-  if (quaderSchuhe) for (const s of [-1, 1]) g.add(box(0.1, 0.06, 0.24, s * 0.09, 0.03, 0.05, m.eisen));
+  if (quaderSchuhe && !frau) for (const s of [-1, 1]) g.add(box(0.1, 0.06, 0.24, s * 0.09, 0.03, 0.05, m.eisen));
   // Alles Runde (Beine, Rumpf, Arme, Kopf, Hut): Detailstufen (welt/stufen.js)
-  const figurTeil = () => figurKoerper(m, rolle, st, { hut, armWinkel, quaderSchuhe });
+  const figurTeil = () => (frau ? frauKoerper(m, rolle, armWinkel) : figurKoerper(m, rolle, st, { hut, armWinkel, quaderSchuhe }));
   g.add(alsStufe(figurTeil(), () => sparsam(figurTeil), { abstand: STUFEN_ABSTAND.figur }));
   return g;
 }
@@ -886,6 +909,42 @@ function figurKoerper(m, rolle, st, { hut, armWinkel, quaderSchuhe }) {
     kr.position.set(0, 1.707, -0.004);
     g.add(kr);
   }
+  return g;
+}
+
+/**
+ * Runde Teile einer Frauenfigur (B2): Kleid mit bodenlangem Rock (KLEID_FRAU) und Kleidung nach FRAU_STAND,
+ * lange, enge Ärmel ohne Manschette (Limmer 1889), Schuhspitzen unter dem Saum (Schuhe nicht belegt, daher
+ * nur angedeutet), Hals und Kopf wie bei der Frauenbüste.
+ * @param {Materialien} m @param {Rolle} rolle @param {number} armWinkel
+ */
+function frauKoerper(m, rolle, armWinkel) {
+  const g = new THREE.Group();
+  const o = kleidungFrau(m, rolle, true);
+  for (const s of [-1, 1]) {
+    const schuh = stoffTeil(jeStufe(SCHUH_GEO), farbe(m, STOFF.schwarz));
+    schuh.scale.set(0.042, 0.03, 0.1);
+    schuh.position.set(s * 0.07, 0.03, 0.17);
+    schuh.rotation.y = s * 0.15;
+    g.add(schuh);
+  }
+  g.add(oberkoerper({ profil: KLEID_FRAU, ...o }));
+  const sw = Math.sin(armWinkel);
+  for (const s of [-1, 1]) {
+    g.add(arm({
+      stoff: o.rock, haut: m.wachs, zelle: 0, seite: s, manschette: null, kugel: 1.1, krempel: 0,
+      // schmaler als bei den Männern, Schultern tiefer und enger (BUESTE_FRAU), Hände kleiner
+      radien: [0.04, 0.034, 0.028], handGroesse: 0.8,
+      schulter: [s * 0.128, 1.3, 0.004], ellbogen: [s * (0.162 + sw * 0.24), 1.07, -0.008], handgelenk: [s * (0.168 + sw * 0.46), 0.85, 0.07],
+    }).gruppe);
+  }
+  const oben = KLEID_FRAU[KLEID_FRAU.length - 1][0];
+  const h = halsNachArt(m, rolle);
+  h.position.set(0, oben + 0.045, -0.012);
+  g.add(h);
+  const k = wachskopf(m, rolle, true);
+  k.position.y = oben + 0.115;
+  g.add(k);
   return g;
 }
 

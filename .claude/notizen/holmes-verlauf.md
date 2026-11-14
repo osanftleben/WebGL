@@ -188,3 +188,12 @@ Aktuelle Regeln und Arbeitsstand stehen in `.claude/rules/projekte/holmes-berlin
 - Messung (736 × 630): Draw-Calls wie 019022f (Büsten nah 33, Kopfschrank 78, Hofwand 59, Gruppe 64, B Kranich 103, B schräg 105), 60 Bilder/s. Lichtmodell unverändert gültig.
 - Fleckprüfung (Einheit allein, 1920 × 1080, Umschaltabstand, 3 Richtungen, Augenhöhe): neue Einheiten 2, 7, 17, 27 je 0. Unveränderte Schrank-1-Köpfe Pl. 0/2/4 zeigen bei dieser Blickhöhe 1–2 Punkte (andere Prüfanordnung als im LOD-Protokoll).
 - Restpunkte: Schrank 1 Pl. 6 liegt vom Blickpunkt „Kopfschrank nah“ im Fensterspiegel des Glases (schwer erkennbar); lose Strähnen kaum sichtbar. Nutzer hat so abgenommen.
+
+## B2 Dienstmagd als Ganzfigur (14. 11. 2026, Aufgabensitzung, Runde 0/2, committet)
+- Gruppe 2 = `R(1, 23, 6, 'dunkelblond', 'hochgesteckt', …, art 'frau', frauRolle 'dienstmagd')` statt Taschendieb. Belege: Rock weit, bodenlang (Koch 1890, Limmer 1889), lange weiße Schürze, hinten gebunden (Limmer), enge lange Ärmel, weißer Kragen (Paulsen). Schuhe nicht belegt → nur Spitzen unter dem Saum.
+- bauteile.js: `KLEID_FRAU` (ein Rumpfprofil Saum 0,015 → Hals 1,43; Rock halb 0,272 × 0,25, Taille 1,0 m 0,124 × 0,088; oben `BUESTE_FRAU` + 0,085, Hals/Kopf wie Büste), `frauKoerper()`, `figur()` verzweigt bei `art: 'frau'` (keine Quader-Schuhe), `FRAU_FLECK` 0,6 × 0,56, `kleidungFrau(m, rolle, ganz)`. Größe ≈ 1,66 m.
+- menschen.js `schuerze`: `unten`, `rockBreite`, `taille`, `band` (Ganzfigur: Latz und Rockteil getrennt, Stoß unter dem Schürzenband, sonst dunkle Zwickel = 1 Fleck-Kern; Band 36 Teile = 2 × grobe Rumpfspalten, Knoten + 2 Enden hinten). Büsten unverändert.
+- Lichtmodell neu berechnet (Rock verdeckt anders; Prüfsumme gleich 77bcb35e): 1,4 % der Lichtkarte > 2 Stufen, v. a. Nahverdeckung auf dem Podest und am Sockel von Büste 7 (Rest aus B1).
+- Messung (736 × 630): Draw-Calls Gruppe nah 64, B Kranich 103, B schräg 105, Kopfschrank 78, Büsten 33 (alle gleich); Dreiecke Gruppe 48 192 → 48 958; 60 Bilder/s. Fleckprüfung Einheit 35: 0/0/0 Kerne (Gegenprobe Männer 33/34: 0).
+- Prüfhilfe jetzt als Datei `.claude/scripts/holmes_pruefhilfen.js` (Regel in CLAUDE.md: nichts nur im Browser ablegen).
+- Restpunkte (vom Nutzer so abgenommen): an Figuren in „Gruppe nah“ nur 3 Haarfarben (rot, weiß, dunkelblond) – der ersetzte Mann war der schwarzhaarige; aus „Raum B mit Kranich“/„B schräg“ ist die Frau von der Zylinderfigur verdeckt (Blickpunkt „Dienstmagd seitlich“ ergänzt); Schultern von hinten eher breit.

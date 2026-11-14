@@ -1354,7 +1354,9 @@ function reversGeometrie(profil, unten, vOben, oben, w) {
  * @param {boolean} [o.knoepfeMitte=false] Rockknöpfe einreihig auf der Mitte (Weste)
  * @param {Array<{ stoff: Stoff, y: number, th: number, b?: number, h?: number }>} [o.flecken=[]] aufgesetzte Flicken
  * @param {{ stoff: Stoff, anzahl: number } | null} [o.knopfleiste=null] Frauen (B1): Knopfreihe der Taille vom Hals abwärts
- * @param {{ stoff: Stoff, oben: number, breite: number, streifen?: boolean } | null} [o.schuerze=null] Latzschürze bis `oben`
+ * @param {{ stoff: Stoff, oben: number, breite: number, streifen?: boolean, unten?: number, rockBreite?: number,
+ *   taille?: number, band?: boolean } | null} [o.schuerze=null] Latzschürze bis `oben`; Ganzfigur (B2): ab `unten`,
+ *   unter `taille` halb `rockBreite` breit, `band` = Schürzenband mit Knoten hinten
  * @param {{ stoff: Stoff, tiefe: number } | null} [o.schultertuch=null] Tuch um die Schultern, vorn gekreuzt und geknotet
  * @returns {THREE.Group}
  */
@@ -1477,14 +1479,40 @@ export function oberkoerper({ profil: grundProfil, rock, untenZu = false, aussch
     g.add(stoffMesh(fl, f.stoff));
   }
   if (schuerze) {
-    // Latz: vorn vom unteren Rand bis `oben`, oben etwas schmaler; Ränder dunkler, wahlweise Längsstreifen
-    const { breite: sb, oben: so, streifen = false } = schuerze;
-    const latz = gemerkt(`latz|${schluessel}|${so}|${sb}|${streifen}`, () => flicken(profil, profil[0][0], so, (y) => {
-      const b = sb * (1 - 0.15 * glatt(profil[0][0], so, y));
-      return [winkelBei(profil, y, -b), winkelBei(profil, y, b)];
-      // gestreift: je Streifen zwei Spalten, damit die Farbe nicht verwischt
-    }, 0.0042, streifen ? 18 : 10, (s, t) => [(Math.min(s, 1 - s) < 0.01 || t < 0.01 ? 0.8 : 1) * (streifen && Math.round(s * 18) % 4 < 2 ? 0.62 : 1), 0]));
+    // Latz: vorn vom unteren Rand bis `oben`, oben etwas schmaler; Ränder dunkler, wahlweise Längsstreifen.
+    // Ganzfigur (B2): lange Schürze ab `unten`, unter der Taille `rockBreite` breit, Band um die Taille
+    const { breite: sb, oben: so, streifen = false, unten = profil[0][0], rockBreite = 0, taille = 0, band = false } = schuerze;
+    // gestreift: je Streifen zwei Spalten, damit die Farbe nicht verwischt
+    const farbFn = (/** @type {number} */ s, /** @type {number} */ t) => [(Math.min(s, 1 - s) < 0.01 || t < 0.01 ? 0.8 : 1) * (streifen && Math.round(s * 18) % 4 < 2 ? 0.62 : 1), 0];
+    const teil = (/** @type {number} */ yu, /** @type {number} */ yo, /** @type {(y: number) => number} */ b, /** @type {number} */ ns) =>
+      flicken(profil, yu, yo, (y) => [winkelBei(profil, y, -b(y)), winkelBei(profil, y, b(y))], 0.0042, ns, farbFn);
+    const latz = gemerkt(`latz|${schluessel}|${so}|${sb}|${streifen}|${unten}|${rockBreite}|${taille}`, () => (rockBreite
+      // Ganzfigur: Latz über und Rockteil unter der Taille, Stoß genau unter dem Schürzenband (sonst sieht
+      // man im Übergang dunkle Zwickel des Kleides); unten leicht weiter (hängt über dem Rock)
+      ? verbinde([
+        teil(unten, taille, (y) => rockBreite * (1 + 0.12 * glatt(taille, unten, y)), 14),
+        teil(taille, so, (y) => sb * (1 - 0.15 * glatt(taille, so, y)), 10),
+      ])
+      : teil(unten, so, (y) => sb * (1 - 0.15 * glatt(unten, so, y)), streifen ? 18 : 10)));
     g.add(stoffMesh(latz, schuerze.stoff));
+    if (band && taille) {
+      // Schürzenband um die Taille, hinten geknotet, zwei kurze Enden hängen herab (Limmer 1889: „hinten mit Schleife“)
+      const bd = gemerkt(`schuerzenband|${schluessel}|${taille}`, () => verbinde([
+        // 36 Teile in beiden Stufen: jeder zweite Punkt liegt auf einer Spalte des groben Rumpfs (18),
+        // sonst sinkt das Band sparsam zwischen seinen Punkten in den Rumpf ein (Fleckprüfung)
+        flicken(profil, taille - 0.014, taille + 0.014, () => [-PI, PI], 0.0058, 2 * RUMPF_SPALTEN.spar, (s) => [0.92 + 0.08 * Math.sin(s * 40), 0]),
+        ...[-1, 1].map((sx) => flicken(profil, taille - 0.24, taille - 0.01, (y) => {
+          const q = (taille - y) / 0.23;
+          const m = PI + sx * (0.06 + 0.05 * q);
+          return [m - 0.045, m + 0.045];
+        }, 0.0062, 3, (s, t) => [t > 0.98 ? 0.8 : 0.95, 0])),
+      ]));
+      g.add(stoffMesh(bd, schuerze.stoff));
+      const knoten = stoffMesh(KNOPF_GEO.voll, schuerze.stoff);
+      knoten.scale.set(0.028, 0.02, 0.014);
+      knoten.position.set(...rumpfPunkt(profil, PI, taille, 0.014));
+      g.add(knoten);
+    }
   }
   if (knopfleiste) {
     // Knopfreihe der Taille vom Hals abwärts (über dem Latz, falls einer da ist)

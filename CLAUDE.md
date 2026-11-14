@@ -30,6 +30,7 @@ recherche/quellen/          ← nicht im Git: Textauszüge und geladene Quellen 
 - JavaScript mit **JSDoc**-Typhinweisen, Module mit `import`/`export`, Top-Level-`await` erlaubt.
 - Shader als eigene Dateien `shaders/*.vert` / `*.frag`, laden mit `shader/laden.js`, Pfade per `new URL('./shaders/x.vert', import.meta.url)`.
 - Debug: `debug/debug.js` → `stelleBereit({ renderer, scene, camera })`; nur auf 127.0.0.1 aktiv (`window.__debug`).
+- **Nichts Nützliches nur im Browser ablegen** (Seite, Konsole, `localStorage`): geht beim Neuladen oder Löschen verloren. Prüfhilfen und Messskripte als Datei unter `.claude/scripts/` (bei Bedarf in die Konsole einfügen), Ergebnisse ins Protokoll bzw. in die Notizen. Spielstände des Spiels selbst sind davon nicht betroffen.
 - **Der Nutzer spielt in Firefox, Claude prüft nur in Chromium.** Nichts bauen, das von exakten Gleitkomma-Ergebnissen abhängt (Abgleich JS ↔ Python nur über gerundete oder ganze Werte). Bei browserabhängigen Funktionen den Nutzer gezielt in Firefox prüfen lassen.
 
 ## Grafik und Feinschliff
