@@ -12,9 +12,14 @@
 import * as THREE from 'three';
 import { zufall } from './texturen.js';
 
-/** Größe des Atlas in Bildpunkten */
+/** Größe des Atlas in Bildpunkten (Malmaßstab; UV und Bereiche beziehen sich darauf) */
 const W = 2048;
 const H = 2048;
+/**
+ * Tatsächliche Leinwandgröße = Malmaßstab × Skala. 0,5 → 1024 × 1024 ≈ 5,3 MB Grafikspeicher mit Mipmaps
+ * (vorher 2048 × 2048 ≈ 21,3 MB; zu viel für Mittelklasse-Handys). Hinter Sprossen und Dunst reicht das.
+ */
+const ATLAS_SKALA = 0.5;
 /** Bildpunkte je Meter in den Hauszellen (Zelle 512 × 1024 = 16 m × 32 m) */
 const PX = 32;
 const ZELLE_B = 512;
@@ -263,9 +268,12 @@ function maleHaus(ctx, x0, a, z) {
  */
 function ausblickTextur() {
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = W * ATLAS_SKALA;
+  canvas.height = H * ATLAS_SKALA;
   const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
+  // Gemalt wird weiter im 2048er-Maßstab (Bereiche, Zufallsfolge und Aussehen bleiben gleich),
+  // das Zeichenfeld verkleinert nur die Leinwand
+  ctx.scale(ATLAS_SKALA, ATLAS_SKALA);
   const z = zufall(1892);
 
   HAUSARTEN.forEach((a, i) => maleHaus(ctx, i * ZELLE_B, a, z));
@@ -319,7 +327,7 @@ function ausblickTextur() {
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
       g.addColorStop(0, `rgba(${farbe},${dunkler ? 0.35 : 0.45})`);
       g.addColorStop(1, `rgba(${farbe},0)`);
-      ctx.setTransform(3.2, 0, 0, 0.7, cx, cy);
+      ctx.setTransform(3.2 * ATLAS_SKALA, 0, 0, 0.7 * ATLAS_SKALA, cx * ATLAS_SKALA, cy * ATLAS_SKALA);
       ctx.fillStyle = g;
       ctx.fillRect(-r, -r, 2 * r, 2 * r);
     }
