@@ -38,7 +38,7 @@ Wird **nicht** automatisch geladen. Lesen bei Arbeit an Fall 1, Figuren, Texten,
 ### Entwurf Fall 1 (vom Nutzer freigegeben)
 - **Datum (vorläufig):** Donnerstag, 13. 10. 1892. Sonne ca. 6.22 / 17.10 Uhr **Berliner Ortszeit** (berechnet nach NOAA-Formeln, gegen heutige Daten geprüft).
 - **Fund der Leiche (geändert, vom Nutzer bestätigt):** Kassiererin Ida Brandt findet den Toten kurz nach halb acht beim Aufschließen und holt Schutzmann Kranich von der Straße (Dienst an der Ecke Behrenstraße) herein. Grund: Das Panoptikum öffnete erst um 9 Uhr; ein Schutzmann kommt nicht von selbst in das verschlossene Haus.
-- **Figuren (alle erfunden):** Schutzmann Paul Kranich (~24, wird von Ida Brandt hereingeholt). Kriminalkommissar Gustav Dorn (glaubt an Unfall/Selbstmord wegen Schulden des Opfers). Opfer Emil Wendt, Wachsbildner in Castans Panoptikum.
+- **Figuren (alle erfunden):** Schutzmann Paul Kranich (~28, gedienter Unteroffizier – Einstellung nur nach 9 Jahren Armeedienst, ≥ 1,70 m, Recherche 2026-11-14-holmes-schutzmann-uniform-1892; wird von Ida Brandt hereingeholt). Kriminalkommissar Gustav Dorn (glaubt an Unfall/Selbstmord wegen Schulden des Opfers). Opfer Emil Wendt, Wachsbildner in Castans Panoptikum.
 - **Verdächtige:** Friedrich Lassow (erfundener **Geschäftsführer** von Castans Panoptikum – nicht Inhaber; vom Nutzer bestätigt; Geldsorgen, Lohnstreit; unschuldig, Alibi). Ida Brandt (Kassiererin, Nichte und Erbin; unschuldig, Alibi). **Otto Rehfeld** (Gehilfe) = **Täter**.
 - **Tathergang:** Rehfeld goss in Wendts Werkstatt heimlich Schlüssel nach Wachsabdrücken der Schlüssel von *Juwelier Albrecht* (erfunden, Kaisergalerie). Wendt entdeckte es und drohte mit der Polizei; Rehfeld erschlug ihn nachts (nur angedeutet), zog ihm das Kostüm einer Mörderfigur an und stellte ihn in die Verbrecher-Abteilung – sollte wie ein Reklamescherz des Geschäftsführers wirken und die Entdeckung verzögern.
 - **Hinweise:**
@@ -61,7 +61,7 @@ Wird **nicht** automatisch geladen. Lesen bei Arbeit an Fall 1, Figuren, Texten,
   - Wetter 13. 10. 1892: keine Tageswerte gefunden (Web, Internet Archive) → als erfunden kennzeichnen oder neutral halten.
   - Beleuchtung Friedrichstraße: nicht belegt. Baedeker 1891 nennt elektrisches Licht nur für Unter den Linden (seit 1888) und Leipziger Straße (ab Friedrichstraße westwärts), für die Friedrichstraße nichts.
   - Polizeirevier für die Gegend: nicht gefunden. Belegt: 82 Polizeibureaux, Tag und Nacht offen → Schutzmann kommt „vom nächsten Polizeibureau“, ohne Adresse.
-  - Uniformfarbe Schutzmann: nicht belegt (Dunkelblau plausibel, nur Magdeburger Offiziersrock 1851–1900 als Vergleich). Helm mit Spitze und Säbel belegt.
+  - Uniformfarbe Schutzmann: Rock mittleres Blau, Hose dunkelblau (Museumsfigur 1898, mittel; Quellen-Notiz Block „Uniform … Schutzmannschaft“). Helm mit Spitze und Säbel belegt.
   - Namen gegen Adressbuch 1892 prüfen: nicht möglich – digital.zlb.de sperrt automatische Abrufe und zeigt eine Browserprüfung (nicht umgehen). Nutzer könnte Seiten selbst öffnen.
   - Straßenverlauf und Hausfronten nach Stadtplan/Fotos: offen (Stadtplan 1892 noch nicht gefunden).
 - **Schriften:** historisch passende Weltschrift und lesbare Oberflächenschrift, lokal mit freier Lizenz. Widerspricht derzeit `.claude/rules/html.md` („Schriften: System-Schriften“) – Regeländerung erst mit dem Nutzer klären.

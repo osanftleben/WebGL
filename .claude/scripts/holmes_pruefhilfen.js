@@ -8,6 +8,7 @@
 //   await __pruef.nah(x, z, zielX, zielZ, fov, dy)  Nahansicht: Blick von (x, z) auf (zielX, zielZ),
 //                                             Sichtfeld fov (Grad), dy = Bildausschnitt nach unten (0…1)
 //   __pruef.zurueck()                         Sichtfeld und Ausschnitt wieder normal
+//   await __pruef.kranich('vorn')             Nahblick Kranich: 'vorn' | 'seitlich' | 'hinten' (danach zurueck())
 //   __pruef.einheitBei(x, z)                  Nummern der Detailstufen-Einheiten nahe (x, z)
 //   __pruef.fleck(nr, richtung)               Fleckprüfung einer Einheit (siehe unten)
 //
@@ -152,6 +153,14 @@
     return { nr, abstand: e.abstand, ergebnis };
   }
 
-  window.__pruef = { messe, fps: (s = 3) => d.messeFps(s), nah, zurueck, einheitBei, fleck, RUNDGANG };
+  /** Nahblicke auf Schutzmann Kranich (5,3 | 15,6, Blick −z), Abnahme „Kranich neu“: ganze Figur im Bild */
+  // hinten: (3,6 | 17,8) wurde von einem Hindernis auf x 4,4 geschoben → (5,9 | 17,5)
+  const KRANICH_NAH = { vorn: [5.3, 12.6], seitlich: [8.2, 15.6], hinten: [5.9, 17.5] };
+  async function kranich(name = 'vorn') {
+    const [x, z] = KRANICH_NAH[name];
+    await nah(x, z, 5.3, 15.6, 50, 0.22);
+  }
+
+  window.__pruef = { messe, fps: (s = 3) => d.messeFps(s), nah, zurueck, einheitBei, fleck, kranich, RUNDGANG, KRANICH_NAH };
   return 'Prüfhilfen bereit: ' + Object.keys(window.__pruef).join(', ');
 })();

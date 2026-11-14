@@ -99,6 +99,19 @@ try {
 // erscheinen in der Spiegelung sonst übergroß, z. B. die Messingkanten der Vitrine)
 // (Aufnahme mit allem sichtbar, unabhängig von der Sichtbarkeitsprüfung)
 etage.sichtbarkeit.alles(() => erzeugeUmgebung(renderer, scene, new THREE.Vector3(4.5, 2.4, 2.4)));
+// Kranichs Helm (Lackleder, Silber) bekommt in der vollen Stufe eine eigene Spiegelung aus Raum B,
+// aufgenommen an seinem Kopf (Nutzer: Helm und Silber sollen spiegeln, nur in der höchsten Stufe;
+// Raum A ist beige und gäbe kaum Kontrast). Er selbst wird dabei ausgeblendet, sonst spiegelte der Helm
+// sein eigenes Inneres; danach stellt `alles` die Sichtbarkeit wieder her.
+etage.sichtbarkeit.alles(() => {
+  kranich.visible = false;
+  try {
+    return erzeugeUmgebung(renderer, scene, new THREE.Vector3(5.3, 1.85, 15.6), kranich,
+      (mat) => mat.userData.eigeneSpiegelung === true);
+  } finally {
+    kranich.visible = true;
+  }
+});
 
 // ---- Anzeige auf der Seite ----
 const istTouch = matchMedia('(pointer: coarse)').matches;

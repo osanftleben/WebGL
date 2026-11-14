@@ -87,9 +87,12 @@ export function schattenLicht(licht, umfang, groesse = 2048) {
  * @param {THREE.WebGLRenderer} renderer
  * @param {THREE.Scene} scene
  * @param {THREE.Vector3} ort Aufnahmepunkt (Raummitte in Augenhöhe)
+ * @param {THREE.Object3D} [wurzel=scene] nur Materialien unter dieser Wurzel bekommen die Umgebung
+ *   (z. B. eine eigene Aufnahme für eine einzelne Figur)
+ * @param {(mat: THREE.Material) => boolean} [nur] zusätzlich nur Materialien, für die das gilt
  * @returns {THREE.Texture}
  */
-export function erzeugeUmgebung(renderer, scene, ort) {
+export function erzeugeUmgebung(renderer, scene, ort, wurzel = scene, nur = () => true) {
   const ziel = new THREE.WebGLCubeRenderTarget(512, { type: THREE.HalfFloatType });
   // Fernebene 200 m: auch der Himmel des Straßenausblicks wird mit aufgenommen
   const wuerfelKamera = new THREE.CubeCamera(0.1, 200, ziel);
@@ -99,9 +102,9 @@ export function erzeugeUmgebung(renderer, scene, ort) {
   const textur = pmrem.fromCubemap(ziel.texture).texture;
   pmrem.dispose();
   ziel.dispose();
-  scene.traverse((o) => {
+  wurzel.traverse((o) => {
     const mat = /** @type {any} */ (/** @type {THREE.Mesh} */ (o).material);
-    if (mat && mat.isMeshStandardMaterial) {
+    if (mat && mat.isMeshStandardMaterial && nur(mat)) {
       mat.envMap = textur;
       mat.needsUpdate = true;
     }

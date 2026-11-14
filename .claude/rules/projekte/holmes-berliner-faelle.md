@@ -9,11 +9,13 @@ paths:
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/`.
 
 ## Arbeitsstand (zuletzt 14. 11. 2026)
-- **LOD zurückgestellt** bis viele Details oder Einbußen bei der Bildrate (spätestens Projektende). Fertig: Sichtbarkeit (4eb7f01), Stufen voll/sparsam (019022f, Firefox ok). Offen: Umbau nach 50-%-Regel.
-- Fertig (Verlauf): Licht auf der Grafikkarte + Kontaktschatten (fcbfa13), Augenanpassung (`belichtung-v1` 1.0.1), Fensterausblick (d11b743; Laibungen fast weiß), Boden/Figuren heller (cea5718), Kranich-Helm (3ae345f), Besetzung (65f1767), Feinschliff C (e191cab). Firefox offen bei d11b743, cea5718, 3ae345f, e191cab. **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben; zurückgestellt: Fenster-Überstrahlen.
-- **B1 Frauenköpfe** (9d3034b) und **B2 Dienstmagd als Ganzfigur** (Gruppe 2, Commit „B2 Dienstmagd …“) fertig, abgenommen, Firefox offen; Draw-Calls gleich, 60 Bilder/s, Licht neu berechnet. Restpunkte im Verlauf.
-- **Als Nächstes:** **Kranich neu** (Körper, Ausrüstung, Haltung; erst Uniform recherchieren; Helm 3ae345f bleibt), danach D (Stuck, Beschläge), dann Fall 1 (Ausbaustufen).
-- Prüfhilfen: Vorschau `webgl-vorschau` (Pane einblenden); Draw-Calls bei 736 × 630 vergleichen; `.claude/scripts/holmes_pruefhilfen.js` in die Konsole. Port-8765-Fehler harmlos.
+- **LOD zurückgestellt** (spätestens Projektende). Fertig: Sichtbarkeit (4eb7f01), Stufen voll/sparsam (019022f). Offen: Umbau nach 50-%-Regel.
+- Fertig, Firefox ok (Verlauf): Licht + Kontaktschatten (fcbfa13), Augenanpassung, Fensterausblick (d11b743), Boden/Figuren heller (cea5718), Besetzung (65f1767), Feinschliff C (e191cab), B1 Frauenköpfe (9d3034b), B2 Dienstmagd (f80bea6). **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben.
+- **Kranich neu** fertig (14. 11., nicht committet): Uniform, Helm mit „WR“ (Schwellbänder), Materialien; Firefox ok. Restpunkt: Monogramm „geht so“. Einzelheiten im Verlauf.
+- **Zusätzliche Effekte nur in der vollen Detailstufe** (Nutzer, fest); die sparsame Stufe bekommt gleiche Grundfarben, Fleckprüfung 0.
+- **Als Nächstes:** D (Stuck, Beschläge), dann Fall 1 (Ausbaustufen).
+- **Leistung: nur die Bildrate zählt** (Nutzer, fest): Draw-Calls sind keine Grenze und keine Abnahme – nicht danach fragen.
+- Prüfhilfen: Vorschau `webgl-vorschau` (Pane einblenden); `.claude/scripts/holmes_pruefhilfen.js` in die Konsole. Port-8765-Fehler harmlos.
 
 ## Ziel und Rahmen (Kurzfassung; vollständig: `.claude/notizen/holmes-rahmen.md`)
 - Browserspiel (Deutsch, Erwachsene), Ich-Perspektive, Handy und PC; Sherlock Holmes als „Sigerson“, Berlin 1892, mehrere Fälle.
