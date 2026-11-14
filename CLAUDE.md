@@ -51,13 +51,15 @@ tools/                      ← nicht im Git: glslang (bin/), three.js-Vorrat (v
 - Neue Bibliotheken nach Thema schneiden (`/neue-lib`), keine Sammelordner.
 
 ## Befehle
+- **Zeitlimit 2 Minuten (feste Regel):** Gilt für eigene, von Claude erstellte Skripte: Skriptdateien (`.py/.ps1/.sh/.bat/.cmd`) im Projektordner (außer `tools/`) und im Scratchpad sowie Inline-Code (`python -c`, `python -`). Diese nur über den Wächter starten: `python .claude/hooks/zeitlimit.py <befehl>` (z. B. `python .claude/hooks/zeitlimit.py python .claude/scripts/check.py`). Nach 120 s bricht er den Befehl samt aller Unterprozesse ab (Windows-Job-Objekt). Der Hook `zeitlimit_pruefen.py` blockiert ungeschützte Aufrufe (Bash, PowerShell, Terminal-Panel). Längere Rechnungen in Schritte unter 2 Minuten teilen. Fremde Programme und Werkzeuge (pip, git, glslang, `python -m <modul>`) laufen ohne Zeitlimit.
+- **Laufzeiten (feste Regel):** Der Wächter merkt sich je Skript die letzte Laufzeit (`.claude/laufzeiten.json`, nicht im Git). Dauerte der letzte Lauf länger als 2 Minuten oder wurde er abgebrochen, warnen Hook und Wächter beim nächsten Aufruf – diese Warnung immer an den Nutzer weitergeben.
+- Die Befehle unten sind in Kurzform notiert; ausgeführt werden sie mit dem Wächter davor.
 - Vorschau: `preview_start` mit `webgl-vorschau` → http://127.0.0.1:8000/ (Server: `.claude/scripts/vorschau.py`)
 - Gesamtprüfung: `python .claude/scripts/check.py [--uebersicht]`
 - Shader einzeln: `python .claude/scripts/shader_check.py <datei>`
 - Projekte/Startseite: `python .claude/scripts/projekte.py liste|startseite`
 - three.js-Zusatz: `python .claude/scripts/three_addon.py liste <filter>` / `hole <pfad>`
 - Bibliotheken: `python .claude/scripts/libs.py liste|neu|hauptversion`
-- Rechnungen, die länger als 2 Minuten dauern (z. B. `holmes_licht.py berechne`), im **Terminal-Panel** starten (`run_in_terminal`), nicht als Hintergrundaufgabe der Sitzung – die bricht mit der Sitzung ab.
 
 ## Wann ist etwas fertig?
 1. `check.py` meldet 0 Fehler (der Stop-Hook erzwingt das, sobald `docs/` Änderungen hat).

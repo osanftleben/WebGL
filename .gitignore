@@ -12,6 +12,8 @@
 # Claude Code: rechnerlokale Einstellungen und Session-Worktrees
 /.claude/settings.local.json
 /.claude/worktrees/
+/.claude/laufzeiten.json
+/.claude/laufzeiten.*.tmp
 
 # Abhängigkeiten und Build-Ausgaben
 node_modules/
