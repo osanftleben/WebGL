@@ -235,7 +235,7 @@ Ziel: Schutzmann Kranich bekommt neuen Körper, Ausrüstung und Haltung nach bel
 - offen: Firefox-Prüfung Nutzer, dann /abschluss
 
 ## 08:30 Abschluss
-- Ergebnis: Kranich neu fertig – Uniform, Helm mit „WR“ aus Schwellbändern, Materialien (nur volle Stufe: Lackleder, Raum-B-Spiegelung, Stoffstruktur); Firefox ok (Nutzer); nicht committet
+- Ergebnis: Kranich neu fertig – Uniform, Helm mit „WR“ aus Schwellbändern, Materialien (nur volle Stufe: Lackleder, Raum-B-Spiegelung, Stoffstruktur); Firefox ok (Nutzer); Commit 23fbdd2
 - Prüfung: check.py 0 Fehler; Fleckprüfung 0; Rundgang 13 Blicke je 60 Bilder/s; Gespräch geht
 - Restfehler: Monogramm „geht so“ (Nutzer); bewusste Abweichungen siehe holmes-verlauf.md
 - Notizen: Projektnotiz 5,0 KB, „Als Nächstes“ D (Stuck, Beschläge), dann Fall 1; Einzelheiten in holmes-verlauf.md

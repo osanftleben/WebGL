@@ -11,7 +11,7 @@ paths:
 ## Arbeitsstand (zuletzt 14. 11. 2026)
 - **LOD zurückgestellt** (spätestens Projektende). Fertig: Sichtbarkeit (4eb7f01), Stufen voll/sparsam (019022f). Offen: Umbau nach 50-%-Regel.
 - Fertig, Firefox ok (Verlauf): Licht + Kontaktschatten (fcbfa13), Augenanpassung, Fensterausblick (d11b743), Boden/Figuren heller (cea5718), Besetzung (65f1767), Feinschliff C (e191cab), B1 Frauenköpfe (9d3034b), B2 Dienstmagd (f80bea6). **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben.
-- **Kranich neu** fertig (14. 11., nicht committet): Uniform, Helm mit „WR“ (Schwellbänder), Materialien; Firefox ok. Restpunkt: Monogramm „geht so“. Einzelheiten im Verlauf.
+- **Kranich neu** fertig (23fbdd2): Uniform, Helm mit „WR“ (Schwellbänder), Materialien; Firefox ok. Restpunkt: Monogramm „geht so“. Einzelheiten im Verlauf.
 - **Zusätzliche Effekte nur in der vollen Detailstufe** (Nutzer, fest); die sparsame Stufe bekommt gleiche Grundfarben, Fleckprüfung 0.
 - **Als Nächstes:** D (Stuck, Beschläge), dann Fall 1 (Ausbaustufen).
 - **Leistung: nur die Bildrate zählt** (Nutzer, fest): Draw-Calls sind keine Grenze und keine Abnahme – nicht danach fragen.
