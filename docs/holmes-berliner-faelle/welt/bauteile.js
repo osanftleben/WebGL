@@ -1211,7 +1211,34 @@ export function hocker(m) {
   return g;
 }
 
-const schaleGeo = new THREE.SphereGeometry(0.12, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+/**
+ * Schale mit Wandstärke als Drehprofil: Außenwand (Viertelellipse) von unten nach oben, flacher Rand,
+ * Innenwand zurück nach unten. Die Eckpunkte am Rand sind doppelt, damit die Kanten scharf schattiert
+ * werden (LatheGeometry mittelt die Normalen nur über Abschnitte mit Länge).
+ * Ursprung an der Unterseite, Rand bei y = hoehe.
+ * @param {number} radius Außenradius am Rand @param {number} hoehe @param {number} wand Wandstärke (Rand und Boden)
+ * @param {number} teile Unterteilung im Umfang @param {number} stufen Punkte je Viertelellipse
+ */
+function schalenForm(radius, hoehe, wand, teile, stufen) {
+  /** @type {THREE.Vector2[]} */
+  const p = [];
+  const ri = radius - wand;
+  const hi = hoehe - wand;
+  for (let i = 0; i <= stufen; i++) {
+    const w = (i / stufen) * (Math.PI / 2);
+    p.push(new THREE.Vector2(radius * Math.sin(w), hoehe - hoehe * Math.cos(w)));
+  }
+  // je Randkante genau ein doppelter Punkt (die Innenwand beginnt wieder bei (ri, hoehe))
+  p.push(new THREE.Vector2(radius, hoehe), new THREE.Vector2(ri, hoehe));
+  for (let i = stufen; i >= 0; i--) {
+    const w = (i / stufen) * (Math.PI / 2);
+    p.push(new THREE.Vector2(ri * Math.sin(w), hoehe - hi * Math.cos(w)));
+  }
+  return new THREE.LatheGeometry(p, teile);
+}
+
+// Gipsform-Hälfte: 12 cm Radius (in der Tiefe ×1,2), 9 cm hoch, 1,5 cm Wand
+const schaleGeo = schalenForm(0.12, 0.09, 0.015, 24, 5);
 
 /**
  * Gipsform-Hälfte (Hohlform für einen Kopf), liegt mit der Öffnung nach oben.
@@ -1219,9 +1246,8 @@ const schaleGeo = new THREE.SphereGeometry(0.12, 16, 8, 0, Math.PI * 2, 0, Math.
  */
 export function gipsform(m) {
   const s = new THREE.Mesh(schaleGeo, m.gips);
-  s.rotation.x = Math.PI;
-  s.scale.set(1, 0.8, 1.2);
-  s.position.y = 0.1;
+  s.scale.set(1, 1, 1.2);
+  s.position.y = 0.01;
   const g = new THREE.Group();
   g.add(s);
   g.add(box(0.3, 0.02, 0.34, 0, 0.01, 0, m.gips));
