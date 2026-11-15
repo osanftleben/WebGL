@@ -521,6 +521,15 @@ def berechne(modell_datei: Path, ziel: Path, nur_cpu: bool = False) -> int:
             indirekt = fuelle(glaette(indirekt))
             feld = direkt + indirekt
             print(f"Gitter, Durchgang {durchgang + 1}: mittlere Helligkeit {feld[gueltig].mean():.4f}")
+        # Völlig lichtlose Punkte (abgeschlossene Hohlräume, z. B. hinter der schrägen Werkstattwand) wie Punkte
+        # in Wänden behandeln und aus Nachbarn auffüllen. Sonst mischt der Shader an der Wand diese Nullen ein,
+        # und weil die Schräge das Gitter schräg schneidet, entstehen im 0,4-m-Takt helle/dunkle Flecken
+        # (Gesims-Unterseite über der Schräge, Hinweis des Nutzers). Im Raum ist kein Punkt annähernd so dunkel.
+        dunkel = gueltig & (feld.reshape(anzahl, -1).max(axis=1) < 1e-4 * feld.max())
+        if dunkel.any():
+            gueltig = gueltig & ~dunkel
+            feld = fuelle(feld)
+            print(f"Gitter: {int(dunkel.sum())} lichtlose Punkte (Hohlräume) aus Nachbarn aufgefüllt")
         if not gk:
             del tref_t, tref_i, tref_n, pf, gewicht
         del richt
@@ -571,6 +580,7 @@ def berechne(modell_datei: Path, ziel: Path, nur_cpu: bool = False) -> int:
     # Je Seite: zurückgeworfenes Licht leicht glätten, verdeckte Bildpunkte aus Nachbarn füllen, Rand auffüllen
     atlas = np.zeros((hoehe, breite, 3))
     alpha = np.zeros((hoehe, breite))
+    gueltig = np.zeros((hoehe, breite), bool)   # Bildpunkt selbst berechnet (nicht verdeckt, nicht gefüllt)
     start = 0
     for s, f in enumerate(fl):
         x0, y0, w, h = (int(v) for v in f[0:4])
@@ -595,8 +605,10 @@ def berechne(modell_datei: Path, ziel: Path, nur_cpu: bool = False) -> int:
         fblock = np.pad(fr.T, 1, mode="edge")
         atlas[y0 - 1:y0 + h + 1, x0 - 1:x0 + w + 1] = block
         alpha[y0 - 1:y0 + h + 1, x0 - 1:x0 + w + 1] = 1 + np.round(254 * np.clip(fblock, 0, 1))
+        gueltig[y0:y0 + h, x0:x0 + w] = ok.T
 
-    glaette_karte(atlas, fl, alpha)
+    gefuellt = glaette_karte(atlas, fl, alpha, gueltig)
+    print(f"Randpunkte aus Nachbarseiten: {gefuellt}")
     hoechst_k = float(atlas.max())
     rgb = (np.clip(atlas / hoechst_k, 0, 1) ** (1 / 2.2) * 255 + 0.5).astype(np.uint8)
     bild_k = np.dstack([rgb, alpha.astype(np.uint8)])
@@ -660,26 +672,104 @@ def _gauss_seite(blk: np.ndarray, sigma: float) -> np.ndarray:
     return blk
 
 
-def glaette_karte(atlas: np.ndarray, fl: np.ndarray, alpha: np.ndarray | None = None,
-                  sigma: float = KARTE_UNSCHAERFE, sigma_nah: float = KARTE_UNSCHAERFE_NAH) -> None:
-    """Lichtkarte je Seite weichzeichnen (Gauß, nur innerhalb der Seite, am Rand normiert) und den Randpunkt
-    ringsum neu als Kopie der Kante setzen. Ohne das bleibt das Zufallsrauschen des zurückgeworfenen Lichts
-    als wolkige Flecken auf Wänden und Decken sichtbar (Hinweis des Nutzers).
+def _nachbarpunkte(fl: np.ndarray, gueltig: np.ndarray, tiefe: int) -> dict[int, tuple[np.ndarray, ...]]:
+    """Je Seite die Bildpunkte rings um die Seite (bis `tiefe` Bildpunkte über die Kante hinaus), die auf einer
+    angrenzenden Seite gleicher Ebene und Ausrichtung liegen (Pfeiler ↔ Sturz, aneinanderstoßende Wandstücke).
+    Ergebnis je Seite: (j, i, qy, qx) – Lage relativ zur Seite (Zeile j, Spalte i, außerhalb 0…h-1 bzw. 0…w-1)
+    und Quelle im Atlas. Nur Quellen, die selbst berechnet sind (gueltig): keine verdeckten oder aufgefüllten
+    Bildpunkte, z. B. von Seiten im Inneren eines anderen Quaders."""
+    ecke, u, v, n = fl[:, 4:7], fl[:, 7:10], fl[:, 10:13], fl[:, 13:16]
+    abstand = np.einsum("ij,ij->i", ecke, n)
+    gruppen: dict[tuple, list[int]] = {}
+    for s in range(len(fl)):
+        gruppen.setdefault((*np.round(n[s], 3), round(float(abstand[s]), 3)), []).append(s)
+    ergebnis: dict[int, tuple[np.ndarray, ...]] = {}
+    for glieder in gruppen.values():
+        if len(glieder) < 2:
+            continue
+        for s in glieder:
+            x0, y0, w, h = (int(c) for c in fl[s, 0:4])
+            jj, ii = np.mgrid[-tiefe:h + tiefe, -tiefe:w + tiefe]
+            aussen = (ii < 0) | (ii >= w) | (jj < 0) | (jj >= h)
+            jj, ii = jj[aussen], ii[aussen]
+            p = ecke[s] + ((ii[:, None] + 0.5) / w) * u[s] + ((jj[:, None] + 0.5) / h) * v[s]
+            offen = np.ones(len(p), bool)
+            teile = []
+            for t in glieder:
+                if t == s or not offen.any():
+                    continue
+                d = p - ecke[t]
+                a = d @ u[t] / (u[t] @ u[t])
+                b = d @ v[t] / (v[t] @ v[t])
+                drin = offen & (a >= 0) & (a < 1) & (b >= 0) & (b < 1)
+                if not drin.any():
+                    continue
+                offen &= ~drin
+                tx0, ty0, tw, th = (int(c) for c in fl[t, 0:4])
+                qy = ty0 + np.minimum((b[drin] * th).astype(int), th - 1)
+                qx = tx0 + np.minimum((a[drin] * tw).astype(int), tw - 1)
+                ok = gueltig[qy, qx]
+                teile.append((jj[drin][ok], ii[drin][ok], qy[ok], qx[ok]))
+            if teile:
+                ergebnis[s] = tuple(np.concatenate(k) for k in zip(*teile))
+    return ergebnis
+
+
+def glaette_karte(atlas: np.ndarray, fl: np.ndarray, alpha: np.ndarray, gueltig: np.ndarray,
+                  sigma: float = KARTE_UNSCHAERFE, sigma_nah: float = KARTE_UNSCHAERFE_NAH) -> int:
+    """Lichtkarte je Seite weichzeichnen (Gauß, am Rand normiert) und den Randpunkt ringsum neu setzen.
+    Ohne das bleibt das Zufallsrauschen des zurückgeworfenen Lichts als wolkige Flecken auf Wänden und Decken
+    sichtbar (Hinweis des Nutzers).
     Nahe an Verdeckern (wenig freie Sicht laut Alphakanal, z. B. Boden unter und an Möbeln, unter Figuren)
-    gilt eine schwache Weichzeichnung: die starke verwischte dort die Kontaktfuge. Übergang weich nach FREI_NAH;
-    auf freier Fläche bleibt alles wie zuvor."""
-    for f in fl:
+    gilt eine schwache Weichzeichnung: die starke verwischte dort die Kontaktfuge. Übergang weich nach FREI_NAH.
+    Angrenzende Seiten gleicher Ebene und Ausrichtung (`_nachbarpunkte`) werden gemeinsam weichgezeichnet: jede
+    Seite sieht über ihre Kante in die Nachbarseite, als wäre es eine Fläche. Sonst zieht die am Rand normierte
+    Weichzeichnung die Randwerte zur Seitenmitte, und an Sturz ↔ Pfeiler springt die Helligkeit (Hinweis des
+    Nutzers). Auch der Randpunkt ringsum kommt dort aus der Nachbarseite: der Shader liest an der Seitengrenze
+    genau zwischen Kante und Randpunkt, so zeigen beide Seiten dort denselben Wert, auch nach dem Runden auf
+    8 bit. Ohne Nachbarseite bleibt alles wie zuvor (Randpunkt = Kopie der Kante).
+    Gibt die Zahl der Randpunkte aus Nachbarseiten zurück."""
+    r = int(np.ceil(3 * max(sigma, sigma_nah)))
+    nachbarn = _nachbarpunkte(fl, gueltig, r)
+    roh_atlas = atlas.copy()
+    frei_roh = np.clip((alpha - 1) / 254, 0, 1)
+    for s, f in enumerate(fl):
         x0, y0, w, h = (int(v) for v in f[0:4])
-        roh = atlas[y0:y0 + h, x0:x0 + w]
-        blk = _gauss_seite(roh, sigma)
-        if alpha is not None:
-            fr = _gauss_seite(np.clip((alpha[y0:y0 + h, x0:x0 + w] - 1) / 254, 0, 1), sigma_nah)
-            weich = np.clip((fr - FREI_NAH[0]) / (FREI_NAH[1] - FREI_NAH[0]), 0, 1)
-            weich = weich * weich * (3 - 2 * weich)
-            nah = _gauss_seite(roh, sigma_nah)
-            blk = nah + (blk - nah) * weich[..., None]
+        wert = roh_atlas[y0:y0 + h, x0:x0 + w]
+        fr = frei_roh[y0:y0 + h, x0:x0 + w]
+        maske = np.ones((h, w))
+        innen = (slice(None), slice(None))
+        if s in nachbarn:
+            # erweiterter Block: Seite plus Bildpunkte der Nachbarseiten, Maske = wo ein Wert vorliegt
+            j, i, qy, qx = nachbarn[s]
+            wert = np.pad(wert, ((r, r), (r, r), (0, 0)))
+            fr = np.pad(fr, r)
+            maske = np.pad(maske, r)
+            wert[j + r, i + r] = roh_atlas[qy, qx]
+            fr[j + r, i + r] = frei_roh[qy, qx]
+            maske[j + r, i + r] = 1
+            innen = (slice(r, r + h), slice(r, r + w))
+
+        def weich_zeichnen(x: np.ndarray, sig: float) -> np.ndarray:
+            m = maske[..., None] if x.ndim == 3 else maske
+            nenner = _gauss_seite(maske, sig)
+            return (_gauss_seite(x * m, sig) / np.maximum(nenner[..., None] if x.ndim == 3 else nenner, 1e-12))[innen]
+
+        blk = weich_zeichnen(wert, sigma)
+        weich = np.clip((weich_zeichnen(fr, sigma_nah) - FREI_NAH[0]) / (FREI_NAH[1] - FREI_NAH[0]), 0, 1)
+        weich = weich * weich * (3 - 2 * weich)
+        nah = weich_zeichnen(wert, sigma_nah)
+        blk = nah + (blk - nah) * weich[..., None]
         atlas[y0:y0 + h, x0:x0 + w] = blk
         atlas[y0 - 1:y0 + h + 1, x0 - 1:x0 + w + 1] = np.pad(blk, ((1, 1), (1, 1), (0, 0)), mode="edge")
+    gefuellt = 0
+    for s, (j, i, qy, qx) in nachbarn.items():
+        x0, y0, w, h = (int(v) for v in fl[s, 0:4])
+        rand = (i >= -1) & (i <= w) & (j >= -1) & (j <= h)
+        atlas[y0 + j[rand], x0 + i[rand]] = atlas[qy[rand], qx[rand]]   # Quellen: Inneres der Nachbarseite
+        alpha[y0 + j[rand], x0 + i[rand]] = alpha[qy[rand], qx[rand]]
+        gefuellt += int(rand.sum())
+    return gefuellt
 
 
 def _randmaske(w: int, h: int, sch: int, ax: int) -> np.ndarray:

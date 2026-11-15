@@ -26,6 +26,7 @@ import {
   stuckdecke, kronleuchter, haengelampe, kopfschrank, saeule, nummernTafel, BESETZUNG,
 } from './bauteile.js';
 import { tuerFluegel } from './innenausbau.js';
+import { baueWerkstattAusstattung } from './werkstatt.js';
 
 /** Lichte Raumhöhe (Geschosshöhe 4,40 m belegt; Deckenstärke angenommen). */
 const H = 4.0;
@@ -138,6 +139,21 @@ export function baueEtage3(scene) {
   const fluegel = tuerFluegel(1.15, 2.45, 0.05, m.tuerHolz);
   fluegel.position.set(1.4 - 0.13 - 0.03, 0.01, 19.75 + 0.045 + 1.15 / 2);
   fluegel.rotation.y = Math.PI / 2;
+  // Beschläge wie an den geschlossenen Türen (Langschild mit Drücker, Schlüsselloch), auf beiden Seiten
+  // nahe der freien Kante (lokal −x); Griff zeigt zur Bandseite. Ohne Lichtmodell (zu klein).
+  for (const s of [-1, 1]) {
+    const zt = s * 0.025;
+    for (const [bx, by, bz, x, y, z, mat] of /** @type {[number, number, number, number, number, number, THREE.Material][]} */ ([
+      [0.05, 0.28, 0.008, -0.505, 0.99, zt + s * 0.004, m.messing],
+      [0.022, 0.022, 0.05, -0.505, 1.05, zt + s * 0.025, m.messing],
+      [0.13, 0.022, 0.022, -0.45, 1.05, zt + s * 0.05, m.messing],
+      [0.012, 0.03, 0.004, -0.505, 0.92, zt + s * 0.009, m.eisen],
+    ])) {
+      const teil = box(bx, by, bz, x, y, z, mat);
+      teil.userData.keinLichtModell = true;
+      fluegel.add(teil);
+    }
+  }
   gruppe.add(fluegel);
   kollision.push(fluegel);
 
@@ -288,7 +304,7 @@ export function baueEtage3(scene) {
     for (let k = 0; k < 3; k++) {
       const kopf = rohKopf({ haut: m.wachsBlass, variante: (fach * 3 + k) % 6, fein: false });
       kopf.rotation.y = Math.PI / 2;
-      kopf.position.set(0.25, 0.1 + (fach * 2.05) / 4 + 0.13, 20.6 + k * 0.6);
+      kopf.position.set(0.25, 0.1 + (fach * 2.05) / 4 + 0.123, 20.6 + k * 0.6);
       gruppe.add(kopf);
     }
   }
@@ -302,6 +318,8 @@ export function baueEtage3(scene) {
     h.position.set(x, 0, z);
     gruppe.add(h);
   }
+  // Ausstattung nach Werkstattbericht 1898 u. a. (welt/werkstatt.js)
+  baueWerkstattAusstattung(gruppe, m, kollision, handHindernisse);
 
   // ================= Raumschmuck: Säulen, Stuckdecken, Leuchten =================
   // Säulenpaar am Durchgang A|B (Säulen in den Sälen belegt, Stellung angenommen)
