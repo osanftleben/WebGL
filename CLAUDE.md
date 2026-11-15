@@ -67,5 +67,8 @@ recherche/quellen/          ← nicht im Git: Textauszüge und geladene Quellen 
 
 ## Wann ist etwas fertig?
 1. `check.py` meldet 0 Fehler (der Stop-Hook erzwingt das, sobald `docs/` Änderungen hat).
-2. Im Browser geprüft (`/visuell-pruefen`): keine Konsolenfehler, alle Netzwerk-Anfragen gehen an 127.0.0.1, **Rundgang** über alle festgelegten Blickpunkte des Projekts ohne Auffälligkeiten (nicht nur die geänderte Stelle).
+2. Im Browser geprüft (`/visuell-pruefen`): keine Konsolenfehler, alle Netzwerk-Anfragen gehen an 127.0.0.1, dazu je nach Änderung:
+   - **Voller Rundgang** (alle festgelegten Blickpunkte ohne Auffälligkeiten) nur, wenn die Änderung über die Stelle hinaus wirken kann: Licht, Lichtmodell oder gebackene Schatten (jedes Neuberechnen/Neubacken), Shader, Bibliotheken, three.js-Version, mehrfach genutzte Materialien/Formen/Bauteile, Raumaufbau, Sichtbarkeit, Detailstufen, `main.js`/Ladeablauf.
+   - **Sonst örtlich:** Abnahme-Blicke plus der nächstgelegene Rundgang-Blickpunkt.
+   - Welche Prüfung gilt, legt der Auftrag fest („Rundgang: voll/örtlich – Grund“); im Zweifel voll.
 3. Bei Änderungen an einer Bibliothek: alle Projekte geprüft, die sie nutzen.

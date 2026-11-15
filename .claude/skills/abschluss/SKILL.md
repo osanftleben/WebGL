@@ -8,7 +8,7 @@ argument-hint: <projekt>
 
 Projekt: `$ARGUMENTS`
 
-1. **Prüfen:** `python .claude/scripts/check.py` (0 Fehler). Wurde `docs/` geändert: `/visuell-pruefen <projekt>` mit Rundgang.
+1. **Prüfen:** `python .claude/scripts/check.py` (0 Fehler). Wurde `docs/` geändert: `/visuell-pruefen <projekt>` mit Rundgang im Umfang des Auftrags (voll/örtlich; Regel in CLAUDE.md „Wann ist etwas fertig?“).
 2. **Arbeitsstand** in `.claude/rules/projekte/<projekt>.md` aktualisieren – kurz, Datei ≤ 5 KB:
    erledigt (mit Commit-Kürzel, falls committet), offen, bekannte Restfehler, nächster Schritt.
    Den Block „Aktueller Auftrag“ entfernen. Einzelheiten und Verlauf nach `.claude/notizen/`.

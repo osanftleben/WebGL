@@ -12,13 +12,14 @@ Auftrag: `$ARGUMENTS`
 2. **Mit dem Nutzer festlegen** (`AskUserQuestion`, höchstens 4 Fragen, Vorschläge als Optionen):
    - **Ziel** in einem Satz.
    - **Abnahme:** Woran ist „gut genug“ erkennbar? Konkret: Blickpunkte aus dem Rundgang, Messwerte (Bilder/s, Dateigröße), sichtbare Merkmale.
+   - **Rundgang:** voll oder örtlich, mit kurzem Grund (Regel in CLAUDE.md „Wann ist etwas fertig?“; im Zweifel voll). Ändert sich im Lauf der Aufgabe der Umfang (z. B. doch neu backen), auf voll umstellen.
    - **Nicht dazu:** was ausdrücklich ausgeklammert ist.
    - **Runden:** Höchstzahl Korrekturrunden (Vorgabe 2).
 3. **Aufwand einschätzen** (klein / mittel / groß). Bei groß: in Teilaufgaben je Sitzung zerlegen und das vorschlagen.
-4. **Eintragen:** im Arbeitsstand der Projektnotizen einen kurzen Block „Aktueller Auftrag: Ziel – Abnahme – Runden 0/2 – Protokoll: `.claude/notizen/protokolle/<datei>.md`“.
+4. **Eintragen:** im Arbeitsstand der Projektnotizen einen kurzen Block „Aktueller Auftrag: Ziel – Abnahme – Rundgang voll/örtlich – Runden 0/2 – Protokoll: `.claude/notizen/protokolle/<datei>.md`“.
 5. **Plan zeigen** (kurz) und auf das Ja warten.
 6. **Umsetzen – je nach Sitzung:**
-   - **Hauptsitzung** (vom Nutzer gestartet): nicht selbst umsetzen. Aufgabensitzung starten (`start_session`, „fresh“). Der Auftrag beginnt mit „Du bist eine Aufgabensitzung für <projekt>.“ und enthält Ziel, Abnahme, Nicht dazu, Runden, den freigegebenen Plan, den Namen der Protokolldatei und den Hinweis, das Protokoll laufend zu führen und mit `/abschluss` zu enden.
+   - **Hauptsitzung** (vom Nutzer gestartet): nicht selbst umsetzen. Aufgabensitzung starten (`start_session`, „fresh“). Der Auftrag beginnt mit „Du bist eine Aufgabensitzung für <projekt>.“ und enthält Ziel, Abnahme, Rundgang (voll/örtlich), Nicht dazu, Runden, den freigegebenen Plan, den Namen der Protokolldatei und den Hinweis, das Protokoll laufend zu führen und mit `/abschluss` zu enden.
    - **Aufgabensitzung:** zuerst das Protokoll anlegen (siehe unten), dann wie im Skill `feature` umsetzen.
 
 ## Protokoll (jede Aufgabensitzung)
