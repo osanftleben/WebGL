@@ -5,6 +5,7 @@ import { dielenTextur, putzTextur, holzTextur, heizkoerperTextur, nummernAtlas, 
 import { kopf, hals, arm, oberkoerper, stoffTeil, sparsam, istSparsam } from './menschen.js';
 import { alsStufe } from './stufen.js';
 import { STUCK, GOLD, stuckTextur, goldTexturen, bandUV, flachUV, rosettenGeometrie, kapitellGeometrie } from './stuck.js';
+import { innenMaterialien, wandUV, tuerFluegel, tuerRahmen, tuerFutter, lambrisStueck, oelsockelStueck, LAMBRIS, OELSOCKEL, BORDUERE } from './innenausbau.js';
 
 /** Umschaltabstände der Detailstufen (m bei 1080 Bildpunkten Bildhöhe), aus dem Bildvergleich */
 export const STUFEN_ABSTAND = { bueste: 3.0, figur: 3.5, schrankkopf: 2.5 };
@@ -129,6 +130,8 @@ export function erstelleMaterialien() {
     fensterSpiegel: verschmelzbar(ohneDirektenGlanz(glanz({ color: 0x000000, metalness: 0, roughness: 0.06, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, envMapIntensity: 1.8 }))),
     glas: glanz({ map: glasTextur(), color: 0xffffff, metalness: 0, roughness: 0.03, transparent: true, opacity: 1, depthWrite: false, envMapIntensity: 1.2, side: THREE.DoubleSide }),
     heizung: lambert({ map: heizkoerperTextur() }),
+    // Innenausbau (Tapete, Lambris, Ölfarbsockel, Kalkputz, Türen): welt/innenausbau.js
+    ...innenMaterialien({ holzTextur }),
   };
 }
 
@@ -199,19 +202,30 @@ function beschlag(b, h, t, x, y, z, material) {
  * @param {boolean} [o.beidseitig=false] Fußleiste und Gesims auch auf der Rückseite (Trennwände)
  * @param {boolean} [o.goldleiste=false] Vergoldete Zierleiste unter dem Gesims (Goldstuck)
  * @param {boolean} [o.vorhaenge=false] Vorhangschals an den Fenstern (Raumseite)
+ * @param {'lambris' | 'oel'} [o.sockel] Holz-Lambris bzw. Ölfarbsockel unten (welt/innenausbau.js);
+ *   bei Trennwänden (beidseitig) auf beiden Seiten
+ * @param {boolean} [o.verdachung=false] Türen und Durchgänge mit Verdachung (Fries + Gesims) über der Bekleidung
  * @returns {{ gruppe: THREE.Group, hindernisse: THREE.Object3D[] }}
  */
-export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelaender = false, beidseitig = false, goldleiste = false, vorhaenge = false }) {
+export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelaender = false, beidseitig = false, goldleiste = false, vorhaenge = false, sockel, verdachung = false }) {
   const gruppe = new THREE.Group();
   /** @type {THREE.Object3D[]} */
   const hindernisse = [];
   const zMitte = -dicke / 2;
   const sortiert = [...oeffnungen].sort((a, b) => a.pos - b.pos);
   let x = 0;
+  const weltKachel = material.userData.weltKachel;
+  /** Wandteil aus dem Wandmaterial; Tapete/Kalkputz laufen über alle Teile der Wand durch (wandUV) */
+  const wandTeil = (/** @type {number} */ b, /** @type {number} */ h, /** @type {number} */ t, /** @type {number} */ px, /** @type {number} */ py, /** @type {number} */ pz) => {
+    if (!weltKachel) return box(b, h, t, px, py, pz, material, true);
+    const mesh = new THREE.Mesh(wandUV(new THREE.BoxGeometry(b, h, t), px, py, pz, weltKachel), material);
+    mesh.position.set(px, py, pz);
+    return mesh;
+  };
 
   const pfeiler = (/** @type {number} */ von, /** @type {number} */ bis) => {
     if (bis - von < 0.01) return;
-    const teil = box(bis - von, hoehe, dicke, (von + bis) / 2, hoehe / 2, zMitte, material, true);
+    const teil = wandTeil(bis - von, hoehe, dicke, (von + bis) / 2, hoehe / 2, zMitte);
     gruppe.add(teil);
     hindernisse.push(teil);
   };
@@ -223,11 +237,11 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
     pfeiler(x, links);
     // Sturz über der Öffnung
     const oben = unten + o.hoehe;
-    if (hoehe - oben > 0.01) gruppe.add(box(o.breite, hoehe - oben, dicke, o.pos, (oben + hoehe) / 2, zMitte, material, true));
+    if (hoehe - oben > 0.01) gruppe.add(wandTeil(o.breite, hoehe - oben, dicke, o.pos, (oben + hoehe) / 2, zMitte));
 
     if (o.art === 'fenster') {
       if (unten > 0.01) {
-        const bruestung = box(o.breite, unten, dicke, o.pos, unten / 2, zMitte, material, true);
+        const bruestung = wandTeil(o.breite, unten, dicke, o.pos, unten / 2, zMitte);
         gruppe.add(bruestung);
         hindernisse.push(bruestung);
       }
@@ -256,6 +270,15 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
       }
       // Fensterbank innen
       gruppe.add(box(o.breite + 0.1, 0.04, dicke * 0.55, o.pos, unten + 0.02, -dicke * 0.25, m.fensterRahmen));
+      // Laibung bei Tapete glatt verputzt (1 cm Futter bis an den Fensterrahmen, auch unten)
+      const laibMat = material.userData.laibung;
+      if (laibMat) {
+        const tiefe = dicke * 0.7 - 0.035;
+        const laib = tuerFutter(o.breite, o.hoehe, tiefe, laibMat, 0.01);
+        laib.position.set(o.pos, unten, 0);
+        gruppe.add(laib);
+        gruppe.add(box(o.breite, 0.01, tiefe, o.pos, unten + 0.005, -tiefe / 2, laibMat));
+      }
       if (gelaender) {
         // Brüstungsgitter vor dem Fenster (außen), bis etwa 0,95 m über dem Boden
         const hg = Math.max(0.95 - unten, 0.3);
@@ -276,16 +299,19 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
         }
       }
     } else if (o.art === 'tuer') {
-      // Geschlossene Doppeltür mit Füllungen
-      const fluegel = (/** @type {number} */ mitte) => {
-        const f = box(o.breite / 2 - 0.02, o.hoehe - 0.02, 0.06, mitte, o.hoehe / 2, zMitte, m.holzDunkel);
+      // Geschlossene Doppeltür mit Füllungen (Füllungen eingemalt, welt/innenausbau.js) in der Wandmitte,
+      // davor das Futter in der Laibung; unten eine Schwelle
+      const fb = o.breite / 2 - 0.035;
+      for (const s of [-1, 1]) {
+        const f = tuerFluegel(fb, o.hoehe - 0.03, 0.05, m.tuerHolz);
+        f.position.set(o.pos + s * (fb / 2 + 0.005), 0.01, zMitte);
         gruppe.add(f);
         hindernisse.push(f);
-        gruppe.add(box(o.breite / 2 - 0.2, o.hoehe * 0.35, 0.02, mitte, o.hoehe * 0.7, zMitte + 0.04, m.holzHell));
-        gruppe.add(box(o.breite / 2 - 0.2, o.hoehe * 0.3, 0.02, mitte, o.hoehe * 0.25, zMitte + 0.04, m.holzHell));
-      };
-      fluegel(o.pos - o.breite / 4);
-      fluegel(o.pos + o.breite / 4);
+      }
+      gruppe.add(box(o.breite, 0.02, dicke, o.pos, 0.01, zMitte, m.tuerRahmen));
+      const futter = tuerFutter(o.breite, o.hoehe, -zMitte - 0.025, m.tuerRahmen);
+      futter.position.set(o.pos, 0, 0);
+      gruppe.add(futter);
       // Unsichtbare Sperre über die ganze Wanddicke: man bleibt vor der Tür stehen, nicht in der Nische
       const sperre = box(o.breite, o.hoehe, dicke, o.pos, o.hoehe / 2, zMitte, m.holzDunkel);
       sperre.visible = false;
@@ -303,11 +329,21 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
         for (const yb of [0.3, o.hoehe / 2, o.hoehe - 0.3]) gruppe.add(beschlag(0.024, 0.14, 0.024, xb, yb, zt + 0.012, m.messing));
       }
     }
-    // Türrahmen (Bekleidung) innen
+    // Türrahmen (Bekleidung mit Wulst, auf Wunsch Verdachung) innen, bei Trennwänden auf beiden Seiten;
+    // Durchgänge bekommen ein Futter über die ganze Wanddicke
     if (o.art !== 'fenster') {
-      gruppe.add(box(0.1, o.hoehe + 0.1, 0.04, links - 0.05, o.hoehe / 2, 0.02, m.holzDunkel));
-      gruppe.add(box(0.1, o.hoehe + 0.1, 0.04, rechts + 0.05, o.hoehe / 2, 0.02, m.holzDunkel));
-      gruppe.add(box(o.breite + 0.3, 0.12, 0.04, o.pos, o.hoehe + 0.06, 0.02, m.holzDunkel));
+      const vd = o.verdachung ?? verdachung;
+      for (const seite of beidseitig ? [1, -1] : [1]) {
+        const r = tuerRahmen(o.breite, o.hoehe, m.tuerRahmen, { verdachung: vd });
+        r.position.set(o.pos, 0, seite > 0 ? 0 : -dicke);
+        if (seite < 0) r.rotation.y = Math.PI;
+        gruppe.add(r);
+      }
+      if (o.art === 'durchgang') {
+        const futter = tuerFutter(o.breite, o.hoehe, dicke, m.tuerRahmen);
+        futter.position.set(o.pos, 0, 0);
+        gruppe.add(futter);
+      }
     }
     x = rechts;
   }
@@ -317,14 +353,45 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
   const seiten = beidseitig ? [1, -1] : [1];
   for (const seite of seiten) {
     const zLeiste = seite > 0 ? 0.015 : -dicke - 0.015;
+    // Fußleiste endet an der Außenkante der Türbekleidung (0,13 m neben der Öffnung); unter der Lambris
+    // im dunklen Ton der Fassung
+    const fussMat = sockel === 'lambris' ? m.lambrisFuss : m.fussleiste;
     let start = 0;
     for (const o of sortiert) {
       if (o.art === 'fenster') continue;
-      const ende = o.pos - o.breite / 2 - 0.1;
-      if (ende - start > 0.05) gruppe.add(box(ende - start, 0.16, 0.03, (start + ende) / 2, 0.08, zLeiste, m.fussleiste));
-      start = o.pos + o.breite / 2 + 0.1;
+      const ende = o.pos - o.breite / 2 - 0.13;
+      if (ende - start > 0.05) gruppe.add(box(ende - start, 0.16, 0.03, (start + ende) / 2, 0.08, zLeiste, fussMat));
+      start = o.pos + o.breite / 2 + 0.13;
     }
-    if (laenge - start > 0.05) gruppe.add(box(laenge - start, 0.16, 0.03, (start + laenge) / 2, 0.08, zLeiste, m.fussleiste));
+    if (laenge - start > 0.05) gruppe.add(box(laenge - start, 0.16, 0.03, (start + laenge) / 2, 0.08, zLeiste, fussMat));
+    // Lambris bzw. Ölfarbsockel: volle Höhe zwischen den Öffnungen, unter Fenstern nur bis zur Brüstung.
+    // Rückseite (Trennwand): Untergruppe um 180° gedreht, Lage entlang der Wand gespiegelt (x → −x)
+    if (sockel) {
+      const sg = new THREE.Group();
+      if (seite < 0) {
+        sg.rotation.y = Math.PI;
+        sg.position.z = -dicke;
+      }
+      const hoeheS = sockel === 'lambris' ? LAMBRIS.hoehe : OELSOCKEL.hoehe;
+      const stueck = (/** @type {number} */ a, /** @type {number} */ b, /** @type {number} */ h) => {
+        const [aa, bb] = seite > 0 ? [a, b] : [-b, -a];
+        const teile = sockel === 'lambris' ? lambrisStueck(aa, bb, h, m) : oelsockelStueck(aa, bb, h, m.oelsockel);
+        for (const t of teile) sg.add(t);
+      };
+      let von = 0;
+      for (const o of sortiert) {
+        if (o.art === 'fenster') {
+          stueck(von, o.pos - o.breite / 2, hoeheS);
+          if ((o.unten ?? 0) > LAMBRIS.fuss + 0.05) stueck(o.pos - o.breite / 2, o.pos + o.breite / 2, Math.min(o.unten ?? 0, hoeheS));
+          von = o.pos + o.breite / 2;
+        } else {
+          stueck(von, o.pos - o.breite / 2 - 0.13, hoeheS);
+          von = o.pos + o.breite / 2 + 0.13;
+        }
+      }
+      stueck(von, laenge, hoeheS);
+      gruppe.add(sg);
+    }
     // Gesims mit Profil (Feinschliff D): Deckplatte, Fries, Perlstab, darunter die Goldleiste.
     // Fries mit Rokoko-Ornament nur in den Sälen (mit Goldleiste), in der Werkstatt glatt.
     const zWand = seite > 0 ? 0 : -dicke;
@@ -335,6 +402,14 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
     leiste(0.18, 0.09, hoehe - 0.15, goldleiste ? STUCK.fries : STUCK.glatt, STUCK.periode);
     leiste(0.04, 0.05, hoehe - 0.26, goldleiste ? STUCK.perlen : STUCK.profil, STUCK.perlPeriode);
     if (goldleiste) gruppe.add(stuckLeiste(laenge, 0.05, 0.02, laenge / 2, hoehe - 0.31, zWand + seite * 0.01, m.goldOrnament, GOLD.perlen, GOLD.perlPeriode, GOLD));
+    // Tapeten-Bordüre direkt unter der Goldleiste (Gliederung Sockel – Fläche – Fries, Koch 1903; Muster Annahme)
+    const borduere = material.userData.borduere;
+    if (goldleiste && borduere) {
+      const geo = skaliereUV(new THREE.BoxGeometry(laenge, BORDUERE.hoehe, 0.004), laenge / BORDUERE.periode, 1);
+      const band = new THREE.Mesh(geo, borduere);
+      band.position.set(laenge / 2, hoehe - 0.335 - BORDUERE.hoehe / 2, zWand + seite * 0.002);
+      gruppe.add(band);
+    }
   }
 
   return { gruppe, hindernisse };

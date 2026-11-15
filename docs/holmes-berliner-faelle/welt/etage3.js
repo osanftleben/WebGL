@@ -25,6 +25,7 @@ import {
   vitrine, figur, holzgelaender, werkbank, regal, hocker, gipsform, wachstopf,
   stuckdecke, kronleuchter, haengelampe, kopfschrank, saeule, nummernTafel, BESETZUNG,
 } from './bauteile.js';
+import { tuerFluegel } from './innenausbau.js';
 
 /** Lichte Raumhöhe (Geschosshöhe 4,40 m belegt; Deckenstärke angenommen). */
 const H = 4.0;
@@ -91,50 +92,51 @@ export function baueEtage3(scene) {
   // ---------- Außenwand Behrenstraße (x = 9): Schreckenskammer (z 0 … 19,625), Werkstatt hell (bis 25) ----------
   const fensterZ = [1.9, 4.75, 7.6, 11.5, 14.6, 17.7];
   kollision.push(...setzeWand({
-    laenge: 19.625, hoehe: H, dicke: DA, material: m.putzSaal, m, gelaender: true, goldleiste: true, vorhaenge: true,
+    laenge: 19.625, hoehe: H, dicke: DA, material: m.tapete, m, sockel: 'lambris', verdachung: true, gelaender: true, goldleiste: true, vorhaenge: true,
     oeffnungen: fensterZ.map((pos) => ({ ...FENSTER, pos })),
   }, 9, 0, -Math.PI / 2).hindernisse);
   kollision.push(...setzeWand({
-    laenge: 25 - 19.625, hoehe: H, dicke: DA, material: m.putzHell, m, gelaender: true,
+    laenge: 25 - 19.625, hoehe: H, dicke: DA, material: m.kalkputz, m, sockel: 'oel', gelaender: true,
     oeffnungen: [{ ...FENSTER, pos: 22.4 - 19.625 }],
   }, 9, 19.625, -Math.PI / 2).hindernisse);
 
   // ---------- Innenwand zum Hof / übrigen Geschoss (x = 0) ----------
   // Werkstatt-Abschnitt (z 27,5 … 19,625, hell) mit geschlossener Tür zu den übrigen Räumen des III. OG (z = 23,5)
   kollision.push(...setzeWand({
-    laenge: 27.5 - 19.625, hoehe: H, dicke: DA, material: m.putzHell, m,
+    laenge: 27.5 - 19.625, hoehe: H, dicke: DA, material: m.kalkputz, m, sockel: 'oel',
     oeffnungen: [{ pos: 27.5 - 23.5, breite: 1.2, hoehe: 2.6, art: 'tuer' }],
   }, 0, 27.5, Math.PI / 2).hindernisse);
   // Schreckenskammer-Abschnitt (z 19,625 … 0)
   kollision.push(...setzeWand({
-    laenge: 19.625, hoehe: H, dicke: DA, material: m.putzSaal, m, goldleiste: true,
+    laenge: 19.625, hoehe: H, dicke: DA, material: m.tapete, m, sockel: 'lambris', verdachung: true, goldleiste: true,
   }, 0, 19.625, Math.PI / 2).hindernisse);
 
   // ---------- Wand zum Treppenhaus (z = 0): geschlossene Tür zur eisernen Treppe mit Aufzug ----------
   kollision.push(...setzeWand({
-    laenge: 9, hoehe: H, dicke: DA, material: m.putzSaal, m, goldleiste: true,
+    laenge: 9, hoehe: H, dicke: DA, material: m.tapete, m, sockel: 'lambris', verdachung: true, goldleiste: true,
     oeffnungen: [{ pos: 6.5, breite: 1.4, hoehe: 2.8, art: 'tuer' }],
   }, 0, 0, 0).hindernisse);
 
   // ---------- Trennwand Raum A | Raum B (z = 9,5 … 9,75) mit breitem Durchgang ----------
   kollision.push(...setzeWand({
-    laenge: 9, hoehe: H, dicke: DI, material: m.putzSaal, m, beidseitig: true, goldleiste: true,
+    laenge: 9, hoehe: H, dicke: DI, material: m.tapete, m, sockel: 'lambris', verdachung: true, beidseitig: true, goldleiste: true,
     oeffnungen: [{ pos: 4.5, breite: 2.4, hoehe: 3.0, art: 'durchgang' }],
   }, 0, 9.75, 0).hindernisse);
 
   // ---------- Trennwand Raum B | Werkstatt (z = 19,5 … 19,75): zwei Hälften, je eigene Farbe ----------
   // Durchgang bei x = 2,0 (Breite 1,2 m)
   kollision.push(...setzeWand({
-    laenge: 9, hoehe: H, dicke: DI / 2, material: m.putzSaal, m, goldleiste: true,
+    laenge: 9, hoehe: H, dicke: DI / 2, material: m.tapete, m, sockel: 'lambris', verdachung: true, goldleiste: true,
     oeffnungen: [{ pos: 9 - 2.0, breite: 1.2, hoehe: 2.5, art: 'durchgang' }],
   }, 9, 19.5, Math.PI).hindernisse);
   kollision.push(...setzeWand({
-    laenge: 9, hoehe: H, dicke: DI / 2, material: m.putzHell, m,
+    laenge: 9, hoehe: H, dicke: DI / 2, material: m.kalkputz, m, sockel: 'oel',
     oeffnungen: [{ pos: 2.0, breite: 1.2, hoehe: 2.5, art: 'durchgang' }],
   }, 0, 19.75, 0).hindernisse);
   // Offen stehender Türflügel an der Werkstattseite
-  const fluegel = box(1.15, 2.45, 0.05, 0, 1.225, 0, m.holzDunkel);
-  fluegel.position.set(1.4 - 0.03, 1.225, 19.75 + 0.6);
+  // Füllungstür (welt/innenausbau.js), vor der Bekleidung (0,13 m breit, 4,5 cm tief) angeschlagen
+  const fluegel = tuerFluegel(1.15, 2.45, 0.05, m.tuerHolz);
+  fluegel.position.set(1.4 - 0.13 - 0.03, 0.01, 19.75 + 0.045 + 1.15 / 2);
   fluegel.rotation.y = Math.PI / 2;
   gruppe.add(fluegel);
   kollision.push(fluegel);
@@ -142,13 +144,13 @@ export function baueEtage3(scene) {
   // ---------- Werkstatt: Außenwand Friedrichstraße (z = 27,5), x von 6,5 bis 0 ----------
   // Die Werkstatt-Wände innen hell (Werkstatt), die Außenwand-Abschnitte dort ebenfalls.
   kollision.push(...setzeWand({
-    laenge: 6.5, hoehe: H, dicke: DA, material: m.putzHell, m, gelaender: true,
+    laenge: 6.5, hoehe: H, dicke: DA, material: m.kalkputz, m, sockel: 'oel', gelaender: true,
     oeffnungen: [{ ...FENSTER, pos: 1.7 }, { ...FENSTER, pos: 4.7 }],
   }, 6.5, 27.5, Math.PI).hindernisse);
 
   // ---------- Abgeschrägte Ecke (oberhalb des EG ohne Öffnungen, belegt) ----------
   const schraeg = 2.5 * Math.SQRT2;
-  setzeWand({ laenge: schraeg, hoehe: H, dicke: DA, material: m.putzHell, m }, 9, 25, (-3 * Math.PI) / 4);
+  setzeWand({ laenge: schraeg, hoehe: H, dicke: DA, material: m.kalkputz, m, sockel: 'oel' }, 9, 25, (-3 * Math.PI) / 4);
   // Hindernisse entlang der Schräge als kleine Quadrate (die Hülle der gedrehten Wand wäre zu groß)
   for (let t = 0; t <= 1.0001; t += 0.1) {
     const px = 9 - 2.5 * t + 0.12;
@@ -236,7 +238,8 @@ export function baueEtage3(scene) {
   // Glasschränke mit Verbrecherköpfen an der Hofwand (Köpfe belegt, Schränke angenommen)
   for (const [z, rollen] of /** @type {Array<[number, import('./bauteile.js').Rolle[]]>} */ ([[11.0, BESETZUNG.schrank[0]], [13.2, BESETZUNG.schrank[1]]])) {
     const schrank = kopfschrank(m, 1.9, rollen);
-    schrank.position.set(0.02, 0, z);
+    // 5 cm vor der Wand: dahinter läuft die Lambris (Deckleiste 4,5 cm tief)
+    schrank.position.set(0.05, 0, z);
     schrank.rotation.y = Math.PI / 2;
     tafelAn(schrank, 0, 0.2, 0.501);
     gruppe.add(schrank);
