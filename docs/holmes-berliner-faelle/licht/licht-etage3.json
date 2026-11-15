@@ -8,7 +8,7 @@
     0.0,
     0.0
   ],
-  "hoechstwert": 1.0192420474652732,
+  "hoechstwert": 1.0192473693085569,
   "gamma": 2.2,
   "richtungen": [
     "+x",
@@ -22,7 +22,7 @@
     "datei": "licht-etage3-karte.png",
     "breite": 1024,
     "hoehe": 476,
-    "hoechstwert": 1.0529834394167972,
+    "hoechstwert": 1.053006498590135,
     "pruefsumme": "c7334418"
   },
   "hinweis": "Vorab berechnet mit .claude/scripts/holmes_licht.py (bedeckter Himmel, Annahmen siehe dort)"

@@ -91,12 +91,19 @@ export function sammleLichtSzene(gruppe, nurVerdecker = false) {
    *   w: number, h: number, ecke: number[], u: number[], v: number[], n: number[], x?: number, y?: number }[]} */
   const seiten = [];
   const r = (/** @type {number} */ x) => Math.round(x * 1e4) / 1e4;
+  /** @type {THREE.Mesh[]} Teile mit `userData.lkTraeger` (Kind des Trägers, gleiche lokale Koordinaten) */
+  const traegerTeile = [];
 
   gruppe.traverse((o) => {
     if (o.userData.lichtZonen) huellZonen(o, quader);
     const mesh = /** @type {THREE.Mesh} */ (o);
     if (!mesh.isMesh || !mesh.visible || mesh.userData.nurTreffer) return;
-    let p = /** @type {THREE.Object3D | null} */ (mesh);
+    // Profilform vor einem Quader (innenausbau.js): kein Verdecker, liest die Lichtkarte des Trägers
+    if (mesh.userData.lkTraeger) {
+      traegerTeile.push(mesh);
+      return;
+    }
+    let p =/** @type {THREE.Object3D | null} */ (mesh);
     let istHuelle = false;
     while (p) {
       if (p.userData.keinLichtModell) return;
@@ -203,6 +210,33 @@ export function sammleLichtSzene(gruppe, nurVerdecker = false) {
       const fv = lk[s.c] / lokal[s.c] + 0.5;
       uv[2 * k] = (s.x + fu * s.w) / ATLAS_BREITE;
       uv[2 * k + 1] = (s.y + fv * s.h) / atlasHoehe;
+    }
+    koordinaten.set(mesh, uv);
+  }
+  // Profilformen: Eckpunkte senkrecht auf die Seite des Trägers projizieren, zu der `lgTraeger` zeigt
+  // (Profil lokal im Träger, Kind ohne eigene Lage). Ändert den Atlas nicht.
+  for (const mesh of traegerTeile) {
+    const traeger = /** @type {THREE.Mesh} */ (mesh.userData.lkTraeger);
+    const liste = jeMesh.get(traeger);
+    const tgeo = /** @type {any} */ (traeger.geometry);
+    const geo = mesh.geometry;
+    const lage = geo.getAttribute('position');
+    const richtung = geo.getAttribute('lgTraeger');
+    const uv = new Float32Array(lage.count * 2).fill(1 / ATLAS_BREITE);
+    if (liste && tgeo.type === 'BoxGeometry' && richtung) {
+      const lokal = [tgeo.parameters.width, tgeo.parameters.height, tgeo.parameters.depth];
+      for (let k = 0; k < lage.count; k++) {
+        uv[2 * k + 1] = 1 / atlasHoehe;
+        const nk = [richtung.getX(k), richtung.getY(k), richtung.getZ(k)];
+        const achse = nk.findIndex((w) => Math.abs(w) > 0.5);
+        const s = liste.find((t) => t.achse === achse && Math.sign(nk[achse]) === t.vorz);
+        if (!s || s.x === undefined || s.y === undefined) continue;
+        const lk = [lage.getX(k), lage.getY(k), lage.getZ(k)];
+        const fu = Math.min(1, Math.max(0, lk[s.b] / lokal[s.b] + 0.5));
+        const fv = Math.min(1, Math.max(0, lk[s.c] / lokal[s.c] + 0.5));
+        uv[2 * k] = (s.x + fu * s.w) / ATLAS_BREITE;
+        uv[2 * k + 1] = (s.y + fv * s.h) / atlasHoehe;
+      }
     }
     koordinaten.set(mesh, uv);
   }

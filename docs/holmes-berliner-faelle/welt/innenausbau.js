@@ -2,8 +2,11 @@
 // Bekleidung, Futter und Verdachung. Als Bausteine angelegt, damit weitere Räume (z. B. der Vorraum mit
 // Kasse) sie übernehmen können: Materialien über `innenMaterialien()`, Wandteile über `wand()` in
 // bauteile.js (Optionen `sockel`, Öffnung `verdachung`), Türflügel und Rahmen auch einzeln.
-// Relief (Füllungen, Fasen, Profile) ist wie beim Stuck in die Farbe gemalt (Licht oben links), weil die
-// Räume ihr Licht nur aus Lichtkarte und Lichtgitter bekommen – Normalenkarten wirken dort nicht.
+// Füllungen von Lambris und Türen (Befund 2): Profilleiste und erhabener Spiegel mit Fase sind echte Form
+// (`profilRing`), als Kind vor dem Quader. Sie nehmen das Licht der Lichtkarte ihres Trägers, je Richtung
+// mit dem Verhältnis aus dem Lichtgitter angepasst (`userData.lkTraeger`, Attribut `lgTraeger`,
+// siehe lichtmodell.js und lichtgitter.js); Eckenverschattung je Eckpunkt (Attribut `lgProfil`), aus der Ferne weich ausgeblendet. Übriges Relief
+// (Deckleiste) ist weiter in die Farbe gemalt.
 // Farben, Muster und Maße sind Gestaltung (Annahme), siehe Quellen-Notiz.
 import * as THREE from 'three';
 import { leinwand, alsTextur, zufall } from './texturen.js';
@@ -16,6 +19,178 @@ export const LAMBRIS = { hoehe: 1.2, dicke: 0.02, feld: 1.6, deckHoehe: 0.06, de
 export const OELSOCKEL = { hoehe: 1.5, dicke: 0.005 };
 /** Kachelgröße der Wandtexturen (m): Tapete eine Musterkachel, Kalkputz */
 export const KACHEL = { tapete: 0.5, kalk: 2 };
+/** Quer-Rahmen der Lambris oben/unten als Anteil der Feldhöhe (52 von 512 Bildpunkten) */
+const LAMBRIS_RIEGEL = 52 / 512;
+/** Füllungstür: Breite der senkrechten Friese (m) */
+const TUER = { fries: 0.12 };
+
+/**
+ * Füllungen einer Tür (von unten, Meter): untere Füllung, hohe Füllung, kleine Füllung.
+ * @param {number} hoehe Flügelhöhe
+ * @returns {number[][]} [unten, oben] je Füllung
+ */
+function tuerTeilung(hoehe) {
+  return [[0.24, 0.84], [1.0, hoehe - 0.62], [hoehe - 0.48, hoehe - 0.13]];
+}
+
+// ---------- Profil der Füllungen (Befund 2) ----------
+
+/** Querschnitt [d, h, Verschattung] von außen (Feldrand) nach innen: d = Abstand vom Feldrand,
+ *  h = Höhe vor der Trägerfläche (m), Verschattung je Eckpunkt (1 = frei, kleiner = in einer Ecke).
+ *  Aufgesetzte Profilleiste (Stufe, Plättchen, Rundstab, Plättchen, Hohlkehle), schmaler Grund, Fase und
+ *  erhabener Spiegel. Form angenommen (Profilleisten aufgeleimt: Handbuch 1896, Fig. 335). */
+const PROFIL = (() => {
+  /** @type {{ d: number, h: number, ao: number, fern: number, flach: number, glatt: boolean }[]} */
+  const p = [];
+  // Aus der Ferne (Bildpunkt größer als die Stufen, siehe lichtgitter.js): Leiste als ruhiger, etwas dunklerer
+  // Ring (fern 0,86, Richtungslicht aus), Fase und Spiegel behalten ihr Richtungslicht (breit genug)
+  const pkt = (/** @type {number} */ d, /** @type {number} */ h, /** @type {number} */ ao, glatt = false) =>
+    p.push({ d, h, ao, fern: d < 0.035 ? 0.86 : d < 0.039 ? 0.95 : 1, flach: d < 0.035 ? 1 : 0, glatt });
+  pkt(0, 0, 0.5); // Fuß auf dem Rahmen (einspringende Ecke)
+  pkt(0, 0.0025, 0.82);
+  pkt(0, 0.006, 0.96); // äußere Stufe 6 mm
+  pkt(0.003, 0.006, 1); // Plättchen
+  // Rundstab r = 5 mm
+  for (let i = 1; i <= 6; i++) {
+    const t = Math.PI * (1 - i / 6);
+    pkt(0.008 + 0.005 * Math.cos(t), 0.006 + 0.005 * Math.sin(t), i === 6 ? 0.9 : 1, i < 6);
+  }
+  pkt(0.013, 0.004, 0.78); // kleine Stufe hinab
+  pkt(0.015, 0.004, 0.86);
+  // Hohlkehle (Viertelellipse) bis knapp über den Grund
+  for (let i = 1; i <= 5; i++) {
+    const t = (Math.PI / 2) * (i / 5);
+    pkt(0.025 - 0.01 * Math.cos(t), 0.004 - 0.002 * Math.sin(t), 0.86 - 0.24 * (i / 5), i < 5);
+  }
+  pkt(0.028, 0.002, 0.88); // Grund (2 mm vor dem Träger: kein Flimmern)
+  pkt(0.034, 0.002, 0.88);
+  pkt(0.036, 0.002, 0.62); // Fuß der Fase (einspringende Ecke)
+  pkt(0.04, 0.0033, 0.9);
+  pkt(0.061, 0.01, 1); // Fase (≈ 16°) bis zur Spiegelkante
+  pkt(0.063, 0.0105, 1, true); // gebrochene Kante
+  pkt(0.066, 0.0105, 1);
+  return { punkte: p, breite: 0.066, linie: 0.072 };
+})();
+
+/** Vorlage für Profilmaterialien: Trägerlicht + Verschattung (`LG_TRAEGER`), je Grundmaterial */
+const profilCache = new WeakMap();
+
+/**
+ * Material für die Profilform: wie das Trägermaterial (gleiche Textur), mit Schalter
+ * `LG_TRAEGER` für das Licht (lichtgitter.js).
+ * @param {THREE.Material} traeger
+ */
+function profilMaterial(traeger) {
+  let mat = profilCache.get(traeger);
+  if (!mat) {
+    mat = /** @type {THREE.MeshLambertMaterial} */ (traeger).clone();
+    // Verschattung je Eckpunkt über das Attribut `lgProfil` (lichtgitter.js, abstandsabhängig)
+    mat.defines = { ...(mat.defines || {}), LG_TRAEGER: '' };
+    profilCache.set(traeger, mat);
+  }
+  return mat;
+}
+
+/**
+ * Profilringe um rechteckige Felder auf der Vorder- (seite +1, Fläche z = zFlaeche) oder Rückseite (−1)
+ * eines Quaders. Lokale Koordinaten des Trägers; `uv(x, y)` liefert die Texturkoordinate des Trägers an
+ * dieser Stelle (gleiche Textur → Zierlinie liegt auf dem Spiegel).
+ * @param {{ felder: number[][], seite: number, zFlaeche: number, uv: (x: number, y: number) => number[] }[]} teile
+ *   felder: [x0, y0, x1, y1] je Feld
+ * @returns {THREE.BufferGeometry | null}
+ */
+function profilGeometrie(teile) {
+  /** @type {number[]} */ const pos = [];
+  /** @type {number[]} */ const nor = [];
+  /** @type {number[]} */ const uvs = [];
+  /** @type {number[]} */ const profil = [];
+  /** @type {number[]} */ const traeger = [];
+  const P = PROFIL.punkte;
+  // Normale je Abschnitt im Querschnitt (nach innen, nach vorn)
+  const nAbschnitt = [];
+  for (let i = 0; i + 1 < P.length; i++) {
+    const dd = P[i + 1].d - P[i].d;
+    const dh = P[i + 1].h - P[i].h;
+    const l = Math.hypot(dd, dh) || 1;
+    nAbschnitt.push([-dh / l, dd / l]);
+  }
+  const nPunkt = (/** @type {number} */ i, /** @type {number} */ k) => {
+    // k = Abschnitt; an glatten Punkten Mittel der Nachbarabschnitte
+    if (!P[i].glatt) return nAbschnitt[k];
+    const a = nAbschnitt[Math.max(0, i - 1)];
+    const b = nAbschnitt[Math.min(nAbschnitt.length - 1, i)];
+    const l = Math.hypot(a[0] + b[0], a[1] + b[1]) || 1;
+    return [(a[0] + b[0]) / l, (a[1] + b[1]) / l];
+  };
+  for (const { felder, seite, zFlaeche, uv } of teile) {
+    /** @param {number[][]} ecken je [x, y, z, nx, ny, nz, ao, aoFern, flachFern] */
+    const viereck = (ecken) => {
+      // Umlaufsinn so, dass die Vorderseite zur Normale zeigt
+      const [a, b, c] = ecken;
+      const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+      const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+      const kreuz = [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx];
+      const n = [a[3] + b[3] + c[3] + ecken[3][3], a[4] + b[4] + c[4] + ecken[3][4], a[5] + b[5] + c[5] + ecken[3][5]];
+      const folge = kreuz[0] * n[0] + kreuz[1] * n[1] + kreuz[2] * n[2] >= 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2];
+      for (const j of folge) {
+        const e = ecken[j];
+        pos.push(e[0], e[1], e[2]);
+        nor.push(e[3], e[4], e[5]);
+        uvs.push(...uv(e[0], e[1]));
+        profil.push(e[6], e[7], e[8]);
+        traeger.push(0, 0, seite);
+      }
+    };
+    for (const [x0, y0, x1, y1] of felder) {
+      // zu kleine Felder: Querschnitt in d stauchen (kurze Wandstücke)
+      const s = Math.min(1, (Math.min(x1 - x0, y1 - y0) / 2 - 0.02) / PROFIL.breite);
+      if (s < 0.3) continue;
+      const z = (/** @type {number} */ h) => zFlaeche + seite * h;
+      // vier Seiten: Ecke am Rand (bei d), Richtung entlang der Kante, Richtung nach innen
+      const seiten = [
+        { a: (/** @type {number} */ d) => [x0 + d, y0 + d], b: (/** @type {number} */ d) => [x1 - d, y0 + d], innen: [0, 1] },
+        { a: (/** @type {number} */ d) => [x1 - d, y0 + d], b: (/** @type {number} */ d) => [x1 - d, y1 - d], innen: [-1, 0] },
+        { a: (/** @type {number} */ d) => [x1 - d, y1 - d], b: (/** @type {number} */ d) => [x0 + d, y1 - d], innen: [0, -1] },
+        { a: (/** @type {number} */ d) => [x0 + d, y1 - d], b: (/** @type {number} */ d) => [x0 + d, y0 + d], innen: [1, 0] },
+      ];
+      for (const sk of seiten) {
+        for (let k = 0; k + 1 < P.length; k++) {
+          const ecke = (/** @type {number} */ i, /** @type {(d: number) => number[]} */ f) => {
+            const [nd, nh] = nPunkt(i, k);
+            const [x, y] = f(P[i].d * s);
+            return [x, y, z(P[i].h), sk.innen[0] * nd, sk.innen[1] * nd, seite * nh, P[i].ao, P[i].fern, P[i].flach];
+          };
+          viereck([ecke(k, sk.a), ecke(k, sk.b), ecke(k + 1, sk.b), ecke(k + 1, sk.a)]);
+        }
+      }
+      // Spiegel (oberste Fläche)
+      const d = P[P.length - 1].d * s;
+      const h = P[P.length - 1].h;
+      viereck([[x0 + d, y0 + d, z(h), 0, 0, seite, 1, 1, 0], [x1 - d, y0 + d, z(h), 0, 0, seite, 1, 1, 0],
+        [x1 - d, y1 - d, z(h), 0, 0, seite, 1, 1, 0], [x0 + d, y1 - d, z(h), 0, 0, seite, 1, 1, 0]]);
+    }
+  }
+  if (!pos.length) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setAttribute('lgProfil', new THREE.Float32BufferAttribute(profil, 3));
+  geo.setAttribute('lgTraeger', new THREE.Float32BufferAttribute(traeger, 3));
+  return geo;
+}
+
+/**
+ * Hängt die Profilform als Kind an den Träger-Quader (gleiche lokale Koordinaten, ohne eigene Lage).
+ * @param {THREE.Mesh} traeger @param {THREE.BufferGeometry | null} geo
+ */
+function haengeProfilAn(traeger, geo) {
+  if (!geo) return;
+  const profil = new THREE.Mesh(geo, profilMaterial(/** @type {THREE.Material} */ (traeger.material)));
+  // Licht aus der Lichtkarte des Trägers (lichtmodell.js); kein eigener Verdecker
+  profil.userData.lkTraeger = traeger;
+  traeger.add(profil);
+}
 
 // ---------- Hilfen zum Malen ----------
 
@@ -74,48 +249,24 @@ function maserung(ctx, x, y, b, h, farbe, senkrecht, z) {
 }
 
 /**
- * Füllung mit Profilleiste und Fase, eingemalt (Licht von oben links).
- * Rahmen innen (x0, y0)–(x1, y1); `profil` = Breite der Kehlleiste, `fase` = Breite der Abschrägung.
+ * Grund einer Füllung mit Zierlinie. Profilleiste und Fase sind seit Befund 2 echte Form (`profilRing`),
+ * hier wird nur die Fläche darunter gemalt. Rahmen innen (x0, y0)–(x1, y1).
  * @param {CanvasRenderingContext2D} ctx
  * @param {number} x0 @param {number} y0 @param {number} x1 @param {number} y1
- * @param {{ grund: number[], maser: boolean, profil: number, fase: number, linie?: string, linieBreite?: number, z: () => number }} o
+ * @param {{ grund: number[], maser: boolean, randX: number, randY: number, linie?: string, linieBreite?: number, z: () => number }} o
+ *   randX/randY: Abstand der Zierlinie vom Feldrand in Bildpunkten (liegt auf dem Spiegel, siehe PROFIL.linie)
  */
-function fuellung(ctx, x0, y0, x1, y1, { grund, maser, profil, fase, linie, linieBreite = 3, z }) {
-  // Schattenkante oben/links (Rahmen wirft Schatten in die Vertiefung), Lichtkante unten/rechts
-  const trapez = (/** @type {number[][]} */ p, /** @type {string} */ f) => {
-    ctx.fillStyle = f;
-    ctx.beginPath();
-    ctx.moveTo(p[0][0], p[0][1]);
-    for (const q of p.slice(1)) ctx.lineTo(q[0], q[1]);
-    ctx.closePath();
-    ctx.fill();
-  };
-  // Profilleiste (Kehle): Ring aus vier Trapezen
-  const ring = (/** @type {number} */ a, /** @type {number} */ d, /** @type {string[]} */ f) => {
-    const [ax0, ay0, ax1, ay1] = [x0 + a, y0 + a, x1 - a, y1 - a];
-    const [bx0, by0, bx1, by1] = [ax0 + d, ay0 + d, ax1 - d, ay1 - d];
-    trapez([[ax0, ay0], [ax1, ay0], [bx1, by0], [bx0, by0]], f[0]); // oben
-    trapez([[ax0, ay0], [bx0, by0], [bx0, by1], [ax0, ay1]], f[1]); // links
-    trapez([[ax0, ay1], [bx0, by1], [bx1, by1], [ax1, ay1]], f[2]); // unten
-    trapez([[ax1, ay0], [ax1, ay1], [bx1, by1], [bx1, by0]], f[3]); // rechts
-  };
-  // Grund der Füllung (Spiegel) zuerst
+function fuellung(ctx, x0, y0, x1, y1, { grund, maser, randX, randY, linie, linieBreite = 3, z }) {
   if (maser) maserung(ctx, x0, y0, x1 - x0, y1 - y0, grund, true, z);
   else {
     ctx.fillStyle = rgb(grund);
     ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
   }
-  // Profil: erst dunkle Kehle (oben/links tief im Schatten), dann helle Rundung
-  ring(0, profil * 0.45, [rgb(grund, 0.55), rgb(grund, 0.62), rgb(grund, 1.12), rgb(grund, 1.05)]);
-  ring(profil * 0.45, profil * 0.55, [rgb(grund, 1.16), rgb(grund, 1.1), rgb(grund, 0.72), rgb(grund, 0.78)]);
-  // Fase des erhabenen Spiegels: oben/links Licht, unten/rechts Schatten
-  if (fase > 0) ring(profil, fase, [rgb(grund, 1.1, 0.75), rgb(grund, 1.05, 0.75), rgb(grund, 0.8, 0.75), rgb(grund, 0.85, 0.75)]);
   if (linie) {
     // feine Zierlinie (z. B. Gold) auf dem Spiegel
-    const a = profil + fase + 4;
     ctx.strokeStyle = linie;
     ctx.lineWidth = linieBreite;
-    ctx.strokeRect(x0 + a, y0 + a, x1 - x0 - 2 * a, y1 - y0 - 2 * a);
+    ctx.strokeRect(x0 + randX, y0 + randY, x1 - x0 - 2 * randX, y1 - y0 - 2 * randY);
   }
 }
 
@@ -220,6 +371,7 @@ export function tapetenTextur({ grund, muster, glanz = grund, saat = 51 }) {
  * @param {number} [B=1024]
  */
 export function lambrisTeilung(B = 1024) {
+  // (Quer-Rahmen oben/unten: LAMBRIS_RIEGEL)
   const proM = B / LAMBRIS.feld; // Bildpunkte je Meter waagerecht
   const stab = Math.round(0.11 * proM); // Rahmenbreite zwischen zwei Feldern
   const schmal = Math.round(0.3 * proM);
@@ -240,7 +392,7 @@ export function lambrisTextur({ holz, maser = true, linie, saat = 61 }) {
   const { canvas, ctx } = leinwand(B, H);
   const z = zufall(saat);
   const { stab, x2 } = lambrisTeilung(B);
-  const riegel = 52; // Quer-Rahmen oben/unten (≈ 10 cm bei 0,98 m Feldhöhe)
+  const riegel = LAMBRIS_RIEGEL * H; // Quer-Rahmen oben/unten (≈ 10 cm bei 0,98 m Feldhöhe)
   // Felder [x0, x1]: halber Stab am Rand, langes Feld, Stab, schmales Feld, halber Stab
   const x1 = stab / 2;
   const felder = [[x1, x2], [x2 + stab, B - stab / 2]];
@@ -257,8 +409,10 @@ export function lambrisTextur({ holz, maser = true, linie, saat = 61 }) {
   // Fuge zwischen den Stäben zweier Kacheln
   ctx.fillStyle = rgb(holz, 0.6);
   ctx.fillRect(0, 0, 1.5, H);
+  const randX = PROFIL.linie * (B / LAMBRIS.feld);
+  const randY = PROFIL.linie * (H / (LAMBRIS.hoehe - LAMBRIS.deckHoehe - LAMBRIS.fuss));
   for (const [a, b] of felder) {
-    fuellung(ctx, a, riegel, b, H - riegel, { grund: holz.map((c) => c * (maser ? 0.94 : 0.97)), maser, profil: 14, fase: 26, linie, linieBreite: 6, z });
+    fuellung(ctx, a, riegel, b, H - riegel, { grund: holz.map((c) => c * (maser ? 0.94 : 0.97)), maser, randX, randY, linie, linieBreite: 6, z });
   }
   korn(ctx, B, H, maser ? 2 : 1.5, saat + 1);
   return alsTextur(canvas);
@@ -323,10 +477,9 @@ export function tuerTextur(breite, hoehe, { holz, maser = true, linie }) {
     ctx.fillStyle = rgb(holz);
     ctx.fillRect(0, 0, B, H);
   }
-  const s = p(0.12);
-  const teile = [[0.24, 0.84], [1.0, hoehe - 0.62], [hoehe - 0.48, hoehe - 0.13]];
-  for (const [u, o] of teile) {
-    fuellung(ctx, s, y(o), B - s, y(u), { grund: holz.map((c) => c * 0.95), maser, profil: 12, fase: 22, linie, z });
+  const s = p(TUER.fries);
+  for (const [u, o] of tuerTeilung(hoehe)) {
+    fuellung(ctx, s, y(o), B - s, y(u), { grund: holz.map((c) => c * 0.95), maser, randX: p(PROFIL.linie), randY: p(PROFIL.linie), linie, z });
   }
   // Fuge an den Kanten (Flügel stoßen aneinander)
   ctx.strokeStyle = rgb(holz, 0.5);
@@ -560,7 +713,15 @@ function teil(geo, mat, x, y, z) {
  */
 export function tuerFluegel(breite, hoehe, dicke, holz) {
   const g = new THREE.Group();
-  g.add(teil(new THREE.BoxGeometry(breite, hoehe, dicke), tuerMaterial(breite, hoehe, holz), 0, hoehe / 2, 0));
+  const blatt = teil(new THREE.BoxGeometry(breite, hoehe, dicke), tuerMaterial(breite, hoehe, holz), 0, hoehe / 2, 0);
+  g.add(blatt);
+  // Profilform der Füllungen auf beiden Seiten (Textur der Rückseite ist gespiegelt: u = 0,5 − x/Breite)
+  const x0 = -breite / 2 + TUER.fries;
+  const felder = tuerTeilung(hoehe).map(([u, o]) => [x0, u - hoehe / 2, -x0, o - hoehe / 2]);
+  haengeProfilAn(blatt, profilGeometrie([1, -1].map((seite) => ({
+    felder, seite, zFlaeche: seite * dicke / 2,
+    uv: (/** @type {number} */ x, /** @type {number} */ y) => [0.5 + seite * x / breite, y / hoehe + 0.5],
+  }))));
   return g;
 }
 
@@ -615,6 +776,30 @@ export function tuerFutter(breite, hoehe, tiefe, mat, d = 0.025) {
  * @returns {THREE.Mesh[]}
  */
 export function lambrisStueck(a, b, hoehe, m) {
+  /**
+   * Profilform der Felder an einen Lambris-Quader hängen. Die Felder kommen aus derselben Teilung wie die
+   * Textur (u = von + (x/laenge + ½)·kacheln); nur Felder, die ganz im u-Bereich des Quaders liegen.
+   * @param {THREE.Mesh} mesh @param {number} laenge @param {number} hFeld @param {number} kacheln @param {number} von
+   */
+  const lambrisProfil = (mesh, laenge, hFeld, kacheln, von) => {
+    const B = 1024;
+    const { stab, x2 } = lambrisTeilung(B);
+    const bereiche = [[stab / 2 / B, x2 / B], [(x2 + stab) / B, 1 - stab / 2 / B]];
+    const xVonU = (/** @type {number} */ u) => ((u - von) / kacheln - 0.5) * laenge;
+    const yu = (0.5 - LAMBRIS_RIEGEL) * hFeld;
+    /** @type {number[][]} */
+    const felder = [];
+    for (let k = Math.floor(von); k < von + kacheln; k++) {
+      for (const [fa, fb] of bereiche) {
+        if (k + fa >= von - 1e-6 && k + fb <= von + kacheln + 1e-6) felder.push([xVonU(k + fa), -yu, xVonU(k + fb), yu]);
+      }
+    }
+    haengeProfilAn(mesh, profilGeometrie([{
+      felder, seite: 1, zFlaeche: LAMBRIS.dicke / 2,
+      uv: (x, y) => [von + (x / laenge + 0.5) * kacheln, y / hFeld + 0.5],
+    }]));
+    return mesh;
+  };
   const laenge = b - a;
   if (laenge < 0.05) return [];
   const { dicke, feld, deckHoehe, deckTiefe, fuss } = LAMBRIS;
@@ -624,7 +809,7 @@ export function lambrisStueck(a, b, hoehe, m) {
     if (laenge >= 1.2) {
       const felder = Math.max(1, Math.round(laenge / feld));
       const geo = lambrisUV(new THREE.BoxGeometry(laenge, hFeld, dicke), felder);
-      teile.push(teil(geo, m.lambris, (a + b) / 2, fuss + hFeld / 2, dicke / 2));
+      teile.push(lambrisProfil(teil(geo, m.lambris, (a + b) / 2, fuss + hFeld / 2, dicke / 2), laenge, hFeld, felder, 0));
     } else {
       // kurzes Stück: nur schmale, hochgestellte Felder (sonst würde das lange Feld gestaucht)
       const { uSchmal, breiteSchmal } = lambrisTeilung();
@@ -632,7 +817,7 @@ export function lambrisStueck(a, b, hoehe, m) {
       const w = laenge / n;
       for (let k = 0; k < n; k++) {
         const geo = lambrisUV(new THREE.BoxGeometry(w, hFeld, dicke), 1 - uSchmal, uSchmal);
-        teile.push(teil(geo, m.lambris, a + (k + 0.5) * w, fuss + hFeld / 2, dicke / 2));
+        teile.push(lambrisProfil(teil(geo, m.lambris, a + (k + 0.5) * w, fuss + hFeld / 2, dicke / 2), w, hFeld, 1 - uSchmal, uSchmal));
       }
     }
     teile.push(teil(new THREE.BoxGeometry(laenge, deckHoehe, deckTiefe), m.lambrisDeckleiste, (a + b) / 2, hoehe - deckHoehe / 2, deckTiefe / 2));

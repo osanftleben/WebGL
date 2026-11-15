@@ -2,6 +2,21 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
+const normalMatrix = new THREE.Matrix3();
+
+/**
+ * Richtungsattribut `lgTraeger` (Normale der Trägerfläche, innenausbau.js) wie die Normalen mitdrehen;
+ * `applyMatrix4` dreht nur `normal` und `tangent`.
+ * @param {THREE.BufferGeometry} geo @param {THREE.Matrix4} matrix
+ */
+function dreheRichtung(geo, matrix) {
+  const r = geo.getAttribute('lgTraeger');
+  if (!r) return;
+  normalMatrix.getNormalMatrix(matrix);
+  /** @type {THREE.BufferAttribute} */ (r).applyNormalMatrix(normalMatrix);
+  r.needsUpdate = true;
+}
+
 /**
  * Fasst alle undurchsichtigen Meshes einer Gruppe je Material zu einem Mesh zusammen
  * (weniger Draw-Calls, wichtig fürs Handy). Durchsichtige Teile bleiben einzeln.
@@ -36,6 +51,7 @@ export function verschmelze(gruppe, lichtkarte, optionen = {}) {
     if (material.transparent && !material.userData.verschmelzbar) return;
     const geo = mesh.geometry.clone();
     geo.applyMatrix4(mesh.matrixWorld);
+    dreheRichtung(geo, mesh.matrixWorld);
     const lk = lichtkarte?.get(mesh);
     if (lk) geo.setAttribute('lkUv', new THREE.BufferAttribute(lk, 2));
     let zelle = '';
@@ -66,6 +82,7 @@ export function verschmelze(gruppe, lichtkarte, optionen = {}) {
     for (const g of geos) g.dispose();
     if (!zusammen) continue;
     zusammen.applyMatrix4(inverse);
+    dreheRichtung(zusammen, inverse);
     const mesh = new THREE.Mesh(zusammen, material);
     if (optionen.schluessel) mesh.userData.zelle = zelle;
     gruppe.add(mesh);

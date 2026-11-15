@@ -126,13 +126,19 @@ export function wendeLichtgitterAn(wurzel, gitter, staerke, feinwerte = {}, zusa
       Object.assign(shader.uniforms, uniforms);
       // Meshes ohne `lkUv` lesen (0, 0): dort liegt im Atlas „keine Lichtkarte“ (Alpha 0)
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vLgWelt;\nattribute vec2 lkUv;\nvarying vec2 vLkUv;')
-        .replace('#include <project_vertex>', '#include <project_vertex>\n\tvLgWelt = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\n\tvLkUv = lkUv;');
+        .replace('#include <common>', '#include <common>\nvarying vec3 vLgWelt;\nattribute vec2 lkUv;\nvarying vec2 vLkUv;'
+          + '\n#ifdef LG_TRAEGER\nattribute vec3 lgTraeger;\nvarying vec3 vLgTraeger;\nattribute vec3 lgProfil;\nvarying vec3 vLgProfil;\n#endif')
+        .replace('#include <project_vertex>', '#include <project_vertex>\n\tvLgWelt = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\n\tvLkUv = lkUv;'
+          + '\n#ifdef LG_TRAEGER\n\tvLgTraeger = mat3( modelMatrix ) * lgTraeger;\n\tvLgProfil = lgProfil;\n#endif');
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
 #define LK_KARTE
 varying vec3 vLgWelt;
 varying vec2 vLkUv;
+#ifdef LG_TRAEGER
+varying vec3 vLgTraeger;
+varying vec3 vLgProfil;
+#endif
 uniform highp sampler3D lichtGitter;
 uniform vec3 lgUrsprung;
 uniform float lgSchritt;
@@ -169,6 +175,23 @@ ${zusaetze.map((z) => z.kopf).join('\n')}`)
 			// Statische Quader und Flächen: Lichtkarte (direkt auf der Fläche berechnet)
 			lgE = pow( lk.rgb, vec3( lgGamma ) ) * lkMax;
 			lgKarteAn = 1.0;
+#ifdef LG_TRAEGER
+			// Profilform vor einem Quader (innenausbau.js): Lichtkarte des Trägers, je Richtung mit dem
+			// Helligkeitsverhältnis aus dem Lichtgitter (eigene Normale : Trägernormale, gleicher Messpunkt)
+			{
+				vec3 lgTn = normalize( vLgTraeger );
+				vec3 lgP = vLgWelt + lgTn * 0.15;
+				vec3 lgLum = vec3( 0.2126, 0.7152, 0.0722 );
+				float lgV = dot( lgBestrahlung( lgP, lgNormale ), lgLum ) / max( dot( lgBestrahlung( lgP, lgTn ), lgLum ), 1e-5 );
+				// Hoch 1,6: Stufen etwas deutlicher als physikalisch (stilisiert, Befund 2)
+				lgV = clamp( pow( lgV, 1.6 ), 0.25, 2.0 );
+				// Aus der Ferne ist ein Bildpunkt breiter als die Stufen (2–6 mm): feine Kanten würden zu
+				// Pünktchen und Flimmern. Daher je nach Bildpunktgröße auf der Wand weich ausblenden:
+				// Verschattung → Fernwert (vLgProfil.y), Richtungslicht der Leiste → 1 (vLgProfil.z = 1)
+				float lgFern = smoothstep( 0.004, 0.01, length( fwidth( vLgWelt ) ) );
+				lgE *= mix( vLgProfil.x, vLgProfil.y, lgFern ) * mix( lgV, 1.0, lgFern * vLgProfil.z );
+			}
+#endif
 		} else {
 			lgE = lgBestrahlung( vLgWelt + lgNormale * 0.15, lgNormale ) * lgGitterFaktor;
 		}

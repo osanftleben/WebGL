@@ -6,14 +6,15 @@ Vorher-Bilder: `.claude/notizen/bilder/2026-11-15-befund<N>-*.png|webp`.
 ## 1. Schwerttafel (Schreckenskammer, III. Etage) – Schwerter schlecht zu erkennen
 - Bild: `befund1-schwerter.png`. Bauteil „Schwerttafel“ in `welt/bauteile.js`; laut Notizen Richtschwerter.
 - Beobachtung: Griffe/Parierstangen schwarz bzw. dunkelbraun verschwinden vor der sehr dunklen Holztafel; Klingen wirken wie flache helle Latten (keine Schneide, keine Hohlkehle, kaum Glanz), Ende gerade abgeschnitten (bei Richtschwertern üblich: stumpf/rund).
-- **Offen:** Problem Kontrast, Form oder beides? Darf die Tafel heller werden / anderen Hintergrund bekommen (z. B. roter Stoff)? Klingenende gerade lassen oder spitz?
+- **Nutzer (15. 11.):** Kontrast UND Form; Tafel mit dunkelrotem Stoffbezug (nicht belegt, angenommen, passt zu den Vorhangschals); Klingenende stumpf/abgerundet (Richtschwert).
 
-## 2. Lambris (Vertäfelung) wirkt „fake“
+## 2. Lambris (Vertäfelung) wirkt „fake“ – ERLEDIGT 15. 11. (Firefox ok, nicht committet)
+- **Ergebnis:** Füllungen von Lambris und Türen mit echter Profilform (Leiste mit Stufe, Rundstab, Kehle; Spiegel mit Fase), Licht aus der Lichtkarte des Trägers je Richtung angepasst; aus der Ferne feine Kanten weich ausgeblendet (sonst Pünktchen, Runde 1/2). Protokoll `protokolle/2026-11-15-holmes-profile.md`.
 - Bild: `befund2-vertaefelung.png`.
 - **Nutzer, Hauptpunkt:** Die Schrägen an den Füllungen sind zu gleichmäßig schattiert (wie aufgemalt / 3D-Baukasten). Ziel: echtes Profil mit feinen Stufen und Kanten, die kleine Schattenkanten werfen.
 - Helle Fassung mit Goldlinien bleibt (belegt, Hirth 1886; Lambris und Türen passend).
 - Weitere Beobachtungen (nicht vom Nutzer gewichtet): Goldlinien wie Aufkleber, Fläche überall gleich glatt, Brüstungsgesims schmal/flach, Lambris und Tür exakt gleicher Farbton.
-- **Offen:** Türen bekommen dasselbe Profil? (Vorschlag: ja, gleiche Schrägen, sollen passen.) Gebrauchsspuren gewünscht?
+- **Nutzer (15. 11.):** Türen bekommen dasselbe Profil. Gebrauchsspuren nicht verlangt.
 
 ## 3. Schatten in Raum A und B fehlen (z. B. Vitrinenbeine)
 - Bild: `befund3-beinschatten.webp`.
@@ -41,9 +42,9 @@ Vorher-Bilder: `.claude/notizen/bilder/2026-11-15-befund<N>-*.png|webp`.
 - **Auftrag vergeben** (15. 11.): Aufgabensitzung `holmes-schalen`, Protokoll `protokolle/2026-11-15-holmes-schalen.md`.
 
 ## Empfohlene Reihenfolge (Hauptsitzung)
-6 (erledigt) → 7 (läuft, Sitzung holmes-wandschatten) → 2 und 1 (Formänderungen vor dem Neubacken) → 3 → 4 (beide Licht, nacheinander); 5 unabhängig, jederzeit.
+6 (erledigt) → 7 (erledigt) → 2 (erledigt) → 1 (als Nächstes) → 3 → 4 (beide Licht, nacheinander); 5 unabhängig, jederzeit.
 
-## 7. Werkstatt: Schatten an der Wand stimmen nicht – ERLEDIGT 15. 11. (257f432, Firefox offen)
+## 7. Werkstatt: Schatten an der Wand stimmen nicht – ERLEDIGT 15. 11. (257f432, Firefox ok)
 - Bild: `befund7-wandschatten.png` (Ecke mit Wandbrett, 4 Gipsköpfen, angelehnten Brettern, Gipskasten).
 - Beobachtungen: großer, sehr weicher dunkler Fleck um Wandbrett und Köpfe, reicht weit **über** die Köpfe hinaus (Schatten nach oben – passt nur bei Licht von unten); unter dem Wandbrett keine klare Schattenkante; hinter den Brettern breite dunkle Wolke bis über ihre Oberkante. Wirkt wie zu stark weichgezeichnet bzw. zu große Hüllkörper.
 - Mögliche Ursachen (prüfen, nicht belegt): Quader-Hülle der Büsten/Köpfe (bekannter Restpunkt „Büstenschatten nur grob“), Unschärfe der Lichtkarte (`KARTE_UNSCHAERFE_*` in `holmes_licht.py`), Lichtrichtung beim Backen.
