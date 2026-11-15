@@ -74,6 +74,13 @@ const stufen = alleStufen([etage.stufen, ...funde.stufen.leiche, funde.stufen.fi
 const LICHTGITTER_FAKTOR = 1.3;
 /** Mindest-Grundhelligkeit im indirekten Licht (Einheit wie das Licht nach dem Faktor 22) */
 const LICHT_GRUND = 0.15;
+/**
+ * Helligkeitskurve für sehr helles Licht am Fenster (Nutzer 15. 11.: Laibungen/Fensterbänke heller als der
+ * Himmel). Der gemalte Himmel (Bildwert 232) entspricht vor ACES ≈ 1,18; eine weiße Fläche bei Belichtung 1,25
+ * hat vor ACES Licht · 1,25/π. Grenze 1,78 ⇔ weiße Fläche bei 0,6 der Himmelshelligkeit; darüber wächst das
+ * Licht nur noch wie l^0,15: Laibung ≈ ½, Fensterbank ≈ ⅔ des Himmels. Raum fern vom Fenster unverändert.
+ */
+const LICHT_HELL = { grenze: 1.78, haerte: 3, daempfung: 0.85 };
 /** @type {any} */
 let lichtgitterWerte = null;
 /** @type {any} */
@@ -93,6 +100,8 @@ try {
     gitterFaktor: LICHTGITTER_FAKTOR,
     // Ecken und Stellen unter Möbeln saufen nicht ab; helle Stellen bleiben praktisch gleich
     grund: LICHT_GRUND,
+    // Flächen am Fenster bleiben unter der Helligkeit des sichtbaren Himmels
+    hell: LICHT_HELL,
   }, [werkstatt.zusatz]);
   // Kurze Meldung, welche Beleuchtung aktiv ist (hilft bei der Fehlersuche auf anderen Rechnern)
   console.info(gitter.karte

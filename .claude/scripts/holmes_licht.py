@@ -607,7 +607,7 @@ def berechne(modell_datei: Path, ziel: Path, nur_cpu: bool = False) -> int:
         alpha[y0 - 1:y0 + h + 1, x0 - 1:x0 + w + 1] = 1 + np.round(254 * np.clip(fblock, 0, 1))
         gueltig[y0:y0 + h, x0:x0 + w] = ok.T
 
-    gefuellt = glaette_karte(atlas, fl, alpha, gueltig)
+    gefuellt = glaette_karte(atlas, fl, alpha, gueltig, fenster=szene["fenster"])
     print(f"Randpunkte aus Nachbarseiten: {gefuellt}")
     hoechst_k = float(atlas.max())
     rgb = (np.clip(atlas / hoechst_k, 0, 1) ** (1 / 2.2) * 255 + 0.5).astype(np.uint8)
@@ -648,14 +648,19 @@ def berechne(modell_datei: Path, ziel: Path, nur_cpu: bool = False) -> int:
 KARTE_UNSCHAERFE = 2.5   # Weichzeichnung der Lichtkarte je Seite (Bildpunkte, Gauß-Sigma) gegen Wolken/Flecken
 KARTE_UNSCHAERFE_NAH = 1.0   # … nahe an Verdeckern (Möbelfugen, Kontaktschatten), siehe glaette_karte
 FREI_NAH = (0.45, 0.75)  # freie Sicht: bis zum ersten Wert schwach, ab dem zweiten stark weichgezeichnet
+KARTE_UNSCHAERFE_TIEFE = 0.6  # Seiten in einer Fensteröffnung (Laibung, Fensterbank, Sturz) quer zur Wand nur so
+                              # schwach weichzeichnen (Bildpunkte): das Licht ändert sich dort auf wenigen Zentimetern
+                              # (Verlauf außen → innen); 2,5 Bildpunkte verwischten ihn über die ganze Laibungstiefe
 
 
-def _gauss_seite(blk: np.ndarray, sigma: float) -> np.ndarray:
-    """Gauß-Weichzeichnung eines Blocks (Höhe × Breite [× Kanäle]), nur innerhalb des Blocks, am Rand normiert."""
-    r = int(np.ceil(3 * sigma))
-    kern = np.exp(-0.5 * (np.arange(-r, r + 1) / sigma) ** 2)
+def _gauss_seite(blk: np.ndarray, sigma: float | tuple[float, float]) -> np.ndarray:
+    """Gauß-Weichzeichnung eines Blocks (Höhe × Breite [× Kanäle]), nur innerhalb des Blocks, am Rand normiert.
+    sigma: eine Zahl für beide Richtungen oder (Zeilenrichtung, Spaltenrichtung)."""
+    sig = sigma if isinstance(sigma, tuple) else (sigma, sigma)
     eins = np.ones(blk.shape[:2])
     for ax in (0, 1):
+        r = int(np.ceil(3 * sig[ax]))
+        kern = np.exp(-0.5 * (np.arange(-r, r + 1) / sig[ax]) ** 2)
         summe = np.zeros_like(blk)
         gew = np.zeros_like(eins)
         n = blk.shape[ax]
@@ -715,8 +720,28 @@ def _nachbarpunkte(fl: np.ndarray, gueltig: np.ndarray, tiefe: int) -> dict[int,
     return ergebnis
 
 
+def _tiefenachse(f: np.ndarray, fenster: list) -> int | None:
+    """Liegt die Seite in einer Fensteröffnung (zwischen Wandinnenseite und Fensterebene) und verläuft eine ihrer
+    Kanten quer zur Wand: die Blockachse dieser Kante (0 = Zeilen/v, 1 = Spalten/u), sonst None."""
+    ecke, u, v = f[4:7], f[7:10], f[10:13]
+    c = ecke + u / 2 + v / 2
+    for fe in fenster:
+        k = 0 if fe["achse"] == "x" else 2          # Achse quer zur Wand
+        a = 2 if fe["achse"] == "x" else 0          # waagerecht entlang der Wand
+        if not fe["ebene"] - 0.53 < c[k] < fe["ebene"] + 0.02:
+            continue
+        if not (fe["min"][0] - 0.1 < c[a] < fe["max"][0] + 0.1 and fe["min"][1] - 0.1 < c[1] < fe["max"][1] + 0.1):
+            continue
+        if abs(v[k]) > 0.9 * np.linalg.norm(v):
+            return 0
+        if abs(u[k]) > 0.9 * np.linalg.norm(u):
+            return 1
+    return None
+
+
 def glaette_karte(atlas: np.ndarray, fl: np.ndarray, alpha: np.ndarray, gueltig: np.ndarray,
-                  sigma: float = KARTE_UNSCHAERFE, sigma_nah: float = KARTE_UNSCHAERFE_NAH) -> int:
+                  sigma: float = KARTE_UNSCHAERFE, sigma_nah: float = KARTE_UNSCHAERFE_NAH,
+                  fenster: list | None = None) -> int:
     """Lichtkarte je Seite weichzeichnen (Gauß, am Rand normiert) und den Randpunkt ringsum neu setzen.
     Ohne das bleibt das Zufallsrauschen des zurückgeworfenen Lichts als wolkige Flecken auf Wänden und Decken
     sichtbar (Hinweis des Nutzers).
@@ -733,6 +758,7 @@ def glaette_karte(atlas: np.ndarray, fl: np.ndarray, alpha: np.ndarray, gueltig:
     nachbarn = _nachbarpunkte(fl, gueltig, r)
     roh_atlas = atlas.copy()
     frei_roh = np.clip((alpha - 1) / 254, 0, 1)
+    in_oeffnung = 0
     for s, f in enumerate(fl):
         x0, y0, w, h = (int(v) for v in f[0:4])
         wert = roh_atlas[y0:y0 + h, x0:x0 + w]
@@ -750,15 +776,23 @@ def glaette_karte(atlas: np.ndarray, fl: np.ndarray, alpha: np.ndarray, gueltig:
             maske[j + r, i + r] = 1
             innen = (slice(r, r + h), slice(r, r + w))
 
-        def weich_zeichnen(x: np.ndarray, sig: float) -> np.ndarray:
+        def weich_zeichnen(x: np.ndarray, sig) -> np.ndarray:
             m = maske[..., None] if x.ndim == 3 else maske
             nenner = _gauss_seite(maske, sig)
             return (_gauss_seite(x * m, sig) / np.maximum(nenner[..., None] if x.ndim == 3 else nenner, 1e-12))[innen]
 
-        blk = weich_zeichnen(wert, sigma)
-        weich = np.clip((weich_zeichnen(fr, sigma_nah) - FREI_NAH[0]) / (FREI_NAH[1] - FREI_NAH[0]), 0, 1)
+        # In einer Fensteröffnung quer zur Wand kaum weichzeichnen (Verlauf außen → innen bleibt erhalten)
+        tiefe = _tiefenachse(f, fenster) if fenster else None
+        sig, sig_nah = sigma, sigma_nah
+        if tiefe is not None:
+            t_sig, t_nah = KARTE_UNSCHAERFE_TIEFE, min(KARTE_UNSCHAERFE_TIEFE, sigma_nah)
+            sig = (t_sig, sigma) if tiefe == 0 else (sigma, t_sig)
+            sig_nah = (t_nah, sigma_nah) if tiefe == 0 else (sigma_nah, t_nah)
+            in_oeffnung += 1
+        blk = weich_zeichnen(wert, sig)
+        weich = np.clip((weich_zeichnen(fr, sig_nah) - FREI_NAH[0]) / (FREI_NAH[1] - FREI_NAH[0]), 0, 1)
         weich = weich * weich * (3 - 2 * weich)
-        nah = weich_zeichnen(wert, sigma_nah)
+        nah = weich_zeichnen(wert, sig_nah)
         blk = nah + (blk - nah) * weich[..., None]
         atlas[y0:y0 + h, x0:x0 + w] = blk
         atlas[y0 - 1:y0 + h + 1, x0 - 1:x0 + w + 1] = np.pad(blk, ((1, 1), (1, 1), (0, 0)), mode="edge")
@@ -769,6 +803,8 @@ def glaette_karte(atlas: np.ndarray, fl: np.ndarray, alpha: np.ndarray, gueltig:
         atlas[y0 + j[rand], x0 + i[rand]] = atlas[qy[rand], qx[rand]]   # Quellen: Inneres der Nachbarseite
         alpha[y0 + j[rand], x0 + i[rand]] = alpha[qy[rand], qx[rand]]
         gefuellt += int(rand.sum())
+    if fenster:
+        print(f"Seiten in Fensteröffnungen (quer zur Wand kaum weichgezeichnet): {in_oeffnung}")
     return gefuellt
 
 

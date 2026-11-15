@@ -15,6 +15,7 @@ paths:
 - **Drehbuch Vormittag** abgenommen: `.claude/notizen/holmes-fall1-drehbuch-vormittag.md`.
 - **Wände + Türen** (f2c9acc), Firefox ok: `welt/innenausbau.js` (auch für den Vorraum).
 - **Werkstatt** (715ad95) + **Teil 2/3 + Beinschatten** (4add9dc) + **Schatten gebacken** (87cf3af), Firefox ok (auch Raum A/B ohne Beinflecken): Schatten in `licht/werkstatt-schatten.*`. **Werfer geändert → neu backen:** `holmes_schatten.py empfange` → `await __debug.backeWerkstattSchatten()`. Offen: Gitter-Zufall, Gipsformen/Topf/Holz, Wurfschatten auf runden Teilen. Keine Kontaktflecken mehr unter Möbelbeinen (alle Räume).
+- **Fensterlaibungen/-bänke** (nicht committet) unter dem Himmel: Kurve `LICHT_HELL` (main.js/lichtgitter.js), Lichtkarte in Öffnungen quer zur Wand kaum weichgezeichnet; Messhilfe `holmes_fenster_messen.js`. Offen: Firefox; Verlauf außen → innen nur schwach.
 - Weitere Restpunkte im Verlauf (u. a. Gesims-Fuge, Kranich-Monogramm).
 - **Als Nächstes:** Einbau Vormittag (Teil 2), in 3 Sitzungen: Vorraum, Figuren, Gespräche.
 - **Leistung: nur die Bildrate zählt** (Nutzer, fest); Draw-Calls sind keine Grenze, nicht danach fragen.

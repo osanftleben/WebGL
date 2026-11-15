@@ -80,10 +80,13 @@ export async function ladeLichtgitter(ordner, pruefsumme) {
  * @param {THREE.Object3D} wurzel
  * @param {Lichtgitter} gitter
  * @param {number} staerke Helligkeitsfaktor
- * @param {{ gitterFaktor?: number, grund?: number }} [feinwerte]
+ * @param {{ gitterFaktor?: number, grund?: number, hell?: { grenze: number, haerte: number, daempfung: number } }} [feinwerte]
  *   gitterFaktor: zusätzlicher Faktor nur fürs Lichtgitter (Figuren, runde Teile), 1 = wie Lichtkarte;
  *   grund: Mindest-Grundhelligkeit im indirekten Licht (gleiche Einheit wie das Licht nach `staerke`),
- *   hebt nur dunkle Stellen weich an, helle bleiben praktisch gleich; 0 = aus
+ *   hebt nur dunkle Stellen weich an, helle bleiben praktisch gleich; 0 = aus;
+ *   hell: Helligkeitskurve für sehr helles Licht (am Fenster): Helligkeit l → l / (1 + (l/grenze)^haerte)^(daempfung/haerte).
+ *   Unter `grenze` (Einheit wie `grund`) fast unverändert, darüber wächst das Licht nur noch wie l^(1 − daempfung).
+ *   Fehlt sie, bleibt das Licht linear
  * @param {LichtZusatz[]} [zusaetze] Ergänzungen, die das Licht `lgE` vor der Grundhelligkeit verändern
  *   (z. B. Werkstattschatten); verfügbar: vLgWelt, lgNormale (Weltnormale), lgKarteAn (1 = Lichtkarte)
  */
@@ -99,6 +102,8 @@ export function wendeLichtgitterAn(wurzel, gitter, staerke, feinwerte = {}, zusa
     lgStaerke: { value: staerke },
     lgGitterFaktor: { value: feinwerte.gitterFaktor ?? 1 },
     lgGrund: { value: feinwerte.grund ?? 0 },
+    // (grenze, haerte, daempfung); grenze 0 = Kurve aus
+    lgHell: { value: new THREE.Vector3(feinwerte.hell?.grenze ?? 0, feinwerte.hell?.haerte ?? 1, feinwerte.hell?.daempfung ?? 0) },
     lkKarte: { value: gitter.karte },
     lkAn: { value: gitter.karte ? 1 : 0 },
     lkMax: { value: gitter.karte && info.lichtkarte ? info.lichtkarte.hoechstwert : 0 },
@@ -137,6 +142,7 @@ uniform float lgGamma;
 uniform float lgStaerke;
 uniform float lgGitterFaktor;
 uniform float lgGrund;
+uniform vec3 lgHell;
 uniform sampler2D lkKarte;
 uniform float lkAn;
 uniform float lkMax;
@@ -168,9 +174,17 @@ ${zusaetze.map((z) => z.kopf).join('\n')}`)
 		}
 		lgE *= lgStaerke;
 ${zusaetze.map((z) => z.code).join('\n')}
+		float lgL = dot( lgE, vec3( 0.2126, 0.7152, 0.0722 ) );
+		// Helligkeitskurve für sehr helles Licht (Laibungen, Fensterbänke): der Raum ist für die Darstellung
+		// stark angehoben, der gemalte Himmel nicht – ohne Kurve wären Flächen am Fenster heller als der Himmel.
+		// Unter der Grenze fast linear, darüber weich gedämpft; Farbe bleibt (gleicher Faktor für r, g, b)
+		if ( lgHell.x > 0.0 && lgL > 0.0 ) {
+			float lgK = pow( 1.0 + pow( lgL / lgHell.x, lgHell.y ), -lgHell.z / lgHell.y );
+			lgE *= lgK;
+			lgL *= lgK;
+		}
 		// Mindest-Grundhelligkeit: weiches Maximum aus Helligkeit l und lgGrund (sqrt(l² + g²)),
 		// als neutrales Grau addiert – bei l = 0 kommt g dazu, bei l ≫ g fast nichts
-		float lgL = dot( lgE, vec3( 0.2126, 0.7152, 0.0722 ) );
 		lgE += vec3( lgGrund * lgGrund / ( sqrt( lgL * lgL + lgGrund * lgGrund ) + lgL + 1e-6 ) );
 		reflectedLight.indirectDiffuse = lgE * BRDF_Lambert( material.diffuseColor );
 	}`);
