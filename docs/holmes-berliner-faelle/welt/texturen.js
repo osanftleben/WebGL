@@ -16,7 +16,7 @@ export function zufall(saat) {
  * @param {number} breite
  * @param {number} hoehe
  */
-function leinwand(breite, hoehe) {
+export function leinwand(breite, hoehe) {
   const canvas = document.createElement('canvas');
   canvas.width = breite;
   canvas.height = hoehe;
@@ -25,7 +25,7 @@ function leinwand(breite, hoehe) {
 }
 
 /** @param {HTMLCanvasElement} canvas */
-function alsTextur(canvas) {
+export function alsTextur(canvas) {
   const textur = new THREE.CanvasTexture(canvas);
   textur.wrapS = THREE.RepeatWrapping;
   textur.wrapT = THREE.RepeatWrapping;

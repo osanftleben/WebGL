@@ -9,7 +9,8 @@
 //                                             Sichtfeld fov (Grad), dy = Bildausschnitt nach unten (0…1)
 //   __pruef.zurueck()                         Sichtfeld und Ausschnitt wieder normal
 //   await __pruef.kranich('vorn')             Nahblick Kranich: 'vorn' | 'seitlich' | 'hinten' (danach zurueck())
-//   __pruef.einheitBei(x, z)                  Nummern der Detailstufen-Einheiten nahe (x, z)
+//   await __pruef.blick(x, z, blick, neigung) Blickpunkt mit Neigung (positiv = nach oben, z. B. 0,6)
+//   __pruef.einheitBei(x, z)                Nummern der Detailstufen-Einheiten nahe (x, z)
 //   __pruef.fleck(nr, richtung)               Fleckprüfung einer Einheit (siehe unten)
 //
 // Fleckprüfung (Verfahren aus der LOD-Aufgabe, Verlauf „Teil 2 LOD“): Einheit allein (Kamera-Ebene 7),
@@ -161,6 +162,23 @@
     await nah(x, z, 5.3, 15.6, 50, 0.22);
   }
 
-  window.__pruef = { messe, fps: (s = 3) => d.messeFps(s), nah, zurueck, einheitBei, fleck, kranich, RUNDGANG, KRANICH_NAH };
+  /**
+   * Blick mit Neigung (für Decke/Gesims): Neigung in Bogenmaß, positiv = nach oben.
+   * Die Steuerung setzt die Neigung jedes Bild neu; daher wird ihr aktualisiere() einmalig umhüllt.
+   * Neigung bleibt, bis blick(…, 0) oder setzePosition aufgerufen wird.
+   */
+  let neigung = 0;
+  if (!d.steuerung.__neigungUmhuellt) {
+    const orig = d.steuerung.aktualisiere.bind(d.steuerung);
+    d.steuerung.aktualisiere = (dt) => { orig(dt); if (neigung) d.camera.rotation.x = neigung; };
+    d.steuerung.__neigungUmhuellt = true;
+  }
+  async function blick(x, z, b, n = 0) {
+    d.steuerung.setzePosition(x, z, b);
+    neigung = n;
+    await warte(1200);
+  }
+
+  window.__pruef = { messe, fps: (s = 3) => d.messeFps(s), nah, zurueck, einheitBei, fleck, kranich, blick, RUNDGANG, KRANICH_NAH };
   return 'Prüfhilfen bereit: ' + Object.keys(window.__pruef).join(', ');
 })();

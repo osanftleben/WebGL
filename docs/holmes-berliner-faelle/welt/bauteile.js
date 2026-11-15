@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { dielenTextur, putzTextur, holzTextur, heizkoerperTextur, nummernAtlas, glasTextur, gesichtsTafel, NUMMERN_RASTER, skaliereUV, zufall } from './texturen.js';
 import { kopf, hals, arm, oberkoerper, stoffTeil, sparsam, istSparsam } from './menschen.js';
 import { alsStufe } from './stufen.js';
+import { STUCK, GOLD, stuckTextur, goldTexturen, bandUV, flachUV, rosettenGeometrie, kapitellGeometrie } from './stuck.js';
 
 /** Umschaltabstände der Detailstufen (m bei 1080 Bildpunkten Bildhöhe), aus dem Bildvergleich */
 export const STUFEN_ABSTAND = { bueste: 3.0, figur: 3.5, schrankkopf: 2.5 };
@@ -82,6 +83,8 @@ export function erstelleMaterialien() {
     lampenGlas: lambert({ color: 0xf3efe4, emissive: 0x2a2620 }),
     emaille: lambert({ color: 0x2f4637, side: THREE.DoubleSide }),
     gesims: lambert({ color: 0xe8e2d4 }),
+    // Stuck mit eingemaltem Relief (Gesims, Deckenrahmen, Rosette; Feinschliff D, Muster angenommen)
+    stuck: lambert({ map: stuckTextur() }),
     fussleiste: lambert({ map: holzTextur([58, 38, 24], 21) }),
     holzDunkel: glanz({ map: holzTextur(heller([66, 44, 28], HOLZ_DUNKEL_HELLIGKEIT), 31), roughness: 0.55, metalness: 0, envMapIntensity: 0.3 }),
     holzHell: lambert({ map: holzTextur([150, 112, 72], 41) }),
@@ -90,6 +93,11 @@ export function erstelleMaterialien() {
     vorhang: lambert({ color: 0x5c2a26 }),
     nummern: lambert({ map: nummernAtlas() }),
     gold: glanz({ color: 0xd8ae52, metalness: 1, roughness: 0.22, envMapIntensity: 1.6 }),
+    // Gold mit Ornament (Perlstab, Blattkranz) und Normalenkarte für die Spiegelung (Feinschliff D)
+    goldOrnament: (() => {
+      const t = goldTexturen();
+      return glanz({ map: t.farbe, normalMap: t.normalen, color: 0xffffff, metalness: 1, roughness: 0.24, envMapIntensity: 1.6 });
+    })(),
     messing: glanz({ color: 0xc9a058, metalness: 1, roughness: 0.25, envMapIntensity: 1.5 }),
     // Säulenschäfte (Marmor angenommen; Marmortreppen im Haus belegt)
     marmor: glanz({ color: 0xece6da, metalness: 0, roughness: 0.15, envMapIntensity: 1.0 }),
@@ -140,6 +148,30 @@ export function box(b, h, t, x, y, z, material, kacheln = false) {
   if (!kacheln) mesh.scale.set(b, h, t);
   mesh.position.set(x, y, z);
   return mesh;
+}
+
+/**
+ * Quader mit Ornamentband (eigene Geometrie, Texturkoordinaten nach bandUV in stuck.js).
+ * @param {number} b @param {number} h @param {number} t @param {number} x @param {number} y @param {number} z
+ * @param {THREE.Material} material @param {number[]} bereich Zeile der Textur @param {number} periode Musterlänge (Bildpunkte)
+ * @param {{ breite: number, hoehe: number }} [tex=STUCK]
+ * @returns {THREE.Mesh}
+ */
+export function stuckLeiste(b, h, t, x, y, z, material, bereich, periode, tex = STUCK) {
+  const mesh = new THREE.Mesh(bandUV(new THREE.BoxGeometry(b, h, t), bereich, tex, periode), material);
+  mesh.position.set(x, y, z);
+  return mesh;
+}
+
+/**
+ * Kleiner Beschlag (verdeckt im Lichtmodell nichts).
+ * @param {number} b @param {number} h @param {number} t @param {number} x @param {number} y @param {number} z
+ * @param {THREE.Material} material
+ */
+function beschlag(b, h, t, x, y, z, material) {
+  const teil = box(b, h, t, x, y, z, material);
+  teil.userData.keinLichtModell = true;
+  return teil;
 }
 
 /**
@@ -213,6 +245,15 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
       gruppe.add(box(r, o.hoehe, r, rechts - r / 2, unten + o.hoehe / 2, zr, m.fensterRahmen));
       gruppe.add(box(0.05, o.hoehe, 0.05, o.pos, unten + o.hoehe / 2, zr, m.fensterRahmen));
       gruppe.add(box(o.breite, 0.05, 0.05, o.pos, unten + o.hoehe * 0.68, zr, m.fensterRahmen));
+      // Beschläge (Feinschliff D, Form angenommen): Fenstergriff (Olive) am Mittelpfosten, je Flügel zwei Bänder
+      const zb = zr + 0.025;
+      const yo = unten + o.hoehe * 0.4;
+      gruppe.add(beschlag(0.04, 0.07, 0.008, o.pos, yo, zb + 0.004, m.messing));
+      gruppe.add(beschlag(0.022, 0.024, 0.03, o.pos, yo + 0.01, zb + 0.02, m.messing));
+      gruppe.add(beschlag(0.02, 0.1, 0.02, o.pos, yo - 0.035, zb + 0.035, m.messing));
+      for (const xb of [links + r, rechts - r]) {
+        for (const yb of [unten + 0.3, unten + o.hoehe * 0.6]) gruppe.add(beschlag(0.018, 0.11, 0.018, xb + (xb < o.pos ? 0.012 : -0.012), yb, zr + 0.045, m.messing));
+      }
       // Fensterbank innen
       gruppe.add(box(o.breite + 0.1, 0.04, dicke * 0.55, o.pos, unten + 0.02, -dicke * 0.25, m.fensterRahmen));
       if (gelaender) {
@@ -250,7 +291,17 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
       sperre.visible = false;
       gruppe.add(sperre);
       hindernisse.push(sperre);
-      gruppe.add(box(0.03, 0.18, 0.04, o.pos - 0.07, o.hoehe * 0.48, zMitte + 0.06, m.messing));
+      // Beschläge (Feinschliff D, Form angenommen): Langschild mit Drücker am linken Flügel, Schlüsselloch,
+      // auf beiden Flügeln drei Bänder an der Außenkante
+      const zt = zMitte + 0.03;
+      const yk = 1.05;
+      gruppe.add(beschlag(0.05, 0.28, 0.008, o.pos - 0.07, yk - 0.06, zt + 0.004, m.messing));
+      gruppe.add(beschlag(0.022, 0.022, 0.05, o.pos - 0.07, yk, zt + 0.025, m.messing));
+      gruppe.add(beschlag(0.13, 0.022, 0.022, o.pos - 0.07 - 0.055, yk, zt + 0.05, m.messing));
+      gruppe.add(beschlag(0.012, 0.03, 0.004, o.pos - 0.07, yk - 0.13, zt + 0.009, m.eisen));
+      for (const xb of [links + 0.03, rechts - 0.03]) {
+        for (const yb of [0.3, o.hoehe / 2, o.hoehe - 0.3]) gruppe.add(beschlag(0.024, 0.14, 0.024, xb, yb, zt + 0.012, m.messing));
+      }
     }
     // Türrahmen (Bekleidung) innen
     if (o.art !== 'fenster') {
@@ -266,7 +317,6 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
   const seiten = beidseitig ? [1, -1] : [1];
   for (const seite of seiten) {
     const zLeiste = seite > 0 ? 0.015 : -dicke - 0.015;
-    const zGesims = seite > 0 ? 0.06 : -dicke - 0.06;
     let start = 0;
     for (const o of sortiert) {
       if (o.art === 'fenster') continue;
@@ -275,8 +325,16 @@ export function wand({ laenge, hoehe, dicke, oeffnungen = [], material, m, gelae
       start = o.pos + o.breite / 2 + 0.1;
     }
     if (laenge - start > 0.05) gruppe.add(box(laenge - start, 0.16, 0.03, (start + laenge) / 2, 0.08, zLeiste, m.fussleiste));
-    gruppe.add(box(laenge, 0.18, 0.12, laenge / 2, hoehe - 0.09, zGesims, m.gesims));
-    if (goldleiste) gruppe.add(box(laenge, 0.035, 0.025, laenge / 2, hoehe - 0.24, seite > 0 ? 0.012 : -dicke - 0.012, m.gold));
+    // Gesims mit Profil (Feinschliff D): Deckplatte, Fries, Perlstab, darunter die Goldleiste.
+    // Fries mit Rokoko-Ornament nur in den Sälen (mit Goldleiste), in der Werkstatt glatt.
+    const zWand = seite > 0 ? 0 : -dicke;
+    const leiste = (/** @type {number} */ h, /** @type {number} */ t, /** @type {number} */ y, /** @type {number[]} */ bereich, /** @type {number} */ periode) =>
+      gruppe.add(stuckLeiste(laenge, h, t, laenge / 2, y, zWand + (seite * t) / 2, m.stuck, bereich, periode));
+    // Deckplatte nur 2 cm vorstehend: ihre Unterseite liegt sonst als breiter, zu dunkler Streifen im Lichtgitter
+    leiste(0.06, 0.11, hoehe - 0.03, STUCK.profil, STUCK.periode);
+    leiste(0.18, 0.09, hoehe - 0.15, goldleiste ? STUCK.fries : STUCK.glatt, STUCK.periode);
+    leiste(0.04, 0.05, hoehe - 0.26, goldleiste ? STUCK.perlen : STUCK.profil, STUCK.perlPeriode);
+    if (goldleiste) gruppe.add(stuckLeiste(laenge, 0.05, 0.02, laenge / 2, hoehe - 0.31, zWand + seite * 0.01, m.goldOrnament, GOLD.perlen, GOLD.perlPeriode, GOLD));
   }
 
   return { gruppe, hindernisse };
@@ -1120,24 +1178,27 @@ export function wachstopf(m) {
  */
 export function stuckdecke(m, breite, tiefe) {
   const g = new THREE.Group();
-  /** Rechteckiger Rahmen aus vier Leisten */
-  const rahmen = (/** @type {number} */ einzug, /** @type {number} */ staerke, /** @type {THREE.Material} */ mat, /** @type {number} */ y) => {
-    const b = breite - 2 * einzug;
-    const t = tiefe - 2 * einzug;
-    g.add(box(b, 0.04, staerke, breite / 2, y, einzug, mat));
-    g.add(box(b, 0.04, staerke, breite / 2, y, tiefe - einzug, mat));
-    g.add(box(staerke, 0.04, t, einzug, y, tiefe / 2, mat));
-    g.add(box(staerke, 0.04, t, breite - einzug, y, tiefe / 2, mat));
+  /** Rahmen aus Ornamentleisten (Unterseite zeigt das Band), dicke = Höhe der Leiste */
+  const bandRahmen = (/** @type {number} */ einzug, /** @type {number} */ staerke, /** @type {number} */ dicke, /** @type {THREE.Material} */ mat,
+    /** @type {number[]} */ bereich, /** @type {number} */ periode, /** @type {{ breite: number, hoehe: number }} */ tex) => {
+    const b = breite - 2 * einzug + staerke;
+    const t = tiefe - 2 * einzug - staerke;
+    const y = -dicke / 2;
+    g.add(stuckLeiste(b, dicke, staerke, breite / 2, y, einzug, mat, bereich, periode, tex));
+    g.add(stuckLeiste(b, dicke, staerke, breite / 2, y, tiefe - einzug, mat, bereich, periode, tex));
+    g.add(stuckLeiste(staerke, dicke, t, einzug, y, tiefe / 2, mat, bereich, periode, tex));
+    g.add(stuckLeiste(staerke, dicke, t, breite - einzug, y, tiefe / 2, mat, bereich, periode, tex));
   };
-  rahmen(0.7, 0.12, m.gesims, -0.02);
-  rahmen(0.86, 0.04, m.gold, -0.03);
-  rahmen(1.4, 0.06, m.gesims, -0.02);
-  const rosette = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.42, 0.05, 32), m.gesims);
-  rosette.position.set(breite / 2, -0.025, tiefe / 2);
+  // Feinschliff D: breiter Rahmen mit Rankenband, Goldrahmen mit Perlstab, innerer Rahmen mit Perlstab
+  bandRahmen(0.7, 0.24, 0.05, m.stuck, STUCK.rahmen, STUCK.periode, STUCK);
+  bandRahmen(0.86, 0.05, 0.03, m.goldOrnament, GOLD.perlen, GOLD.perlPeriode, GOLD);
+  bandRahmen(1.4, 0.08, 0.04, m.stuck, STUCK.perlen, STUCK.perlPeriode, STUCK);
+  const rosette = new THREE.Mesh(rosettenGeometrie(0.62), m.stuck);
+  rosette.position.set(breite / 2, 0, tiefe / 2);
   g.add(rosette);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.022, 8, 40), m.gold);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.018, 6, 48), m.gold);
   ring.rotation.x = Math.PI / 2;
-  ring.position.set(breite / 2, -0.05, tiefe / 2);
+  ring.position.set(breite / 2, -0.012, tiefe / 2);
   g.add(ring);
   return g;
 }
@@ -1280,9 +1341,23 @@ export function saeule(m, hoehe) {
   const schaft = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, hoehe - 0.55, 24), m.marmor);
   schaft.position.y = 0.2 + (hoehe - 0.55) / 2;
   g.add(schaft);
-  const kapitell = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.15, 0.22, 20), m.gold);
-  kapitell.position.y = hoehe - 0.35 + 0.11;
+  // Kapitell (Feinschliff D, Form angenommen): Halsring, Glocke mit Blattkranz, vier kleine Voluten
+  const yk = hoehe - 0.35;
+  const hals = new THREE.Mesh(flachUV(new THREE.TorusGeometry(0.15, 0.016, 6, 24), GOLD.glatt, GOLD), m.goldOrnament);
+  hals.rotation.x = Math.PI / 2;
+  hals.position.y = yk + 0.01;
+  g.add(hals);
+  const kapitell = new THREE.Mesh(kapitellGeometrie(0.145, 0.235, 0.22), m.goldOrnament);
+  kapitell.position.y = yk;
   g.add(kapitell);
+  const voluteGeo = flachUV(new THREE.TorusGeometry(0.035, 0.012, 6, 12, Math.PI * 1.6), GOLD.glatt, GOLD);
+  for (let i = 0; i < 4; i++) {
+    const w = Math.PI / 4 + (i * Math.PI) / 2;
+    const v = new THREE.Mesh(voluteGeo, m.goldOrnament);
+    v.position.set(Math.sin(w) * 0.215, yk + 0.18, Math.cos(w) * 0.215);
+    v.rotation.y = w + Math.PI / 2;
+    g.add(v);
+  }
   g.add(box(0.46, 0.13, 0.46, 0, hoehe - 0.065, 0, m.gesims));
   return g;
 }
