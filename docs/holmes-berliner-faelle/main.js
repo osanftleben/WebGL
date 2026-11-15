@@ -29,6 +29,7 @@ import { ladeSpielstand, speichereSpielstand, loescheSpielstand, ladeTonAn, spei
 import { erstelleKlaenge } from './ton/klaenge.js';
 import { richteRendererEin, AUGEN_OPTIONEN, aktiviereSchatten, schattenNeu, erzeugeUmgebung, fensterLichtAbfall } from './welt/licht.js';
 import { ladeLichtgitter, wendeLichtgitterAn } from './welt/lichtgitter.js';
+import { werkstattSchatten, vereineSchattenWerfer } from './welt/werkstattschatten.js';
 import { bodenGlanz } from './welt/bodenglanz.js';
 
 const scene = new THREE.Scene();
@@ -77,15 +78,22 @@ const LICHT_GRUND = 0.15;
 let lichtgitterWerte = null;
 /** @type {any} */
 let bodenGlanzWerte = null;
+/** @type {any} */
+let werkstattSchattenWerte = null;
 try {
   const gitter = await ladeLichtgitter(new URL('./licht/', import.meta.url), etage.lichtSzene.pruefsumme);
   // Helligkeitsfaktor: das Gitter rechnet mit Himmelsleuchtdichte 1, im Innenraum kommen nur wenige Prozent an
+  // Fensterschatten nur in der Werkstatt: Kleinteile, Büsten, Kittel werfen weiche Schatten (einmal gezeichnet)
+  // (Schattenbild je Fläche, einmal beim Start vorberechnet, ≈ 1 s)
+  const werkstatt = werkstattSchatten(renderer, vereineSchattenWerfer([etage.werkstattWerfer, funde.werkstattWerfer]),
+    { fenster: etage.lichtFenster, lichtSzene: etage.lichtSzene });
+  werkstattSchattenWerte = werkstatt.werte;
   lichtgitterWerte = wendeLichtgitterAn(scene, gitter, 22, {
     // Figuren und runde Teile (Lichtgitter) heller als die Flächen mit Lichtkarte
     gitterFaktor: LICHTGITTER_FAKTOR,
     // Ecken und Stellen unter Möbeln saufen nicht ab; helle Stellen bleiben praktisch gleich
     grund: LICHT_GRUND,
-  });
+  }, [werkstatt.zusatz]);
   // Kurze Meldung, welche Beleuchtung aktiv ist (hilft bei der Fehlersuche auf anderen Rechnern)
   console.info(gitter.karte
     ? `Beleuchtung: Lichtkarte aktiv (Prüfsumme ${etage.lichtSzene.pruefsumme})`
@@ -331,7 +339,7 @@ const auge = erstelleAugenanpassung(renderer, scene, camera, AUGEN_OPTIONEN);
 // Nur lokal: window.__debug für Prüfungen (/perf-check); weitere Objekte für Tests
 stelleBereit({ renderer, scene, camera });
 if (/** @type {any} */ (window).__debug) {
-  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, stufen, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere, fehlversuche: () => fehlversuche, lichtgitterWerte, bodenGlanzWerte, belichtung: auge });
+  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, stufen, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere, fehlversuche: () => fehlversuche, lichtgitterWerte, bodenGlanzWerte, werkstattSchattenWerte, belichtung: auge });
   // Nur lokal: Raummodell an das Lichtberechnungs-Programm schicken (python .claude/scripts/holmes_licht.py empfange)
   /** @type {any} */ (window).__debug.sendeLichtModell = () =>
     // Gleicher Rechner wie die Vorschau, anderer Anschluss (8765); nur lokal aktiv

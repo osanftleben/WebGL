@@ -67,6 +67,14 @@ export async function ladeLichtgitter(ordner, pruefsumme) {
 }
 
 /**
+ * @typedef {object} LichtZusatz Ergänzung des Licht-Shaders
+ * @property {string} name Teil des Programm-Schlüssels
+ * @property {Record<string, { value: any }>} uniforms
+ * @property {string} kopf GLSL-Deklarationen (nach <common>)
+ * @property {string} code GLSL-Anweisungen, die `lgE` verändern
+ */
+
+/**
  * Ersetzt bei allen beleuchteten Materialien unter `wurzel` das Umgebungslicht: Lichtkarte, wo vorhanden,
  * sonst Lichtgitter. Definiert `LK_KARTE` (für Ergänzungen wie den Bodenglanz: `vLkUv`, `lkKarte`, `lkAn`).
  * @param {THREE.Object3D} wurzel
@@ -76,8 +84,10 @@ export async function ladeLichtgitter(ordner, pruefsumme) {
  *   gitterFaktor: zusätzlicher Faktor nur fürs Lichtgitter (Figuren, runde Teile), 1 = wie Lichtkarte;
  *   grund: Mindest-Grundhelligkeit im indirekten Licht (gleiche Einheit wie das Licht nach `staerke`),
  *   hebt nur dunkle Stellen weich an, helle bleiben praktisch gleich; 0 = aus
+ * @param {LichtZusatz[]} [zusaetze] Ergänzungen, die das Licht `lgE` vor der Grundhelligkeit verändern
+ *   (z. B. Werkstattschatten); verfügbar: vLgWelt, lgNormale (Weltnormale), lgKarteAn (1 = Lichtkarte)
  */
-export function wendeLichtgitterAn(wurzel, gitter, staerke, feinwerte = {}) {
+export function wendeLichtgitterAn(wurzel, gitter, staerke, feinwerte = {}, zusaetze = []) {
   const { info } = gitter;
   const uniforms = {
     lichtGitter: { value: gitter.textur },
@@ -93,6 +103,7 @@ export function wendeLichtgitterAn(wurzel, gitter, staerke, feinwerte = {}) {
     lkAn: { value: gitter.karte ? 1 : 0 },
     lkMax: { value: gitter.karte && info.lichtkarte ? info.lichtkarte.hoechstwert : 0 },
   };
+  for (const z of zusaetze) Object.assign(uniforms, z.uniforms);
   /** @type {Set<THREE.Material>} */
   const erledigt = new Set();
   wurzel.traverse((o) => {
@@ -140,19 +151,23 @@ vec3 lgBestrahlung( vec3 p, vec3 n ) {
 	return n2.x * lgWert( g, n.x > 0.0 ? 0.0 : 1.0 )
 		+ n2.y * lgWert( g, n.y > 0.0 ? 2.0 : 3.0 )
 		+ n2.z * lgWert( g, n.z > 0.0 ? 4.0 : 5.0 );
-}`)
+}
+${zusaetze.map((z) => z.kopf).join('\n')}`)
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
 	{
 		vec3 lgE;
+		float lgKarteAn = 0.0;
+		vec3 lgNormale = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz );
 		vec4 lk = texture2D( lkKarte, vLkUv );
 		if ( lkAn > 0.5 && lk.a > 0.5 / 255.0 ) {
 			// Statische Quader und Flächen: Lichtkarte (direkt auf der Fläche berechnet)
 			lgE = pow( lk.rgb, vec3( lgGamma ) ) * lkMax;
+			lgKarteAn = 1.0;
 		} else {
-			vec3 lgNormale = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz );
 			lgE = lgBestrahlung( vLgWelt + lgNormale * 0.15, lgNormale ) * lgGitterFaktor;
 		}
 		lgE *= lgStaerke;
+${zusaetze.map((z) => z.code).join('\n')}
 		// Mindest-Grundhelligkeit: weiches Maximum aus Helligkeit l und lgGrund (sqrt(l² + g²)),
 		// als neutrales Grau addiert – bei l = 0 kommt g dazu, bei l ≫ g fast nichts
 		float lgL = dot( lgE, vec3( 0.2126, 0.7152, 0.0722 ) );
@@ -160,7 +175,8 @@ vec3 lgBestrahlung( vec3 p, vec3 n ) {
 		reflectedLight.indirectDiffuse = lgE * BRDF_Lambert( material.diffuseColor );
 	}`);
     };
-    mat.customProgramCacheKey = () => (vorherSchluessel ? vorherSchluessel.call(mat) : '') + '|lichtgitter';
+    mat.customProgramCacheKey = () => (vorherSchluessel ? vorherSchluessel.call(mat) : '') + '|lichtgitter'
+      + zusaetze.map((z) => '|' + z.name).join('');
     mat.needsUpdate = true;
   });
   return uniforms;

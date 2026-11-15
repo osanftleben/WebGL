@@ -27,6 +27,7 @@ import {
 } from './bauteile.js';
 import { tuerFluegel } from './innenausbau.js';
 import { baueWerkstattAusstattung } from './werkstatt.js';
+import { sammleSchattenWerfer } from './werkstattschatten.js';
 
 /** Lichte Raumhöhe (Geschosshöhe 4,40 m belegt; Deckenstärke angenommen). */
 const H = 4.0;
@@ -56,6 +57,7 @@ const FENSTER = { breite: 1.3, hoehe: 2.7, unten: 0.35, art: /** @type {const} *
  *   kontaktFlecken: import('./fleck.js').KontaktFleck[],
  *   sichtbarkeit: ReturnType<typeof erstelleSichtbarkeit>,
  *   stufen: ReturnType<typeof baueStufen>,
+ *   werkstattWerfer: THREE.BufferGeometry | null,
  * }}
  */
 export function baueEtage3(scene) {
@@ -293,6 +295,9 @@ export function baueEtage3(scene) {
   bank2.position.set(3.2, 0, 26.75);
   gruppe.add(bank2);
   kollision.push(bank2);
+  // Fensterschatten der Werkbank-Beine (8 cm, in der 10-cm-Lichtkarte kaum zu sehen); Platten und Zwischenboden
+  // nicht, deren großer Schatten steckt schon in der Lichtkarte (sonst doppelt dunkel)
+  for (const b of [bank, bank2]) for (const t of b.children) if (Math.abs(t.position.y - 0.415) < 1e-6) t.userData.wsWirft = true;
   const r = regal(m, 1.8, 2.2, 0.45, 4);
   r.position.set(0.02, 0, 21.2);
   r.rotation.y = Math.PI / 2;
@@ -305,6 +310,7 @@ export function baueEtage3(scene) {
       const kopf = rohKopf({ haut: m.wachsBlass, variante: (fach * 3 + k) % 6, fein: false });
       kopf.rotation.y = Math.PI / 2;
       kopf.position.set(0.25, 0.1 + (fach * 2.05) / 4 + 0.123, 20.6 + k * 0.6);
+      kopf.userData.wsWirft = true; // Fensterschatten der Werkstatt
       gruppe.add(kopf);
     }
   }
@@ -315,6 +321,7 @@ export function baueEtage3(scene) {
   handHindernisse.push({ minX: 7.35, maxX: 7.85, minZ: 20.4, maxZ: 20.8 });
   for (const [x, z] of [[4.0, 22.2], [2.8, 26.1]]) {
     const h = hocker(m);
+    h.userData.wsWirft = true;
     h.position.set(x, 0, z);
     gruppe.add(h);
   }
@@ -379,6 +386,8 @@ export function baueEtage3(scene) {
   const lichtSzene = sammleLichtSzene(gruppe);
   // Kontaktflecken unter dünnen Beinen, Figurenfüßen, Büstensockeln (zu schmal für die Lichtkarte)
   const kontaktFlecken = sammleKontaktFlecken(gruppe);
+  // Schattenwerfer der Werkstatt (Ausstattung) für die Fensterschatten, solange die Teile einzeln sind
+  const werkstattWerfer = sammleSchattenWerfer(gruppe);
   // Fensteröffnungen für die Lichtberechnung: Rechteck in der Außenebene der Wand (Himmelslicht kommt
   // nur hier herein). Behrenstraße: Ebene x = 9,5 (Wandaußenseite), Friedrichstraße: Ebene z = 28
   const lichtFenster = [
@@ -426,7 +435,7 @@ export function baueEtage3(scene) {
   const direktLichter = [himmel, fensterSeite, fensterLicht, ostLicht];
   return {
     gruppe, hindernisse, verdecker, start: { x: 6.5, z: 1.3, blick: Math.PI }, materialien: m, lichtSzene, lichtFenster,
-    direktLichter, ausblick: ausblick.werte, kontaktFlecken, sichtbarkeit, stufen,
+    direktLichter, ausblick: ausblick.werte, kontaktFlecken, sichtbarkeit, stufen, werkstattWerfer,
     // Räume als z-Bereiche (Raum A, Raum B, Werkstatt), z. B. für die Fensterspiegelung im Boden
     raeumeZ: RAEUME_Z,
   };

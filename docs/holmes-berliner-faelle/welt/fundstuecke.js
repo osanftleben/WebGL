@@ -11,6 +11,7 @@ import { alsHindernis } from 'steuerung/kollision.js';
 import { verschmelze } from './verschmelzen.js';
 import { sammleVerdecker } from './lichtmodell.js';
 import { weicherFleck, sammleKontaktFlecken } from './fleck.js';
+import { sammleSchattenWerfer } from './werkstattschatten.js';
 
 /** @typedef {import('./bauteile.js').Materialien} Materialien */
 /** @typedef {import('steuerung/kollision.js').Hindernis} Hindernis */
@@ -235,7 +236,7 @@ function baueWerkbankFund(m) {
  * @param {THREE.Scene} scene
  * @param {Materialien} m
  * @returns {{ gruppe: THREE.Group, antippbar: THREE.Object3D[], hindernisse: Hindernis[], verdecker: number[][],
- *   kontaktFlecken: import('./fleck.js').KontaktFleck[],
+ *   kontaktFlecken: import('./fleck.js').KontaktFleck[], werkstattWerfer: THREE.BufferGeometry | null,
  *   stufen: { leiche: ReturnType<typeof baueStufen>[], figur: ReturnType<typeof baueStufen> } }}
  *   `stufen`: Detailstufen (welt/stufen.js) der Leiche (Körper, Hand) und der verdeckten Figur
  *   `verdecker`: Quader für die Lichtberechnung (an `etage.lichtSzene.quader` anhängen),
@@ -285,6 +286,10 @@ export function setzeFundstuecke(scene, m) {
   // Verdecker für die Lichtberechnung (vor dem Verschmelzen): Böcke, Brett, Gestell als Quader, Figuren als Scheiben
   const verdecker = sammleVerdecker(gruppe);
   const kontaktFlecken = sammleKontaktFlecken(gruppe);
+  // Fensterschatten der Werkstatt (welt/werkstattschatten.js): die verdeckte Figur mit Brett und Böcken wirft
+  // (in der Lichtkarte nur schwach, nahes Fenster und 10-cm-Raster); volle Form, vor Stufen und Verschmelzen
+  figur.userData.wsWirft = true;
+  const werkstattWerfer = sammleSchattenWerfer(figur);
 
   // Detailstufen (welt/stufen.js) nach Lichtmodell und Kontaktflecken (die sehen nur die volle Form),
   // vor dem Verschmelzen: Hand und verdeckte Figur, unten der Körper der Leiche
@@ -314,5 +319,5 @@ export function setzeFundstuecke(scene, m) {
 
   // stufen.leiche: in main.js mit der Sichtbarkeitszelle der Leiche verknüpfen; die verdeckte Figur
   // ist nicht in der Sichtbarkeit angemeldet und wählt ihre Stufe immer
-  return { gruppe, antippbar, hindernisse, verdecker, kontaktFlecken, stufen: { leiche: [stufenKoerper, stufenHand], figur: stufenFigur } };
+  return { gruppe, antippbar, hindernisse, verdecker, kontaktFlecken, werkstattWerfer, stufen: { leiche: [stufenKoerper, stufenHand], figur: stufenFigur } };
 }

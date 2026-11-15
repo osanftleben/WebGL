@@ -9,15 +9,15 @@ paths:
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/`.
 
 ## Arbeitsstand (zuletzt 15. 11. 2026)
-- **LOD zurückgestellt** (spätestens Projektende; Sichtbarkeit 4eb7f01, Stufen 019022f). Offen: 50-%-Regel.
-- Fertig, Firefox ok (Commits und Einzelheiten im Verlauf): Licht + Kontaktschatten, Augenanpassung, Fensterausblick, Besetzung, Feinschliff C und D (Stuck, Beschläge), B1, B2, Kranich, Hinweise verknüpfen (9d07847). **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben.
-- **Zusätzliche Effekte nur in der vollen Detailstufe** (Nutzer, fest); die sparsame Stufe bekommt gleiche Grundfarben, Fleckprüfung 0.
-- **Drehbuch Vormittag** abgenommen: `.claude/notizen/holmes-fall1-drehbuch-vormittag.md` (mit Bauliste).
+- **LOD zurückgestellt** (bis Projektende; Sichtbarkeit 4eb7f01, Stufen 019022f). Offen: 50-%-Regel.
+- Fertig, Firefox ok (Einzelheiten im Verlauf): Licht + Kontaktschatten, Augenanpassung, Fensterausblick, Besetzung, Feinschliff C und D (Stuck, Beschläge), B1, B2, Kranich, Hinweise verknüpfen (9d07847). **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben.
+- **Zusätzliche Effekte nur in der vollen Detailstufe** (Nutzer, fest); sparsame Stufe: gleiche Grundfarben, Fleckprüfung 0.
+- **Drehbuch Vormittag** abgenommen: `.claude/notizen/holmes-fall1-drehbuch-vormittag.md`.
 - **Wände + Türen** (f2c9acc), Firefox offen: `welt/innenausbau.js` (auch für den Vorraum).
-- **Werkstatt ausgestattet** (`welt/werkstatt.js`), Lichtkarte: Sturzkanten (Firefox ok) und Gesims-Flecken an der Schräge behoben (715ad95), Werkstatt in Firefox offen. Folgeauftrag „Werkstatt Teil 2“ (Skizzen, Kontaktschatten Kleinteile): Verlauf.
-- Weitere Restpunkte im Verlauf (u. a. dunkle Fuge unter der Gesims-Deckplatte, Kranich-Monogramm).
+- **Werkstatt** (715ad95) + **Teil 2/3** nicht committet, Firefox läuft: Fensterschatten beim Start (`welt/werkstattschatten.js`, 1,4 s, Werfer `wsWirft`, Gewichtung `MISCH` 0,5), Formlicht. Restfehler: Schatten „aufgefächert“. **Nächster Auftrag (Nutzer):** professionelle Schattenberechnung – feine gebackene Werkstatt-Lichtkarte (Zufallsstrahlen, entrauscht, alles wirft), ersetzt `werkstattschatten.js` (Protokolle `-werkstatt-3.md`, `-beinschatten.md`). Offen: Gitter-Zufall, Gipsformen/Topf/Holz.
+- Weitere Restpunkte im Verlauf (u. a. Gesims-Fuge, Kranich-Monogramm).
 - **Als Nächstes:** Einbau Vormittag (Teil 2), in 3 Sitzungen: Vorraum, Figuren, Gespräche.
-- **Leistung: nur die Bildrate zählt** (Nutzer, fest): Draw-Calls sind keine Grenze und keine Abnahme – nicht danach fragen.
+- **Leistung: nur die Bildrate zählt** (Nutzer, fest); Draw-Calls sind keine Grenze, nicht danach fragen.
 - Prüfhilfen: Vorschau `webgl-vorschau`; `.claude/scripts/holmes_pruefhilfen.js` in die Konsole. Port-8765-Fehler harmlos.
 
 ## Ziel und Rahmen (Kurzfassung; vollständig: `.claude/notizen/holmes-rahmen.md`)

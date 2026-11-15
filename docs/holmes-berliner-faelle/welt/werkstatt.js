@@ -150,6 +150,9 @@ const skizzen = [0, 1, 2].map((variante) => {
   return new THREE.MeshLambertMaterial({ map: tex });
 });
 
+// Kleinteile der Werkstatt haben keine eigenen Kontaktflecken mehr: sie werfen echte Fensterschatten
+// (welt/werkstattschatten.js, `wsWirft`); die Flecken dunkelten doppelt ab.
+
 /**
  * Zylinder als Mesh (rund: verdeckt in der Lichtberechnung nur unter `lichtHuelle`).
  * @param {number} rOben @param {number} rUnten @param {number} h @param {THREE.Material} mat
@@ -429,7 +432,12 @@ function gipsKoerper(m) {
  * @param {THREE.Group} gruppe @param {Materialien} m
  * @param {THREE.Object3D[]} kollision @param {Hindernis[]} handHindernisse
  */
-export function baueWerkstattAusstattung(gruppe, m, kollision, handHindernisse) {
+export function baueWerkstattAusstattung(etagenGruppe, m, kollision, handHindernisse) {
+  // eigene Gruppe: alle Ausstattungsteile werfen Fensterschatten (welt/werkstattschatten.js)
+  const gruppe = new THREE.Group();
+  gruppe.name = 'Werkstatt-Ausstattung';
+  gruppe.userData.wsWirft = true;
+  etagenGruppe.add(gruppe);
   // ---------- Schräge Wand (9|25 → 6,5|27,5): lokal x entlang der Wand, +z in den Raum ----------
   const schraeg = new THREE.Group();
   schraeg.position.set(7.75, 0, 26.25);
@@ -489,6 +497,7 @@ export function baueWerkstattAusstattung(gruppe, m, kollision, handHindernisse) 
   for (const [x, y, dreh, nr] of [[2.95, 1.95, 0.03, 1], [3.35, 1.85, -0.04, 0], [3.75, 1.98, 0.02, 2]]) {
     const blatt = box(0.3, 0.42, 0.004, x, y, 27.5 - 0.004, skizzen[nr]);
     blatt.rotation.set(0, Math.PI, dreh);
+    blatt.userData.wsNicht = true;
     gruppe.add(blatt);
   }
 
