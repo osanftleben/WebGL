@@ -236,3 +236,12 @@ Aktuelle Regeln und Arbeitsstand stehen in `.claude/rules/projekte/holmes-berlin
 - Messung: BP 7 60,1 / BP 8 60,3 Bilder/s, check.py 0 Fehler, Funde (Wachsplatte, Figur) frei treffbar.
 - **Restpunkte:** Skizzenblätter (einfache Strichzeichnungen, Nutzer „naja“); fehlende Kontaktschatten unter Kleinteilen (Gipsbrocken, Näpfchen, Glasaugen-Kästchen, Wachshände), Frisierkopf und Gipsarme; Gipskörper im Gegenlicht flach; Kittel-/Büstenschatten nur grob (Quader-Hülle).
 - **Folgeauftrag „Werkstatt Teil 2“:** Restpunkte oben; Ideen (nicht freigegeben): Versandkiste mit eingepacktem Kopf, Eimer an der Gipskiste, Gipsformen auf der Ablage von Werkbank 1, Wachstropfen am Boden, Büste halb bemalt.
+
+## Werkstattschatten gebacken (15. 11. 2026, Aufgabensitzung, nicht committet; Protokoll `protokolle/2026-11-15-holmes-schatten-backen.md`)
+- Statt 198 fester Lichtpunkte beim Start (Fächer) einmal im Browser gebacken: 3102 gestreute Punkte (1024 je Fenster, je Rasterzelle ein Zufallspunkt), 13 Stapel à 256, Float32-Summe, Zählwert je Lichtpunkt im Tiefenpuffer. Laibung (0,5 m) berücksichtigt: Strahl muss auch durch die Außenöffnung. Gewichtung `MISCH` 0,5 (physikalisch wäre 1). Entrauschen in Python (Gauß σ 1 px je Fläche).
+- Dateien: `licht/werkstatt-schatten.png` (2540 × 1991, 8 Bit Grau, 523 KB) + `.json` (16 KB: Lage je Fläche, Prüfsumme Lichtkarte, Kennung Werfer/Fenster in ganzen cm, Abgleich ±1). Passt sie nicht: Konsolenwarnung, ohne Schattenbild (Formlicht bleibt).
+- **Neu backen** (nach Änderung an Werfern `wsWirft`, Fenstern, Lichtkarten-Aufteilung): `python .claude/hooks/zeitlimit.py python .claude/scripts/holmes_schatten.py empfange` (Hintergrund, 110 s), Spiel auf 127.0.0.1 laden, `await __debug.backeWerkstattSchatten()` (≈ 20 s), neu laden. Optionen: `jeFenster`, `auswahl` (z. B. nur Boden), `glaette`, `senden: false` (Rohdaten zum Prüfen).
+- Messwerte: Laden 42 ms statt 1,37 s Rechnen; 60 Bilder/s (Nutzer-Blick, Werkbank 2, BP 7, 8, 1). Geprüft gegen unabhängige Python-Rechnung (Strahl gegen Werfer-Quader): Abweichung wenige Prozent.
+- Falle: beim Backen mit `await` zeichnet das Spiel in den Pausen weiter → vorher `setRenderTarget(vorher)` (sonst Spielbild im Zwischenspeicher, falsche schwarze Streifen).
+- Firefox offen: Schattenbild als R8-Textur aus ImageBitmap.
+- Nachtrag: Kontaktflecken unter dünnen Möbelbeinen in allen Räumen entfernt (Nutzer); Flecken über `userData.kontaktFleck` bleiben.

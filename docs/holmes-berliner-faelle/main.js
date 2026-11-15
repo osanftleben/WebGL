@@ -29,7 +29,7 @@ import { ladeSpielstand, speichereSpielstand, loescheSpielstand, ladeTonAn, spei
 import { erstelleKlaenge } from './ton/klaenge.js';
 import { richteRendererEin, AUGEN_OPTIONEN, aktiviereSchatten, schattenNeu, erzeugeUmgebung, fensterLichtAbfall } from './welt/licht.js';
 import { ladeLichtgitter, wendeLichtgitterAn } from './welt/lichtgitter.js';
-import { werkstattSchatten, vereineSchattenWerfer } from './welt/werkstattschatten.js';
+import { ladeWerkstattSchatten, backeWerkstattSchatten } from './welt/werkstattschatten.js';
 import { bodenGlanz } from './welt/bodenglanz.js';
 
 const scene = new THREE.Scene();
@@ -83,10 +83,10 @@ let werkstattSchattenWerte = null;
 try {
   const gitter = await ladeLichtgitter(new URL('./licht/', import.meta.url), etage.lichtSzene.pruefsumme);
   // Helligkeitsfaktor: das Gitter rechnet mit Himmelsleuchtdichte 1, im Innenraum kommen nur wenige Prozent an
-  // Fensterschatten nur in der Werkstatt: Kleinteile, Büsten, Kittel werfen weiche Schatten (einmal gezeichnet)
-  // (Schattenbild je Fläche, einmal beim Start vorberechnet, ≈ 1 s)
-  const werkstatt = werkstattSchatten(renderer, vereineSchattenWerfer([etage.werkstattWerfer, funde.werkstattWerfer]),
-    { fenster: etage.lichtFenster, lichtSzene: etage.lichtSzene });
+  // Fensterschatten nur in der Werkstatt: Kleinteile, Büsten, Kittel werfen weiche Schatten
+  // (Schattenbild je Fläche, einmal lokal gebacken: licht/werkstatt-schatten.png; passt es nicht mehr, ohne)
+  const werkstatt = await ladeWerkstattSchatten(new URL('./licht/', import.meta.url),
+    [etage.werkstattWerfer, funde.werkstattWerfer], { fenster: etage.lichtFenster, lichtSzene: etage.lichtSzene });
   werkstattSchattenWerte = werkstatt.werte;
   lichtgitterWerte = wendeLichtgitterAn(scene, gitter, 22, {
     // Figuren und runde Teile (Lichtgitter) heller als die Flächen mit Lichtkarte
@@ -352,6 +352,10 @@ if (/** @type {any} */ (window).__debug) {
         pruefsumme: etage.lichtSzene.pruefsumme, fenster: etage.lichtFenster, raeume: etage.raeumeZ,
       }),
     }).then((r) => r.text());
+  // Nur lokal: Fensterschatten der Werkstatt backen und an holmes_schatten.py empfange schicken
+  // (Optionen: jeFenster, auswahl, glaette, senden – siehe welt/werkstattschatten.js); danach neu laden
+  /** @type {any} */ (window).__debug.backeWerkstattSchatten = (/** @type {any} */ optionen) => backeWerkstattSchatten(renderer,
+    [etage.werkstattWerfer, funde.werkstattWerfer], { fenster: etage.lichtFenster, lichtSzene: etage.lichtSzene }, optionen);
 }
 
 // Schritte: alle ~0,7 m ein Schrittgeräusch

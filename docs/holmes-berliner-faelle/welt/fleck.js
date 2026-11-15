@@ -13,10 +13,6 @@ const KERN = 0.1;
  *  (Hochzahl 4: Quadrat mit runden Ecken – mit reiner Max-Norm wirkten die Flecken wie Untersetzer) */
 const STAERKE_ECKIG = 0.42;
 const KERN_ECKIG = 0.15;
-/** Rand der Kontaktflecken um die Auflage eines Beins (m, je Seite) */
-const BEIN_RAND = 0.07;
-/** Dünne Beine: größte Grundkante (m) */
-const BEIN_DICKE = 0.13;
 /** Anhebung über die Fläche gegen Flimmern (zusätzlich polygonOffset) */
 const ANHEBUNG = 0.004;
 
@@ -90,10 +86,8 @@ export function weicherFleck(breite, tiefe = breite) {
 
 /**
  * Sammelt Kontaktflecken unter Feststehendem, das zu dünn für die Lichtkarte ist (10-cm-Bildpunkte):
- * 1. Gruppen mit `userData.kontaktFleck` ({ breite, tiefe, dx?, dz?, eckig? }, lokal; z. B. Figurenfüße, Büstensockel),
- * 2. dünne, stehende Quader (Beine, Pfosten; Grundkante ≤ BEIN_DICKE), die auf einer großen waagerechten
- *    Fläche bis 0,3 m Höhe stehen (Boden, Podest – per Strahl nach unten; schmale Leisten zählen nicht; höher
- *    hingen Flecken an Kanten über, z. B. Messingleiste vor dem Kopfschrank-Sockel).
+ * Gruppen mit `userData.kontaktFleck` ({ breite, tiefe, dx?, dz?, eckig? }, lokal; z. B. Figurenfüße, Büstensockel).
+ * (Flecken unter dünnen Möbelbeinen entfallen seit dem Auftrag „Schatten backen“ überall – Nutzer, 15. 11. 2026.)
  * Vor dem Verschmelzen aufrufen (Teile noch einzeln, Weltmatrizen aktuell).
  * @param {THREE.Object3D} gruppe
  * @returns {KontaktFleck[]}
@@ -102,12 +96,6 @@ export function sammleKontaktFlecken(gruppe) {
   gruppe.updateWorldMatrix(true, true);
   /** @type {KontaktFleck[]} */
   const liste = [];
-  /** @type {THREE.Mesh[]} */
-  const flaechen = [];
-  /** @type {THREE.Mesh[]} */
-  const beine = [];
-  const kasten = new THREE.Box3();
-  const groesse = new THREE.Vector3();
   const pos = new THREE.Vector3();
   const quat = new THREE.Quaternion();
   const skal = new THREE.Vector3();
@@ -120,36 +108,7 @@ export function sammleKontaktFlecken(gruppe) {
       const mitte = new THREE.Vector3(k.dx ?? 0, 0, k.dz ?? 0).applyMatrix4(o.matrixWorld);
       liste.push({ x: mitte.x, y: mitte.y, z: mitte.z, breite: k.breite, tiefe: k.tiefe, drehY: euler.y, eckig: !!k.eckig });
     }
-    const mesh = /** @type {THREE.Mesh} */ (o);
-    if (!mesh.isMesh || !mesh.visible || mesh.userData.nurTreffer) return;
-    const mat = /** @type {any} */ (mesh.material);
-    if (mat.transparent || mat.isMeshBasicMaterial) return;
-    kasten.setFromObject(mesh);
-    kasten.getSize(groesse);
-    // Auflageflächen: breit genug (Boden, Podest, Tischplatten)
-    if (Math.min(groesse.x, groesse.z) >= 0.4) flaechen.push(mesh);
-    if (/** @type {any} */ (mesh.geometry).type !== 'BoxGeometry') return;
-    const dicke = Math.max(groesse.x, groesse.z);
-    if (dicke <= BEIN_DICKE && groesse.y >= 0.1 && groesse.y >= dicke && kasten.min.y < 0.3) beine.push(mesh);
   });
-  const strahl = new THREE.Raycaster();
-  strahl.far = 0.03;
-  const unten = new THREE.Vector3(0, -1, 0);
-  for (const bein of beine) {
-    kasten.setFromObject(bein);
-    kasten.getCenter(pos);
-    kasten.getSize(groesse);
-    strahl.set(new THREE.Vector3(pos.x, kasten.min.y + 0.01, pos.z), unten);
-    const treffer = strahl.intersectObjects(flaechen, false)[0];
-    let y = 0;
-    if (treffer && treffer.face && treffer.face.normal.clone().transformDirection(treffer.object.matrixWorld).y >= 0.9) y = treffer.point.y;
-    // Boden (y = 0) gilt immer als Auflage – auch für Gruppen ohne eigenen Boden (Fundstücke)
-    else if (Math.abs(kasten.min.y) > 0.01) continue;
-    // gedrehte Beine (z. B. Vitrine quer): umgebender Kasten reicht bei so kleinen Grundflächen
-    liste.push({
-      x: pos.x, y, z: pos.z, breite: groesse.x + 2 * BEIN_RAND, tiefe: groesse.z + 2 * BEIN_RAND, drehY: 0, eckig: true,
-    });
-  }
   return liste;
 }
 
