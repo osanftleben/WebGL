@@ -1,6 +1,6 @@
 // Selbst erzeugte Klänge (Web Audio) – keine Tondateien.
 // Schritte auf Dielen, gedämpfter Straßenlärm mit gelegentlichem Fuhrwerk (Hufe, Räder),
-// Papierrascheln. Pferdebahnen an der Ecke Friedrich-/Behrenstraße sind belegt (Baedeker 1891);
+// Papierrascheln, Bleistiftkratzen. Pferdebahnen an der Ecke Friedrich-/Behrenstraße sind belegt (Baedeker 1891);
 // die einzelnen Geräusche sind angenommen. Bewusst keine Glocken, Pfiffe o. Ä.
 
 /**
@@ -10,6 +10,7 @@
  * @property {() => boolean} istAn
  * @property {() => void} schritt Ein Schritt auf den Dielen.
  * @property {() => void} papier Papierrascheln (Notizbuch, Hinweiskarte).
+ * @property {() => void} bleistift Kurzes Kratzen eines Bleistifts (Schlussfolgerung notiert).
  * @property {(naehe: number) => void} setzeStrassenNaehe 0 = weit von den Straßenfenstern, 1 = direkt davor.
  */
 
@@ -188,6 +189,27 @@ export function erstelleKlaenge({ an = true } = {}) {
       const t = ctx.currentTime;
       for (let i = 0; i < 3; i++) {
         stoss({ typ: 'bandpass', frequenz: 2500 + Math.random() * 1500, guete: 1.2, dauer: 0.12, pegel: 0.18, start: t + i * 0.06 });
+      }
+    },
+    bleistift() {
+      if (!ctx || !istAn) return;
+      const t = ctx.currentTime;
+      // Zwei Striche (Schreiben, dann Unterstreichen) aus vielen winzigen, hellen Rauschkörnern
+      const striche = [
+        { start: 0, koerner: 9, abstand: 0.028 },
+        { start: 0.34, koerner: 12, abstand: 0.022 },
+      ];
+      for (const s of striche) {
+        for (let i = 0; i < s.koerner; i++) {
+          stoss({
+            typ: 'bandpass',
+            frequenz: 3200 + Math.random() * 1800,
+            guete: 2.5,
+            dauer: 0.035,
+            pegel: 0.07 + Math.random() * 0.05,
+            start: t + s.start + i * s.abstand,
+          });
+        }
       }
     },
     setzeStrassenNaehe(wert) {

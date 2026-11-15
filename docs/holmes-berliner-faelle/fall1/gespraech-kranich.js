@@ -6,7 +6,7 @@
  * @property {string} id
  * @property {string} frage Was Sigerson fragt
  * @property {string} antwort Was die Person antwortet
- * @property {string} [braucht] Kennung eines Hinweises, der vorher gefunden sein muss
+ * @property {string} [braucht] Kennung eines Hinweises oder einer Schlussfolgerung, die vorher da sein muss
  * @property {{ id: string, titel: string, text: string }} [aussage] Eintrag für das Notizbuch
  */
 
@@ -97,6 +97,19 @@ export const GESPRAECH_KRANICH = {
         id: 'aussage-albrecht',
         titel: 'Juwelier Albrecht vermisste Schlüssel',
         text: 'Kranich: Juwelier Albrecht (Passage) fragte letzte Woche im Polizeibureau nach einem Schlüsselbund – und fand ihn dann wieder.',
+      },
+    },
+    {
+      id: 'sorgen',
+      frage: 'Sagen Sie, Schutzmann – hat Herr Wendt in den letzten Tagen etwas erzählt, das ihn bedrückte?',
+      braucht: 'abdruckwachs-entdeckt',
+      antwort:
+        'Fräulein Brandt sagt, ihr Onkel war die letzten Tage verdrießlich. Er habe gemurmelt, in seiner Werkstatt ' +
+        'gehe etwas vor, das ihm nicht gefalle. Mehr wollte er ihr nicht sagen.',
+      aussage: {
+        id: 'aussage-sorgen',
+        titel: 'Wendt war beunruhigt',
+        text: 'Kranich: Laut Ida Brandt war Wendt die letzten Tage verstimmt; in seiner Werkstatt gehe etwas vor, das ihm nicht gefalle.',
       },
     },
   ],

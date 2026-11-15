@@ -9,6 +9,8 @@ const VERSION = 1;
  * @property {string[]} hinweise Gefundene Hinweise in der Reihenfolge des Findens
  * @property {string[]} aussagen Kennungen der Aussagen im Notizbuch
  * @property {string[]} fragen Bereits gestellte Fragen
+ * @property {string[]} schluesse Gezogene Schlussfolgerungen (fehlt in älteren Ständen → leer)
+ * @property {number} fehlversuche Falsche Verknüpfungen bisher (für die spätere Schwierigkeit)
  * @property {{ x: number, z: number, blick: number }} [ort] Standort und Blickrichtung
  */
 
@@ -27,7 +29,14 @@ export function ladeSpielstand() {
     if (!d || d.version !== VERSION) return null;
     if (!istTextListe(d.hinweise) || !istTextListe(d.aussagen) || !istTextListe(d.fragen)) return null;
     /** @type {Spielstand} */
-    const stand = { hinweise: d.hinweise, aussagen: d.aussagen, fragen: d.fragen };
+    const stand = {
+      hinweise: d.hinweise,
+      aussagen: d.aussagen,
+      fragen: d.fragen,
+      // Neuere Felder: ältere Spielstände (ohne sie) bleiben gültig
+      schluesse: istTextListe(d.schluesse) ? d.schluesse : [],
+      fehlversuche: Number.isInteger(d.fehlversuche) && d.fehlversuche >= 0 ? d.fehlversuche : 0,
+    };
     const o = d.ort;
     if (o && [o.x, o.z, o.blick].every((n) => typeof n === 'number' && Number.isFinite(n))) {
       stand.ort = { x: o.x, z: o.z, blick: o.blick };

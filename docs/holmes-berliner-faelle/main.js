@@ -11,6 +11,14 @@ import { baueEtage3 } from './welt/etage3.js';
 import { setzeFundstuecke } from './welt/fundstuecke.js';
 import { baueKontaktFlecken } from './welt/fleck.js';
 import { HINWEISE, findeHinweis } from './fall1/hinweise.js';
+import {
+  SCHLUSSFOLGERUNGEN,
+  MAX_AUSWAHL,
+  FEHLVERSUCH_SAETZE,
+  SCHON_NOTIERT,
+  findeSchluss,
+  sucheVerknuepfung,
+} from './fall1/verknuepfungen.js';
 import { erstelleHinweiskarte } from './ui/hinweiskarte.js';
 import { erstelleNotizbuch } from './ui/notizbuch.js';
 import { erstelleGespraech } from './ui/gespraech.js';
@@ -166,8 +174,27 @@ function aktualisiereSpielAktiv() {
 }
 
 const karte = erstelleHinweiskarte({ beiSchliessen: () => aktualisiereSpielAktiv() });
+/** Falsche Verknüpfungen bisher (gespeichert; die Folgen bestimmt später die Schwierigkeit) */
+let fehlversuche = 0;
+
 const notizbuch = erstelleNotizbuch({
   hinweise: HINWEISE,
+  schlussfolgerungen: SCHLUSSFOLGERUNGEN,
+  maxAuswahl: MAX_AUSWAHL,
+  beiVerknuepfen: (ids) => {
+    const schluss = sucheVerknuepfung(ids);
+    if (!schluss) {
+      const satz = FEHLVERSUCH_SAETZE[fehlversuche % FEHLVERSUCH_SAETZE.length];
+      fehlversuche++;
+      klaenge.papier();
+      speichere();
+      return { art: 'falsch', text: satz };
+    }
+    if (!notizbuch.fuegeSchlussHinzu(schluss.id)) return { art: 'schon', text: SCHON_NOTIERT, id: schluss.id };
+    klaenge.bleistift();
+    speichere();
+    return { art: 'neu', text: `Schlussfolgerung notiert: ${schluss.titel}.`, id: schluss.id };
+  },
   beiOeffnen: () => {
     if (karte.istOffen()) karte.schliesse();
     klaenge.papier();
@@ -237,7 +264,7 @@ const antippen = erstelleAntippen({
     if (objekt.userData.person === 'kranich') {
       wendeZu(kranich);
       gespraech.starte(GESPRAECH_KRANICH, {
-        istFrei: (frage) => !frage.braucht || notizbuch.hat(frage.braucht),
+        istFrei: (frage) => !frage.braucht || notizbuch.hat(frage.braucht) || notizbuch.hatSchluss(frage.braucht),
         beiFrage: (frage) => {
           if (frage.aussage) notizbuch.fuegeAussageHinzu(frage.aussage);
           speichere();
@@ -272,6 +299,8 @@ function speichere() {
     hinweise: notizbuch.gefunden(),
     aussagen: notizbuch.aussagenIds(),
     fragen: gespraech.gestellt(),
+    schluesse: notizbuch.schluesse(),
+    fehlversuche,
     ort: { x: camera.position.x, z: camera.position.z, blick: camera.rotation.y },
   });
 }
@@ -283,6 +312,8 @@ if (stand) {
     const aussage = aussagenNachId.get(id);
     if (aussage) notizbuch.fuegeAussageHinzu(aussage);
   }
+  for (const id of stand.schluesse) if (findeSchluss(id)) notizbuch.fuegeSchlussHinzu(id);
+  fehlversuche = stand.fehlversuche;
   gespraech.setzeGestellt(stand.fragen);
   // Standort nur übernehmen, wenn er innerhalb der Etage liegt
   const o = stand.ort;
@@ -300,7 +331,7 @@ const auge = erstelleAugenanpassung(renderer, scene, camera, AUGEN_OPTIONEN);
 // Nur lokal: window.__debug für Prüfungen (/perf-check); weitere Objekte für Tests
 stelleBereit({ renderer, scene, camera });
 if (/** @type {any} */ (window).__debug) {
-  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, stufen, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere, lichtgitterWerte, bodenGlanzWerte, belichtung: auge });
+  Object.assign(/** @type {any} */ (window).__debug, { steuerung, antippen, etage, stufen, funde, notizbuch, karte, gespraech, kranich, klaenge, speichere, fehlversuche: () => fehlversuche, lichtgitterWerte, bodenGlanzWerte, belichtung: auge });
   // Nur lokal: Raummodell an das Lichtberechnungs-Programm schicken (python .claude/scripts/holmes_licht.py empfange)
   /** @type {any} */ (window).__debug.sendeLichtModell = () =>
     // Gleicher Rechner wie die Vorschau, anderer Anschluss (8765); nur lokal aktiv

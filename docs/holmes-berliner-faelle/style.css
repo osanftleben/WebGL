@@ -162,9 +162,119 @@ body {
   color: #5a4a32;
   border-bottom: 1px solid #cbbd9f;
 }
-.notizbuch-aussagen {
+.notizbuch-aussagen,
+.notizbuch-schluesse {
   list-style: none;
   padding-left: 0;
+}
+
+/* ---------- Hinweise verknüpfen ---------- */
+.notizbuch-anleitung {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-style: italic;
+  color: #5a4a32;
+}
+.notizbuch-anleitung[hidden] {
+  display: none;
+}
+/* Ganzer Hinweis als Knopf: groß genug zum Antippen, sieht aber wie Notizbuchtext aus */
+.notizbuch-hinweis {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 6px 8px 6px 34px;
+  position: relative;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.notizbuch-hinweis .notizbuch-text {
+  display: block;
+  margin-top: 4px;
+}
+/* Kästchen links; markiert mit Haken */
+.notizbuch-hinweis::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 9px;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1.5px solid #8a7550;
+  border-radius: 3px;
+  background: #fbf7ee;
+}
+.notizbuch-hinweis[aria-pressed="true"] {
+  border-color: #8a6a2e;
+  background: #e8dcc0;
+}
+.notizbuch-hinweis[aria-pressed="true"]::before {
+  content: "✓";
+  font: bold 13px/13px system-ui, sans-serif;
+  text-align: center;
+  color: #f1eadb;
+  background: #6b4f22;
+  border-color: #6b4f22;
+}
+.notizbuch-hinweis:focus-visible {
+  outline: 2px solid #b08d3e;
+  outline-offset: 1px;
+}
+@media (hover: hover) {
+  .notizbuch-hinweis:hover {
+    border-color: #cbbd9f;
+  }
+}
+.notizbuch-hinweise li {
+  margin-left: -6px;
+}
+.notizbuch-schluesse li.neu {
+  padding: 4px 8px;
+  margin-left: -8px;
+  border-left: 3px solid #8a6a2e;
+  background: #ebe0c6;
+}
+/* Leiste bleibt beim Blättern unten in der Karte sichtbar (wichtig am Handy) */
+.verknuepfen-leiste {
+  position: sticky;
+  bottom: -16px;
+  margin: 8px -20px 10px;
+  padding: 8px 20px;
+  background: #e6dcc4;
+  border-top: 1px solid #cbbd9f;
+  border-bottom: 1px solid #cbbd9f;
+}
+.verknuepfen-leiste[hidden] {
+  display: none;
+}
+.verknuepfen-meldung {
+  margin: 0 0 6px;
+  font-style: italic;
+  color: #4a3a24;
+}
+.verknuepfen-meldung:empty {
+  display: none;
+}
+.verknuepfen-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.knopf:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.knopf-leise[hidden] {
+  display: none;
 }
 
 /* ---------- Gesprächsfenster unten ---------- */
