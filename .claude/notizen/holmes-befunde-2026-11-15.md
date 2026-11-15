@@ -3,7 +3,7 @@
 Gesammelt in der Hauptsitzung, noch **keine Aufträge vergeben**. Nächster Schritt: offene Fragen mit dem Nutzer klären, dann je Punkt `/auftrag` und eine eigene Aufgabensitzung.
 Vorher-Bilder: `.claude/notizen/bilder/2026-11-15-befund<N>-*.png|webp`.
 
-## 1. Schwerttafel (Schreckenskammer, III. Etage) – Schwerter schlecht zu erkennen – ERLEDIGT 15. 11. (Firefox ok, Runde 0/2)
+## 1. Schwerttafel (Schreckenskammer, III. Etage) – Schwerter schlecht zu erkennen – ERLEDIGT 15. 11. (d055a78, Firefox ok, Runde 0/2)
 - **Ergebnis:** dunkelroter Tuchbezug vor dem Holzrahmen; Klingen mit Fase (stilisiert steiler gespiegelt), abgerundetem Ende und mehr Glanz; Parierstange, Zwingen, Knauf aus hellem Stahl, Ledergriff. Licht neu berechnet, Werkstattschatten neu gebacken. Protokoll `protokolle/2026-11-15-holmes-schwerter.md`.
 - Bild: `befund1-schwerter.png`. Bauteil „Schwerttafel“ in `welt/bauteile.js`; laut Notizen Richtschwerter.
 - Beobachtung: Griffe/Parierstangen schwarz bzw. dunkelbraun verschwinden vor der sehr dunklen Holztafel; Klingen wirken wie flache helle Latten (keine Schneide, keine Hohlkehle, kaum Glanz), Ende gerade abgeschnitten (bei Richtschwertern üblich: stumpf/rund).
