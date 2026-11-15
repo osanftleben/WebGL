@@ -37,3 +37,6 @@ Ziel: Werkstatt-Fensterschatten einmal im Browser (127.0.0.1) mit einigen tausen
 ## 19:15 Nachtrag: Beinflecken entfernt (Nutzer: „überall“)
 - `welt/fleck.js`: `sammleKontaktFlecken` sammelt nur noch `userData.kontaktFleck` (Figuren, Büstensockel, Böcke); Flecken unter dünnen Möbelbeinen entfallen in allen Räumen.
 - Geprüft: check.py 0, Werkbank 2, BP 1, BP 6, BP 7 unauffällig (Scratchpad `bilder/ohneflecken_*.png`), 60 Bilder/s, nur 127.0.0.1. Nicht committet.
+
+## 19:20 Commit
+- 87cf3af (Schatten gebacken, Beinflecken entfernt). Firefox offen.
