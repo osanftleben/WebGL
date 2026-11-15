@@ -33,7 +33,7 @@ Vorher-Bilder: `.claude/notizen/bilder/2026-11-15-befund<N>-*.png|webp`.
 - Heller Glanzstreifen im Nachbarraum endet hart an der Türschwelle, wird im vorderen Raum nicht fortgesetzt. Vermutlich Glanzberechnung je Raum. Echter Fehler.
 - **Offen:** Welcher Durchgang (A↔B?).
 
-## 6. Schalen: Innenflächen fehlerhaft – ERLEDIGT (15. 11., nicht committet)
+## 6. Schalen: Innenflächen fehlerhaft – ERLEDIGT (15. 11., b3e66b6)
 - **Ergebnis:** Es waren die Gipsformen auf der Werkbank (nicht die Näpfchen); jetzt Drehprofil mit Wand, Rand, Innenwand (`schalenForm` in `welt/bauteile.js`). Firefox ok (Nutzer). Offen: Wachstopf und Gießlöffel vermutlich gleicher Fehler (ungeprüft); Schatten der Gipsformen auf die Platte fehlt (früher `wsWirft` → Flecken, entfernt) → Vorschlag: bei Punkt 3/7 mit dem Neubacken lösen.
 - Bild: `befund6-schalen.png`.
 - Nur die hintere Innenfläche sichtbar, vordere Wand fehlt → vermutlich einseitige Geometrie. Lösung: echte Wandstärke (außen, innen, Rand). Echter Fehler, keine Rückfragen nötig.
