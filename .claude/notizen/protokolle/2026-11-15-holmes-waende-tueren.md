@@ -44,4 +44,4 @@ Ziel: Raum A/B Holz-Lambris (~1 m, mit Feldern) + Tapete mit dezentem Muster; We
 - Ergebnis: Wände/Türen nach 2/2 Runden; Nutzer: „Restpunkte notieren“ (keine ausdrückliche Abnahme); check.py 0 Fehler; Lichtkarte aktiv (f88656b3); 60 Bilder/s; Rundgang Chromium unauffällig
 - Restfehler/Restpunkte: Bordüre aus der Ferne nur dunkles Band; Werkstatttüren elfenbein; `putzSaal`/`putzHell` ungenutzt; Firefox offen
 - Folgeaufträge: Kerkerkulisse Schreckenskammer, Supraporten, fleckige Decke (Verlauf „Wände und Türen“)
-- Commit: noch keiner (nur auf Wunsch)
+- Commit: f2c9acc (auf Wunsch des Nutzers)

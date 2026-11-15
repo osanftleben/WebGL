@@ -15,7 +15,7 @@ paths:
 - **Feinschliff D** fertig (19566e2): Stuck (`welt/stuck.js`), Messingbeschläge. Firefox ok. Rest: dunkle Fuge unter der Gesims-Deckplatte (Verlauf).
 - **Hinweise verknüpfen** fertig (9d07847), Firefox ok.
 - **Drehbuch Vormittag** abgenommen: `.claude/notizen/holmes-fall1-drehbuch-vormittag.md` (mit Bauliste).
-- **Wände + Türen** 2/2 Runden, Restpunkte notiert, Firefox offen: `welt/innenausbau.js` (für den Vorraum); Rest/Folgeaufträge: Verlauf.
+- **Wände + Türen** (f2c9acc) 2/2 Runden, Restpunkte notiert, Firefox offen: `welt/innenausbau.js` (für den Vorraum); Rest/Folgeaufträge: Verlauf.
 - **Danach Auftrag 2 – Werkstatt ausstatten** (eigene Sitzung, Inhalt nach Recherche mit dem Nutzer) – Abnahme Blickpunkte 7, 8, Werkbank – Runden 0/2.
 - **Als Nächstes:** Einbau Vormittag (Teil 2), in 3 Sitzungen: Vorraum, Figuren, Gespräche.
 - **Leistung: nur die Bildrate zählt** (Nutzer, fest): Draw-Calls sind keine Grenze und keine Abnahme – nicht danach fragen.
