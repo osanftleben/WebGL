@@ -15,6 +15,7 @@
 /.claude/laufzeiten.json
 /.claude/laufzeiten.*.tmp
 /.claude/server_aufraeumen.log
+/.claude/notizen/bilder/
 /recherche/
 
 # Abhängigkeiten und Build-Ausgaben

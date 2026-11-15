@@ -34,7 +34,7 @@ Vorher-Bilder: `.claude/notizen/bilder/2026-11-15-befund<N>-*.png|webp`.
 - **Offen:** Welcher Durchgang (A↔B?).
 
 ## 6. Schalen: Innenflächen fehlerhaft – ERLEDIGT (15. 11., b3e66b6)
-- **Ergebnis:** Es waren die Gipsformen auf der Werkbank (nicht die Näpfchen); jetzt Drehprofil mit Wand, Rand, Innenwand (`schalenForm` in `welt/bauteile.js`). Firefox ok (Nutzer). Offen: Wachstopf und Gießlöffel vermutlich gleicher Fehler (ungeprüft); Schatten der Gipsformen auf die Platte fehlt (früher `wsWirft` → Flecken, entfernt) → Vorschlag: bei Punkt 3/7 mit dem Neubacken lösen.
+- **Ergebnis:** Es waren die Gipsformen auf der Werkbank (nicht die Näpfchen); jetzt Drehprofil mit Wand, Rand, Innenwand (`schalenForm` in `welt/bauteile.js`). Firefox ok (Nutzer). Wachstopf und Gießlöffel hatten denselben Fehler, ebenso behoben, Firefox ok. Offen: Schatten der Gipsformen auf die Platte fehlt (früher `wsWirft` → Flecken, entfernt) → Vorschlag: bei Punkt 3/7 mit dem Neubacken lösen.
 - Bild: `befund6-schalen.png`.
 - Nur die hintere Innenfläche sichtbar, vordere Wand fehlt → vermutlich einseitige Geometrie. Lösung: echte Wandstärke (außen, innen, Rand). Echter Fehler, keine Rückfragen nötig.
 - **Offen:** Vermutlich Näpfchen in der Werkstatt – bestätigen.
@@ -51,5 +51,5 @@ Vorher-Bilder: `.claude/notizen/bilder/2026-11-15-befund<N>-*.png|webp`.
 
 ## Allgemein offen
 - Liste vollständig (Nutzer: „erstmal alle Punkte“).
-- Bilder in `.claude/notizen/bilder/` (ca. 1,8 MB) nicht git-ignoriert – Nutzer fragen: ins Git oder `.gitignore`?
+- Bilder in `.claude/notizen/bilder/` bleiben lokal (Nutzer, in `.gitignore`).
 - Reihenfolge der Aufträge; 3 (Schatten A/B) und 4 (Büsten) berühren beide das Licht – nicht gleichzeitig laufen lassen.

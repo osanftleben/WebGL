@@ -3,7 +3,7 @@
 // Antippbare Teile bleiben einzelne Objekte (nicht verschmolzen) und bekommen eigene
 // Material-Kopien, damit eine Hervorhebung nur sie betrifft.
 import * as THREE from 'three';
-import { box, GEHROCK, FIGUR_ZONEN, FIGUR_FLECK, STUFEN_ABSTAND } from './bauteile.js';
+import { box, schalenForm, GEHROCK, FIGUR_ZONEN, FIGUR_FLECK, STUFEN_ABSTAND } from './bauteile.js';
 import { kopf, hals, arm, fuss, oberkoerper, fingerspitzen, sparsam, istSparsam } from './menschen.js';
 import { alsStufe, baueStufen } from './stufen.js';
 import { gesichtsTafel, GESICHT } from './texturen.js';
@@ -217,8 +217,9 @@ function baueWerkbankFund(m) {
     g.add(span);
   }
   // Gießlöffel
-  const loeffel = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), m.eisen);
-  loeffel.position.set(-0.05, 0.04, 0.17);
+  // Schale mit 4 mm Wand (Rand bei 4 cm wie vorher die offene Halbkugel)
+  const loeffel = new THREE.Mesh(schalenForm(0.04, 0.04, 0.004, 16, 4), m.eisen);
+  loeffel.position.set(-0.05, 0, 0.17);
   g.add(loeffel);
   const stiel = box(0.24, 0.012, 0.015, -0.21, 0.045, 0.17, m.eisen);
   g.add(stiel);

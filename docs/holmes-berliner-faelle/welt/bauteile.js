@@ -1218,8 +1218,9 @@ export function hocker(m) {
  * Ursprung an der Unterseite, Rand bei y = hoehe.
  * @param {number} radius Außenradius am Rand @param {number} hoehe @param {number} wand Wandstärke (Rand und Boden)
  * @param {number} teile Unterteilung im Umfang @param {number} stufen Punkte je Viertelellipse
+ * @returns {THREE.LatheGeometry}
  */
-function schalenForm(radius, hoehe, wand, teile, stufen) {
+export function schalenForm(radius, hoehe, wand, teile, stufen) {
   /** @type {THREE.Vector2[]} */
   const p = [];
   const ri = radius - wand;
@@ -1254,6 +1255,16 @@ export function gipsform(m) {
   return g;
 }
 
+// Wachstopf mit Wandstärke (Drehprofil, Ursprung am Boden): Boden, Außenwand (r 0,10 → 0,11, 16 cm hoch),
+// Rand, Innenwand (1,2 cm Wand) bis knapp unter das Wachs, innerer Boden. Eckpunkte doppelt = scharfe Kanten.
+const topfGeo = (() => {
+  const w = 0.012;
+  const innenUnten = 0.1 + 0.01 * (0.12 / 0.16) - w;
+  const p = [[0, 0], [0.1, 0], [0.1, 0], [0.11, 0.16], [0.11, 0.16], [0.11 - w, 0.16], [0.11 - w, 0.16],
+    [innenUnten, 0.12], [innenUnten, 0.12], [0, 0.12]];
+  return new THREE.LatheGeometry(p.map(([x, y]) => new THREE.Vector2(x, y)), 16);
+})();
+
 /**
  * Gasbrenner mit Topf zum Schmelzen von Wachs (Gasleitung im Haus belegt; Gerät stilisiert).
  * @param {Materialien} m
@@ -1261,8 +1272,8 @@ export function gipsform(m) {
 export function wachstopf(m) {
   const g = new THREE.Group();
   g.add(box(0.26, 0.1, 0.26, 0, 0.05, 0, m.eisen));
-  const topf = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.1, 0.16, 16, 1, true), m.eisen);
-  topf.position.y = 0.19;
+  const topf = new THREE.Mesh(topfGeo, m.eisen);
+  topf.position.y = 0.11;
   g.add(topf);
   const inhalt = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.01, 16), m.wachsBlass);
   inhalt.position.y = 0.24;

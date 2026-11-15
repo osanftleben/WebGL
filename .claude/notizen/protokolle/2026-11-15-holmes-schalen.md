@@ -25,3 +25,20 @@ Ziel: Schalen bekommen echte Wandstärke (außen, innen, Rand), aus keinem Blick
 - Nicht committet. Restfehler/offen: Firefox-Prüfung; Wachstopf und Gießlöffel vermutlich gleicher Fehler (ungeprüft).
 - Projektnotiz: Block „Aktueller Auftrag“ ersetzt; Befunde-Datei Punkt 6 erledigt.
 - Nachtrag: Nutzer fragt nach Schatten der Gipsformen auf die Platte → bekannter Restpunkt (wsWirft früher entfernt wegen Flecken); Vorschlag: bei Befund 3/7 mit Neubacken lösen. Sitzung beendet.
+
+# Folgeauftrag: Wachstopf und Gießlöffel (Hauptsitzung, 18:26)
+Ziel: falls offen/einseitig, echte Wand mit Rand (wie `schalenForm`) | Abnahme: je vorn/seitlich/schräg oben, check.py 0, Rundgang örtlich (Werkstatt) | Nicht dazu: Schatten, Werkstatt-Restpunkte, Licht | Runden: 0/2 | Stand: Gipsformen b3e66b6 (Firefox ok), Regel 59a7f09. `.gitignore` und Befunde-Datei nicht anfassen (Hauptsitzung).
+
+## 18:26 Start
+- Lage: Wachstopf `wachstopf` (bauteile.js) bei (5,4 | 0,895 | 23,0), Topf offener Zylinder r 0,11/0,10, h 0,16 (y 0,11–0,27), Wachs-Scheibe Oberkante 0,245. Gießlöffel in `baueWerkbankFund` (fundstuecke.js) bei Welt ≈ (3,95 | 0,935 | 23,37), offene untere Halbkugel r 0,04, Metallrest-Scheibe y 0,03.
+- nächster Schritt: im Browser ansehen.
+
+## 18:28 Befund bestätigt, behoben, geprüft
+- Befund: beide hatten den Fehler (Topf: hintere Innenwand über dem Wachs fehlte; Löffel: hintere Innenfläche fehlte).
+- erledigt: Wachstopf als Drehprofil `topfGeo` (bauteile.js; Boden, Außenwand r 0,10→0,11, h 0,16, Rand, Innenwand 1,2 cm bis y 0,12 unter dem Wachs, innerer Boden; Ursprung am Boden, position.y 0,11 = gleiche Lage wie vorher). Gießlöffel: `schalenForm(0,04, 0,04, 0,004, 16, 4)` (jetzt exportiert), position.y 0 (Rand wie vorher bei 4 cm). Gipsform unverändert.
+- Licht/Schatten: Topf und Löffel weder `lichtHuelle` noch `wsWirft` → kein Neuberechnen/Backen; Rundgang örtlich.
+- Geprüft: Topf vorn/seitlich/schräg oben + Nutzerwinkel, Löffel schräg/vorn/seitlich/oben: keine fehlende Fläche, Rand sichtbar. check.py 0 Fehler. Werkstatt gesamt ok. Anfragen nur an 127.0.0.1, keine fehlgeschlagenen Anfragen im aktuellen Laden (Konsole zeigt noch ERR_CONNECTION_REFUSED vom früheren abgebrochenen Laden).
+- Dateien: `docs/holmes-berliner-faelle/welt/bauteile.js`, `docs/holmes-berliner-faelle/welt/fundstuecke.js`, Projektnotiz (Zeile Gipsformen).
+
+## 18:28 Abschluss Folgeauftrag
+- Ergebnis: Topf und Löffel mit Wand, Runden 0/2. Nicht committet. Offen: Firefox-Prüfung durch den Nutzer. Befunde-Datei nicht angefasst (Hauptsitzung).
