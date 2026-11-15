@@ -43,7 +43,7 @@ Vorher-Bilder: `.claude/notizen/bilder/2026-11-15-befund<N>-*.png|webp`.
 ## Empfohlene Reihenfolge (Hauptsitzung)
 6 (erledigt) → 7 (läuft, Sitzung holmes-wandschatten) → 2 und 1 (Formänderungen vor dem Neubacken) → 3 → 4 (beide Licht, nacheinander); 5 unabhängig, jederzeit.
 
-## 7. Werkstatt: Schatten an der Wand stimmen nicht – ERLEDIGT 15. 11. (nicht committet, Firefox offen)
+## 7. Werkstatt: Schatten an der Wand stimmen nicht – ERLEDIGT 15. 11. (257f432, Firefox offen)
 - Bild: `befund7-wandschatten.png` (Ecke mit Wandbrett, 4 Gipsköpfen, angelehnten Brettern, Gipskasten).
 - Beobachtungen: großer, sehr weicher dunkler Fleck um Wandbrett und Köpfe, reicht weit **über** die Köpfe hinaus (Schatten nach oben – passt nur bei Licht von unten); unter dem Wandbrett keine klare Schattenkante; hinter den Brettern breite dunkle Wolke bis über ihre Oberkante. Wirkt wie zu stark weichgezeichnet bzw. zu große Hüllkörper.
 - Mögliche Ursachen (prüfen, nicht belegt): Quader-Hülle der Büsten/Köpfe (bekannter Restpunkt „Büstenschatten nur grob“), Unschärfe der Lichtkarte (`KARTE_UNSCHAERFE_*` in `holmes_licht.py`), Lichtrichtung beim Backen.

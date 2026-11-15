@@ -36,6 +36,6 @@ Ziel: Schatten an der Werkstattwand stimmen; Gipsformen/Wachstopf/Gießlöffel w
 
 ## 19:50 Abschluss
 - Ergebnis: Fensterschatten der Werkstatt nach neuem Verfahren (verdeckte Bestrahlung abziehen), neu gebacken; Wolke über Köpfen/Brettern weg; Topf, Gipsschalen, Gießlöffel werfen. check.py 0 Fehler, voller Rundgang unauffällig, 60 Bilder/s, keine Konsolenfehler, nur 127.0.0.1.
-- Nicht committet (auf Wunsch). Dateien: welt/werkstattschatten.js, welt/etage3.js, welt/fundstuecke.js, licht/werkstatt-schatten.png/.json, .claude/scripts/holmes_schatten.py (Kommentar), Notizen (Projektnotiz, Verlauf, Befunde Punkt 7, dieses Protokoll).
+- Committet: 257f432. Dateien: welt/werkstattschatten.js, welt/etage3.js, welt/fundstuecke.js, licht/werkstatt-schatten.png/.json, .claude/scripts/holmes_schatten.py (Kommentar), Notizen (Projektnotiz, Verlauf, Befunde Punkt 7, dieses Protokoll).
 - Restfehler: keine Kante unter dem Wandbrett (Nutzer: so lassen); Firefox offen; Projektnotiz 5,9 KB (> 5 KB, war schon vorher drüber).
 - Hinweis für Befund 3: neues Verfahren übernehmen.

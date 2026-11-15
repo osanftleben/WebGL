@@ -10,7 +10,7 @@ paths:
 
 ## Arbeitsstand (zuletzt 15. 11. 2026)
 - **Befunde 1–7 des Nutzers** (offen, Reihenfolge, Fragen): `.claude/notizen/holmes-befunde-2026-11-15.md`.
-- **Wandschatten Werkstatt** (Befund 7, nicht committet, Firefox offen): Schattenbild = verdeckte Fensterbestrahlung, wird abgezogen (Version 2); Topf, Schalen, Löffel werfen. Rest (Nutzer: so lassen): keine Kante unter dem Wandbrett.
+- **Wandschatten Werkstatt** (Befund 7, 257f432, Firefox offen): Schattenbild = verdeckte Fensterbestrahlung, wird abgezogen (Version 2); Topf, Schalen, Löffel werfen. Rest (Nutzer: so lassen): keine Kante unter dem Wandbrett.
 - **Gipsformen, Wachstopf, Gießlöffel mit Wand** (Befund 6, b3e66b6, 1ef710d, Firefox ok): `schalenForm`/`topfGeo` (bauteile.js).
 - **LOD zurückgestellt** (bis Projektende; Sichtbarkeit 4eb7f01, Stufen 019022f). Offen: 50-%-Regel.
 - Fertig, Firefox ok (Einzelheiten im Verlauf): Licht + Kontaktschatten, Augenanpassung, Fensterausblick, Besetzung, Feinschliff C und D (Stuck, Beschläge), B1, B2, Kranich, Hinweise verknüpfen (9d07847). **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben.
