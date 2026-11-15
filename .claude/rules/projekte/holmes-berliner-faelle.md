@@ -10,7 +10,8 @@ paths:
 
 ## Arbeitsstand (zuletzt 15. 11. 2026)
 - **Befunde 1–7 des Nutzers** (offen, Reihenfolge, Fragen): `.claude/notizen/holmes-befunde-2026-11-15.md`.
-- **Profile Lambris + Türen** (Befund 2, Firefox ok, 5c1c78c): echte Profilform je Füllung (`profilGeometrie`, innenausbau.js); Licht = Lichtkarte des Trägers × Richtung aus dem Gitter (`LG_TRAEGER`), feine Kanten aus der Ferne ausgeblendet. Einzelheiten: Verlauf. Als Nächstes Befund 1 (Schwerttafel).
+- **Schwerttafel** (Befund 1, Firefox ok, nicht committet): Tuchbezug `stoffBezug` (Farbe angenommen), Klinge `klingenGeometrie` (Fase, rundes Ende), Stahl-Parierstange/-Zwingen/-Knauf, Ledergriff. Licht neu berechnet. Als Nächstes Befund 3.
+- **Profile Lambris + Türen** (Befund 2, Firefox ok, 5c1c78c): echte Profilform je Füllung (`profilGeometrie`, innenausbau.js); Licht = Lichtkarte des Trägers × Richtung aus dem Gitter (`LG_TRAEGER`), feine Kanten aus der Ferne ausgeblendet. Einzelheiten: Verlauf.
 - **Wandschatten Werkstatt** (Befund 7, 257f432, Firefox ok): Schattenbild = verdeckte Fensterbestrahlung, wird abgezogen (Version 2); Topf, Schalen, Löffel werfen. Rest (Nutzer: so lassen): keine Kante unter dem Wandbrett.
 - **Gipsformen, Wachstopf, Gießlöffel mit Wand** (Befund 6, b3e66b6, 1ef710d, Firefox ok): `schalenForm`/`topfGeo` (bauteile.js).
 - **LOD zurückgestellt** (bis Projektende; Sichtbarkeit 4eb7f01, Stufen 019022f). Offen: 50-%-Regel.

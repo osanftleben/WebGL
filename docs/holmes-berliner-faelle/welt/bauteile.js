@@ -1,7 +1,7 @@
 // Bauteile für Innenräume: Wände mit Öffnungen, Möbel, Ausstellungsstücke.
 // Alles stilisiert aus einfachen Formen; Maße in Metern.
 import * as THREE from 'three';
-import { dielenTextur, putzTextur, holzTextur, heizkoerperTextur, nummernAtlas, glasTextur, gesichtsTafel, NUMMERN_RASTER, skaliereUV, zufall } from './texturen.js';
+import { dielenTextur, putzTextur, holzTextur, stoffTextur, heizkoerperTextur, nummernAtlas, glasTextur, gesichtsTafel, NUMMERN_RASTER, skaliereUV, zufall } from './texturen.js';
 import { kopf, hals, arm, oberkoerper, stoffTeil, sparsam, istSparsam } from './menschen.js';
 import { alsStufe } from './stufen.js';
 import { STUCK, GOLD, stuckTextur, goldTexturen, bandUV, flachUV, rosettenGeometrie, kapitellGeometrie } from './stuck.js';
@@ -106,6 +106,12 @@ export function erstelleMaterialien() {
     podest: lambert({ color: new THREE.Color().setRGB(...heller([59, 31, 26], HOLZ_DUNKEL_HELLIGKEIT).map((c) => c / 255), THREE.SRGBColorSpace) }),
     metall: glanz({ color: 0xc8ccd0, metalness: 1, roughness: 0.14, envMapIntensity: 1.6 }),
     eisen: glanz({ color: 0x2e2e30, metalness: 0.6, roughness: 0.6, envMapIntensity: 0.3 }),
+    // Schwerttafel (Befund 1): dunkelroter Tuchbezug (nicht belegt, angenommen – passt zu den Vorhangschals),
+    // Klingen blank mit Fase, Parierstange, Zwingen und Knauf aus poliertem Stahl, Griff mit braunem Leder
+    stoffBezug: lambert({ map: stoffTextur([160, 40, 42], 17) }),
+    klinge: glanz({ color: 0xd2d6da, metalness: 1, roughness: 0.14, envMapIntensity: 1.7 }),
+    stahl: glanz({ color: 0xa9adb2, metalness: 1, roughness: 0.3, envMapIntensity: 1.5 }),
+    griffLeder: lambert({ color: 0x6a4a2c }),
     // Wachs hat einen leichten, weichen Schimmer; Hautton und Gesichter kommen aus der Gesichtstafel
     wachs: glanz({ map: gesichtsTafel(), color: 0xffffff, metalness: 0, roughness: 0.42, envMapIntensity: 0.5 }),
     wachsBlass: glanz({ color: 0xe6dac4, metalness: 0, roughness: 0.48, envMapIntensity: 0.4 }),
@@ -700,9 +706,44 @@ export function buesteAufSockel(m, rolle) {
   return g;
 }
 
-const klingeGeo = new THREE.BoxGeometry(0.065, 0.9, 0.008);
-const griffGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.26, 10);
-const knaufGeo = new THREE.SphereGeometry(0.03, 10, 8);
+/**
+ * Klinge eines Richtschwerts: flach mit Fase zu beiden Schneiden, Ende stumpf und abgerundet (ohne Spitze).
+ * Oberkante (y = 0) sitzt in der Parierstange, die Klinge hängt nach unten. Flächen eben schattiert,
+ * damit Mittelfläche und Fasen die Umgebung verschieden spiegeln.
+ * @param {number} laenge @param {number} breite @param {number} dicke in der Mitte (an der Schneide 1 mm)
+ */
+function klingenGeometrie(laenge, breite, dicke) {
+  const w = breite / 2;
+  const rundung = 0.03;
+  const form = new THREE.Shape();
+  form.moveTo(-w, 0);
+  form.lineTo(-w, -laenge + rundung);
+  form.quadraticCurveTo(-w, -laenge, 0, -laenge);
+  form.quadraticCurveTo(w, -laenge, w, -laenge + rundung);
+  form.lineTo(w, 0);
+  form.lineTo(-w, 0);
+  const fase = breite * 0.28;
+  const schneide = 0.001;
+  const geo = new THREE.ExtrudeGeometry(form, {
+    depth: schneide, curveSegments: 4, bevelEnabled: true, bevelSegments: 1,
+    bevelThickness: (dicke - schneide) / 2, bevelSize: fase, bevelOffset: -fase,
+  });
+  geo.translate(0, 0, -schneide / 2);
+  // Stilisiert: Fasen-Normalen stärker kippen (echte Fase ≈ 11°, gezeigt wie ≈ 40°), damit die beiden
+  // Fasen deutlich anders spiegeln als die Mittelfläche und die Schneide als Linie lesbar wird
+  const n = geo.getAttribute('normal');
+  for (let i = 0; i < n.count; i++) {
+    const nz = n.getZ(i);
+    if (Math.abs(nz) > 0.999 || Math.abs(nz) < 0.3) continue;
+    const v = new THREE.Vector3(n.getX(i) * 4, n.getY(i) * 4, nz).normalize();
+    n.setXYZ(i, v.x, v.y, v.z);
+  }
+  return geo;
+}
+const klingeGeo = klingenGeometrie(0.9, 0.065, 0.008);
+const griffGeo = new THREE.CylinderGeometry(0.017, 0.019, 0.24, 10);
+const zwingeGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.014, 10);
+const knaufGeo = new THREE.SphereGeometry(0.032, 10, 8);
 
 /**
  * Scheiben (lokales y, Meter) für die Verdecker einer stehenden Figur (lichtmodell.js): Füße, Unter-/Oberschenkel,
@@ -719,19 +760,27 @@ export const FIGUR_FLECK = { breite: 0.44, tiefe: 0.42, dz: 0.05 };
  */
 export function schwertTafel(m) {
   const g = new THREE.Group();
+  // Holzrahmen mit Tuchbezug davor (7 cm Holzrand sichtbar), Goldleisten oben und unten
   g.add(box(1.5, 1.35, 0.04, 0, 0, 0.02, m.holzDunkel));
+  g.add(box(1.36, 1.21, 0.01, 0, 0, 0.045, m.stoffBezug, true));
   g.add(box(1.6, 0.06, 0.06, 0, 0.7, 0.03, m.gold));
   g.add(box(1.6, 0.06, 0.06, 0, -0.7, 0.03, m.gold));
   for (let i = -1; i <= 1; i++) {
     const s = new THREE.Group();
-    const klinge = new THREE.Mesh(klingeGeo, m.metall);
-    klinge.position.y = -0.25;
+    const klinge = new THREE.Mesh(klingeGeo, m.klinge);
+    klinge.position.y = 0.215;
     s.add(klinge);
-    s.add(box(0.3, 0.03, 0.03, 0, 0.215, 0, m.eisen));
-    const griff = new THREE.Mesh(griffGeo, m.holzDunkel);
-    griff.position.y = 0.36;
+    s.add(box(0.3, 0.03, 0.03, 0, 0.215, 0, m.stahl));
+    const griff = new THREE.Mesh(griffGeo, m.griffLeder);
+    griff.position.y = 0.35;
     s.add(griff);
-    const knauf = new THREE.Mesh(knaufGeo, m.eisen);
+    // Stahlzwingen an beiden Griffenden trennen Leder, Parierstange und Knauf
+    for (const y of [0.237, 0.465]) {
+      const zwinge = new THREE.Mesh(zwingeGeo, m.stahl);
+      zwinge.position.y = y;
+      s.add(zwinge);
+    }
+    const knauf = new THREE.Mesh(knaufGeo, m.stahl);
     knauf.position.y = 0.5;
     s.add(knauf);
     s.position.set(i * 0.42, 0.05, 0.07);

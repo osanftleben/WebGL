@@ -255,3 +255,10 @@ Aktuelle Regeln und Arbeitsstand stehen in `.claude/rules/projekte/holmes-berlin
 - Runde 1 (Nutzer: deutliche Artefakte aus der Ferne): Stufen schmaler als ein Bildpunkt → Pünktchen. Lösung: je Bildpunktgröße auf der Wand (`length(fwidth(vLgWelt))`, smoothstep 4–10 mm) Verschattung → Fernwert (Leiste 0,86) und Richtungslicht der Leiste → 1; Fase/Spiegel behalten Richtungslicht. 1,8–5 mm war zu früh (aus 1,5 m flach).
 - Licht neu berechnet (6 s), Werkstattschatten nicht neu gebacken (Prüfsumme gleich, Türen keine Werfer). Rundgang voll ohne Auffälligkeiten; 60 Bilder/s (Abnahme-Blick, BP 1, 6a, 6b, 7). Nachher-Bild `bilder/2026-11-15-befund2-nachher.jpg` (vor Runde 1).
 - Hinweis Messung: Bildrate nur bei sichtbarem Browser-Pane messen (verdeckt ≈ 1 Bild/s).
+
+## Schwerttafel (Befund 1, 15. 11. 2026, Aufgabensitzung, Runde 0/2, Firefox ok; Protokoll `protokolle/2026-11-15-holmes-schwerter.md`)
+- `schwertTafel` (bauteile.js): Holzbrett 1,5 × 1,35 m bleibt als Rahmen, davor Tuchbezug 1,36 × 1,21 × 0,01 m (`stoffBezug`, Lambert mit `stoffTextur([160, 40, 42])`, texturen.js; dunkelrot angenommen, nicht belegt). Erst [112, 26, 30] – unter der Lichtkarte fast schwarz.
+- Klinge `klingenGeometrie(0,9, 0,065, 0,008)`: ExtrudeGeometry mit Fase (28 % der Breite je Seite, Schneide 1 mm), Ende mit zwei Viertelbögen abgerundet; Fasen-Normalen ×4 gekippt (≈ 40° statt 11°), sonst spiegeln Mitte und Fase fast gleich. Material `klinge` (roughness 0,14). Kein Verdecker mehr (keine Box) – Klingen sind schmaler als ein Lichtkarten-Bildpunkt.
+- `stahl` (Parierstange, zwei Zwingen, Knauf) hell poliert, `griffLeder` braun: Griff hebt sich dunkel vom Rot ab, die Stahlteile hell.
+- Licht neu berechnet (Atlas verschoben → Werkstattschatten neu gebacken). 60 Bilder/s, Rundgang voll unauffällig.
+- Nicht gemacht: Hohlkehle (nicht beauftragt).

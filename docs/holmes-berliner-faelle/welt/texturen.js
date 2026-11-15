@@ -110,6 +110,38 @@ export function holzTextur(rgb, saat = 11) {
 }
 
 /**
+ * Stoffbezug (Tuch, z. B. auf der Schwerttafel): leicht wolkig mit feinem senkrechtem Fadenlauf.
+ * Die mittlere Helligkeit bleibt bei der Grundfarbe. Eine Kachel = 2 m × 2 m (box mit `kacheln`).
+ * @param {[number, number, number]} rgb Grundfarbe (sRGB 0–255)
+ * @param {number} [saat=7]
+ * @returns {THREE.CanvasTexture}
+ */
+export function stoffTextur(rgb, saat = 7) {
+  const { canvas, ctx } = leinwand(256, 256);
+  const z = zufall(saat);
+  ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  ctx.fillRect(0, 0, 256, 256);
+  // Wolken: weiche helle und dunkle Flecken gleich oft (ungleich gespanntes Tuch)
+  for (let i = 0; i < 160; i++) {
+    const hell = i % 2 === 0;
+    const x = z() * 256;
+    const y = z() * 256;
+    const r = 8 + z() * 26;
+    const verlauf = ctx.createRadialGradient(x, y, 0, x, y, r);
+    verlauf.addColorStop(0, hell ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)');
+    verlauf.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = verlauf;
+    ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
+  // Fadenlauf: feine senkrechte Streifen
+  for (let x = 0; x < 256; x++) {
+    ctx.fillStyle = z() < 0.5 ? `rgba(255,255,255,${z() * 0.035})` : `rgba(0,0,0,${z() * 0.045})`;
+    ctx.fillRect(x, 0, 1, 256);
+  }
+  return alsTextur(canvas);
+}
+
+/**
  * Rippenheizkörper (senkrechte Rippen). Eine Kachel = 1 m breit, volle Höhe.
  * @returns {THREE.CanvasTexture}
  */

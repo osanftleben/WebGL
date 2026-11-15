@@ -3,7 +3,8 @@
 Gesammelt in der Hauptsitzung, noch **keine Aufträge vergeben**. Nächster Schritt: offene Fragen mit dem Nutzer klären, dann je Punkt `/auftrag` und eine eigene Aufgabensitzung.
 Vorher-Bilder: `.claude/notizen/bilder/2026-11-15-befund<N>-*.png|webp`.
 
-## 1. Schwerttafel (Schreckenskammer, III. Etage) – Schwerter schlecht zu erkennen
+## 1. Schwerttafel (Schreckenskammer, III. Etage) – Schwerter schlecht zu erkennen – ERLEDIGT 15. 11. (Firefox ok, Runde 0/2)
+- **Ergebnis:** dunkelroter Tuchbezug vor dem Holzrahmen; Klingen mit Fase (stilisiert steiler gespiegelt), abgerundetem Ende und mehr Glanz; Parierstange, Zwingen, Knauf aus hellem Stahl, Ledergriff. Licht neu berechnet, Werkstattschatten neu gebacken. Protokoll `protokolle/2026-11-15-holmes-schwerter.md`.
 - Bild: `befund1-schwerter.png`. Bauteil „Schwerttafel“ in `welt/bauteile.js`; laut Notizen Richtschwerter.
 - Beobachtung: Griffe/Parierstangen schwarz bzw. dunkelbraun verschwinden vor der sehr dunklen Holztafel; Klingen wirken wie flache helle Latten (keine Schneide, keine Hohlkehle, kaum Glanz), Ende gerade abgeschnitten (bei Richtschwertern üblich: stumpf/rund).
 - **Nutzer (15. 11.):** Kontrast UND Form; Tafel mit dunkelrotem Stoffbezug (nicht belegt, angenommen, passt zu den Vorhangschals); Klingenende stumpf/abgerundet (Richtschwert).
@@ -42,7 +43,7 @@ Vorher-Bilder: `.claude/notizen/bilder/2026-11-15-befund<N>-*.png|webp`.
 - **Auftrag vergeben** (15. 11.): Aufgabensitzung `holmes-schalen`, Protokoll `protokolle/2026-11-15-holmes-schalen.md`.
 
 ## Empfohlene Reihenfolge (Hauptsitzung)
-6 (erledigt) → 7 (erledigt) → 2 (erledigt) → 1 (als Nächstes) → 3 → 4 (beide Licht, nacheinander); 5 unabhängig, jederzeit.
+6 (erledigt) → 7 (erledigt) → 2 (erledigt) → 1 (erledigt) → 3 → 4 (beide Licht, nacheinander); 5 unabhängig, jederzeit.
 
 ## 7. Werkstatt: Schatten an der Wand stimmen nicht – ERLEDIGT 15. 11. (257f432, Firefox ok)
 - Bild: `befund7-wandschatten.png` (Ecke mit Wandbrett, 4 Gipsköpfen, angelehnten Brettern, Gipskasten).
