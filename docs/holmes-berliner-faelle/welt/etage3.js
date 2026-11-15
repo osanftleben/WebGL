@@ -286,9 +286,16 @@ export function baueEtage3(scene) {
   const topf = wachstopf(m);
   topf.position.set(5.4, 0.895, 23.0);
   gruppe.add(topf);
+  // Fensterschatten der Werkstatt (Befund 7): nur die runden Teile (Topf, Wachs, Schalen) werfen; Eisenkasten und
+  // Formplatte stecken als Quader schon in der Lichtkarte
+  const rundeWerfen = (/** @type {THREE.Object3D} */ g) => g.children.forEach((t) => {
+    if (/** @type {THREE.Mesh} */ (t).geometry?.type !== 'BoxGeometry') t.userData.wsWirft = true;
+  });
+  rundeWerfen(topf);
   for (let i = 0; i < 2; i++) {
     const form = gipsform(m);
     form.position.set(3.8 + i * 0.45, 0.895, 22.85 + i * 0.1);
+    rundeWerfen(form);
     gruppe.add(form);
   }
   const bank2 = werkbank(m, 2.0, 0.7);

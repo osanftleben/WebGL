@@ -7,7 +7,7 @@ Aufruf (immer über den Wächter, 2-Minuten-Grenze):
       POST /bild?name=x.png   Prüfbild (PNG) → ORDNER/x.png (Vorgabe: Scratchpad muss angegeben werden)
       POST /schatten          gebackenes Schattenbild → docs/holmes-berliner-faelle/licht/werkstatt-schatten.png/.json
                               Inhalt: 4 Byte Länge (little endian) + Kopf (JSON) + Sichtbarkeit als Uint16 je Bildpunkt
-                              (Zeile 0 = unten, wie im WebGL-Lesepuffer; 65535 = frei, 0 = ganz verdeckt).
+                              (Zeile 0 = unten, wie im WebGL-Lesepuffer; Wert = 1 − √(verdeckte Bestrahlung / Bezug), 65535 = frei).
 
 Im Spiel (nur 127.0.0.1): await __debug.backeWerkstattSchatten() – rechnet und schickt das Ergebnis hierher.
 

@@ -220,8 +220,10 @@ function baueWerkbankFund(m) {
   // Schale mit 4 mm Wand (Rand bei 4 cm wie vorher die offene Halbkugel)
   const loeffel = new THREE.Mesh(schalenForm(0.04, 0.04, 0.004, 16, 4), m.eisen);
   loeffel.position.set(-0.05, 0, 0.17);
+  loeffel.userData.wsWirft = true; // Fensterschatten der Werkstatt (Befund 7)
   g.add(loeffel);
   const stiel = box(0.24, 0.012, 0.015, -0.21, 0.045, 0.17, m.eisen);
+  stiel.userData.wsWirft = true;
   g.add(stiel);
   const rest = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.004, 12), m.metall);
   rest.position.set(-0.05, 0.03, 0.17);
@@ -289,8 +291,9 @@ export function setzeFundstuecke(scene, m) {
   const kontaktFlecken = sammleKontaktFlecken(gruppe);
   // Fensterschatten der Werkstatt (welt/werkstattschatten.js): die verdeckte Figur mit Brett und Böcken wirft
   // (in der Lichtkarte nur schwach, nahes Fenster und 10-cm-Raster); volle Form, vor Stufen und Verschmelzen
+  // dazu der Gießlöffel auf der Wachsplatte (`wsWirft` an Schale und Stiel)
   figur.userData.wsWirft = true;
-  const werkstattWerfer = sammleSchattenWerfer(figur);
+  const werkstattWerfer = sammleSchattenWerfer(gruppe);
 
   // Detailstufen (welt/stufen.js) nach Lichtmodell und Kontaktflecken (die sehen nur die volle Form),
   // vor dem Verschmelzen: Hand und verdeckte Figur, unten der Körper der Leiche

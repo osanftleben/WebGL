@@ -10,13 +10,14 @@ paths:
 
 ## Arbeitsstand (zuletzt 15. 11. 2026)
 - **Befunde 1–7 des Nutzers** (offen, Reihenfolge, Fragen): `.claude/notizen/holmes-befunde-2026-11-15.md`.
-- **Gipsformen mit Wandstärke** (Befund 6, b3e66b6, Firefox ok): `schalenForm` in `welt/bauteile.js`. Wachstopf (`topfGeo`) und Gießlöffel (`schalenForm`, fundstuecke.js) ebenso mit Wand, Firefox ok (1ef710d).
+- **Wandschatten Werkstatt** (Befund 7, nicht committet, Firefox offen): Schattenbild = verdeckte Fensterbestrahlung, wird abgezogen (Version 2); Topf, Schalen, Löffel werfen. Rest (Nutzer: so lassen): keine Kante unter dem Wandbrett.
+- **Gipsformen, Wachstopf, Gießlöffel mit Wand** (Befund 6, b3e66b6, 1ef710d, Firefox ok): `schalenForm`/`topfGeo` (bauteile.js).
 - **LOD zurückgestellt** (bis Projektende; Sichtbarkeit 4eb7f01, Stufen 019022f). Offen: 50-%-Regel.
 - Fertig, Firefox ok (Einzelheiten im Verlauf): Licht + Kontaktschatten, Augenanpassung, Fensterausblick, Besetzung, Feinschliff C und D (Stuck, Beschläge), B1, B2, Kranich, Hinweise verknüpfen (9d07847). **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben.
 - **Zusätzliche Effekte nur in der vollen Detailstufe** (Nutzer, fest); sparsame Stufe: gleiche Grundfarben, Fleckprüfung 0.
 - **Drehbuch Vormittag** abgenommen: `.claude/notizen/holmes-fall1-drehbuch-vormittag.md`.
 - **Wände + Türen** (f2c9acc), Firefox ok: `welt/innenausbau.js` (auch für den Vorraum).
-- **Werkstatt** (715ad95) + **Teil 2/3 + Beinschatten** (4add9dc) + **Schatten gebacken** (87cf3af), Firefox ok (auch Raum A/B ohne Beinflecken): Schatten in `licht/werkstatt-schatten.*`. **Werfer geändert → neu backen:** `holmes_schatten.py empfange` → `await __debug.backeWerkstattSchatten()`. Offen: Gitter-Zufall, Gipsformen/Topf/Holz, Wurfschatten auf runden Teilen. Keine Kontaktflecken mehr unter Möbelbeinen (alle Räume).
+- **Werkstatt** (715ad95) + **Teil 2/3 + Beinschatten** (4add9dc) + **Schatten gebacken** (87cf3af), Firefox ok (auch Raum A/B ohne Beinflecken): Schatten in `licht/werkstatt-schatten.*`. **Werfer geändert → neu backen:** `holmes_schatten.py empfange` → `await __debug.backeWerkstattSchatten()`. Offen: Gitter-Zufall, Holz, Wurfschatten auf runden Teilen. Keine Kontaktflecken mehr unter Möbelbeinen (alle Räume).
 - **Fensterlaibungen/-bänke** (f58d6e3) unter dem Himmel: Kurve `LICHT_HELL` (main.js/lichtgitter.js), Lichtkarte in Öffnungen quer zur Wand kaum weichgezeichnet; Messhilfe `holmes_fenster_messen.js`. Offen: Firefox; Verlauf außen → innen nur schwach.
 - Weitere Restpunkte im Verlauf (u. a. Gesims-Fuge, Kranich-Monogramm).
 - **Als Nächstes:** Einbau Vormittag (Teil 2), in 3 Sitzungen: Vorraum, Figuren, Gespräche.

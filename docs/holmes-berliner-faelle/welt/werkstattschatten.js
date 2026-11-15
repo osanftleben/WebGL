@@ -8,9 +8,13 @@
 //   Lichtquelle sind die Fensteröffnungen (bedeckter Himmel, angenommen): einige tausend gestreute Punkte auf den
 //   Fenstern, je Punkt werden die Werfer (`userData.wsWirft`) exakt auf die Ebene der Fläche projiziert
 //   (Schnitt des Schattenvolumens mit der Ebene). Ein Zählwert im Tiefenpuffer zählt jede Stelle je Lichtpunkt nur
-//   einmal. Gemittelt über alle Punkte (gewichtet nach Einfallswinkel, Abstand, Himmelshelligkeit) entsteht ein
-//   weicher Schatten: am Fuß fast scharf, mit dem Abstand zum Werfer immer weicher. (Früher 198 feste Punkte beim
+//   einmal. Summiert über alle Punkte (Einfallswinkel, Abstand, Himmelshelligkeit wie in holmes_licht.py) entsteht
+//   ein weicher Schatten: am Fuß fast scharf, mit dem Abstand zum Werfer immer weicher. (Früher 198 feste Punkte beim
 //   Start: ab ≈ 1 m vom Bein lagen die Einzelschatten nebeneinander, „Fächer“.)
+//   Gespeichert wird die verdeckte Menge Fensterlicht (Bestrahlung in Einheiten der Lichtkarte), nicht der verdeckte
+//   Anteil: das Spiel zieht genau diese Menge vom Licht ab. (Bis Befund 7, 15. 11. 2026: Anteil verdeckt/gesamt als
+//   Faktor auf das ganze Licht – Stellen mit sehr wenig Fensterlicht, z. B. die streifend beleuchtete Schrägwand mit
+//   0,26 % Fensteranteil, bekamen so ebenso starke Schatten wie der Boden am Fenster.)
 // - Formlicht für runde Teile (nur Lichtgitter): die dem Fenster zugewandte Seite heller, die abgewandte dunkler;
 // - etwas mehr Helligkeitsunterschied im Raum (hell am Fenster, dunkler in den Ecken).
 // Alles nur in der Werkstatt: weicher Übergang in der Trennwand zu Raum B, Raum A und B bleiben unverändert.
@@ -35,11 +39,17 @@ const ABSTAND_MIN = 0.0015;
 /** Mauerdicke an den Fenstern (m): Lichtpunkte an der Innenseite, Strahlen müssen auch durch die Außenöffnung passen */
 const LAIBUNG = 0.5;
 /**
- * Gewichtung der Lichtpunkte (Hochzahl auf Winkel · Himmel / Abstand²): 1 = physikalisch, dann bestimmt die Lage
- * im Raum, welches Fenster überwiegt (ferne/schräge Fenster werfen kaum sichtbare Schatten); 0 = jedes Fenster,
- * das die Stelle erreicht, zählt gleich. Nutzer: 0,5 (Auftrag Beinschatten).
+ * Leuchtdichte (Helligkeit) des Außenbodens wie in holmes_licht.py: BODEN_REFLEXION 0,2 · 7/9 · Helligkeit von
+ * BODEN_AUSSEN (0,78); Himmel: (1 + 2 · sin Höhe) / 3 · Helligkeit von HIMMEL (0,955).
  */
-const MISCH = 0.5;
+const HIMMEL_HELL = 0.955;
+const BODEN_HELL = 0.121;
+/**
+ * Bezugswert der verdeckten Bestrahlung (Einheit der Lichtkarte, Himmel im Zenit = 1): etwa das Höchste in der
+ * Werkstatt (Boden direkt am Fenster ≈ 0,25). Gespeichert wird 1 − √(verdeckt / BEZUG) (Wurzel: kleine Werte
+ * fein genug in 8 Bit, z. B. Schrägwand ≈ 0,002).
+ */
+const BEZUG = 0.25;
 
 /**
  * Sammelt die Schattenwerfer der Werkstatt (Meshes unter einer Gruppe mit `userData.wsWirft`) als eine
@@ -148,8 +158,7 @@ uniform vec3 fEcke;
 uniform vec3 fKu;      // Kante u (ganz)
 uniform vec3 fKv;
 uniform vec4 fPix;     // Ausschnitt der Fläche im Schattenbild: x0, y0, Breite, Höhe (Bildpunkte, ohne Rand)
-uniform float fSkala;
-uniform float fMisch;  // Hochzahl der Gewichtung: 0 = jeder erreichende Lichtpunkt gleich, 1 = nach Abstand und Winkel
+uniform float fSkala;  // Fensterfläche je Lichtpunkt (m²)
 float gewicht( vec3 L, vec3 nL, vec4 rahmen ) {
 	vec2 f = ( gl_FragCoord.xy - fPix.xy ) / fPix.zw;
 	vec3 Q = fEcke + f.x * fKu + f.y * fKv;
@@ -164,9 +173,10 @@ float gewicht( vec3 L, vec3 nL, vec4 rahmen ) {
 	vec3 aussen = L + d * ( ${LAIBUNG} / cl );
 	float aa = abs( nL.x ) > 0.5 ? aussen.z : aussen.x;
 	if ( aa < rahmen.x || aa > rahmen.z || aussen.y < rahmen.y || aussen.y > rahmen.w ) return 0.0;
-	// bedeckter Himmel: von oben heller als am Horizont, darunter (Straße) wenig
-	float himmel = d.y > 0.0 ? ( 1.0 + 2.0 * d.y ) / 3.0 : 0.15;
-	return pow( max( cq * cl * himmel / r2, 1e-12 ), fMisch ) * fSkala;
+	// bedeckter Himmel: von oben heller als am Horizont, darunter (Straße) wenig – wie holmes_licht.py
+	float himmel = d.y >= 0.0 ? ( 1.0 + 2.0 * d.y ) / 3.0 * ${HIMMEL_HELL} : ${BODEN_HELL};
+	// Bestrahlung: Leuchtdichte · cos (Fläche) · Raumwinkel (Fläche je Punkt · cos (Fenster) / Abstand²)
+	return himmel * cq * cl / r2 * fSkala;
 }`;
 
 const WERFER_FRAG = `
@@ -222,10 +232,10 @@ void main() {
  * je Zelle ein Zufallspunkt (feste Folge, gleiches Ergebnis bei jedem Backen).
  * @param {{ achse: string, ebene: number, min: number[], max: number[] }[]} fenster
  * @param {number} jeFenster
- * @returns {{ punkte: { p: THREE.Vector3, n: THREE.Vector3, rahmen: number[] }[], ecken: THREE.Vector3[][] }}
+ * @returns {{ punkte: { p: THREE.Vector3, n: THREE.Vector3, rahmen: number[], flaeche: number }[], ecken: THREE.Vector3[][] }}
  */
 function lichtPunkte(fenster, jeFenster) {
-  /** @type {{ p: THREE.Vector3, n: THREE.Vector3, rahmen: number[] }[]} */
+  /** @type {{ p: THREE.Vector3, n: THREE.Vector3, rahmen: number[], flaeche: number }[]} */
   const punkte = [];
   /** @type {THREE.Vector3[][]} Ecken je Fenster */
   const ecken = [];
@@ -250,11 +260,24 @@ function lichtPunkte(fenster, jeFenster) {
       for (let j = 0; j < nv; j++) {
         const a = f.min[0] + ((i + rnd()) / nu) * breite;
         const y = f.min[1] + ((j + rnd()) / nv) * hoehe;
-        punkte.push({ p: lage(a, y), n, rahmen: [f.min[0], f.min[1], f.max[0], f.max[1]] });
+        punkte.push({ p: lage(a, y), n, rahmen: [f.min[0], f.min[1], f.max[0], f.max[1]], flaeche: (breite * hoehe) / (nu * nv) });
       }
     }
   }
   return { punkte, ecken };
+}
+
+/**
+ * Fensterfläche je Lichtpunkt (m²); alle Fenster müssen gleich fein abgetastet sein (Abweichung ≤ 1 %).
+ * @param {{ flaeche: number }[]} punkte
+ * @returns {number}
+ */
+function flaechenJePunkt(punkte) {
+  const werte = punkte.map((l) => l.flaeche);
+  const klein = Math.min(...werte);
+  const gross = Math.max(...werte);
+  if (gross > klein * 1.01) throw new Error(`Werkstattschatten: Fensterfläche je Lichtpunkt ungleich (${klein} … ${gross} m²)`);
+  return (klein + gross) / 2;
 }
 
 /**
@@ -500,7 +523,7 @@ export async function backeWerkstattSchatten(renderer, werferListe, etage, optio
     fEbene: { value: new THREE.Vector4() }, fEcke: { value: new THREE.Vector3() }, fU: { value: new THREE.Vector3() },
     fV: { value: new THREE.Vector3() }, fKu: { value: new THREE.Vector3() }, fKv: { value: new THREE.Vector3() },
     fAbb: { value: new THREE.Vector4() }, fPix: { value: new THREE.Vector4() }, fSkala: { value: 1 },
-    fStreu: { value: new THREE.Vector2() }, fMisch: { value: MISCH },
+    fStreu: { value: new THREE.Vector2() },
   };
   // Zähler je Bildpunkt: Tiefentest „ungleich“ mit dem Zählwert des Lichtpunkts (eindeutig über alle Stapel) –
   // jeder Bildpunkt zählt je Lichtpunkt nur einmal, auch wo sich Teile überlappen
@@ -542,21 +565,9 @@ export async function backeWerkstattSchatten(renderer, werferListe, etage, optio
     for (const name of ['lPunkt', 'lNormale', 'lRahmen', 'lStreu', 'lNr']) geo.setAttribute(name, st[name]);
     geo.instanceCount = st.anzahl;
   };
-  // Gewichte je Fläche etwa auf 1 bringen: Summe in der Mitte der Fläche (alle Lichtpunkte)
-  const dd = new THREE.Vector3();
-  for (const e of liste) {
-    const mitte = e.ecke.clone().addScaledVector(e.u, 0.5).addScaledVector(e.v, 0.5);
-    let gs = 0;
-    for (const l of punkte) {
-      dd.copy(l.p).sub(mitte);
-      const r2 = Math.max(dd.lengthSq(), 1e-4);
-      dd.normalize();
-      const cq = e.n.dot(dd);
-      const cl = -l.n.dot(dd);
-      if (cq > 0 && cl > 0) gs += Math.max((cq * cl * (dd.y > 0 ? (1 + 2 * dd.y) / 3 : 0.15)) / r2, 1e-12) ** MISCH;
-    }
-    /** @type {any} */ (e).skala = gs > 1e-6 ? 1 / gs : 1;
-  }
+  // Fensterfläche je Lichtpunkt: muss für alle Fenster gleich sein (ein Wert je Zeichenauftrag)
+  const flaecheJePunkt = flaechenJePunkt(punkte);
+  for (const e of liste) /** @type {any} */ (e).skala = flaecheJePunkt;
 
   const vorher = renderer.getRenderTarget();
   const farbeVorher = renderer.getClearColor(new THREE.Color());
@@ -632,12 +643,12 @@ export async function backeWerkstattSchatten(renderer, werferListe, etage, optio
         }
         await warte();
       }
-      // Streifen lesen: Sichtbarkeit = 1 − verdeckt / gesamt
+      // Streifen lesen: gespeichert 1 − √(verdeckte Bestrahlung / BEZUG); 1 = nichts verdeckt
       const px = new Float32Array(bildBreite * hoch * 4);
       summe.viewport.set(0, 0, bildBreite, summe.height);
-      renderer.readRenderTargetPixels(summe, 0, 0, bildBreite, hoch, px);      for (let i = 0; i < bildBreite * hoch; i++) {
-        const gs = px[4 * i + 1];
-        const v = gs > 1e-7 ? Math.min(Math.max(1 - px[4 * i] / gs, 0), 1) : 1;
+      renderer.readRenderTargetPixels(summe, 0, 0, bildBreite, hoch, px);
+      for (let i = 0; i < bildBreite * hoch; i++) {
+        const v = 1 - Math.sqrt(Math.min(Math.max(px[4 * i] / BEZUG, 0), 1));
         sicht[s0 * bildBreite + i] = Math.round(v * 65535);
       }
       for (const { geo } of streifen) {
@@ -656,10 +667,11 @@ export async function backeWerkstattSchatten(renderer, werferListe, etage, optio
   }
   const zeitRechnen = performance.now() - start;
   const kopf = {
-    version: 1, breite: bildBreite, hoehe: bildHoehe, rand: RAND, glaette: optionen.glaette ?? 1,
+    // Version 2: verdeckte Bestrahlung (Wurzel, Bezug), Version 1: Anteil verdeckt/gesamt
+    version: 2, bezug: BEZUG, breite: bildBreite, hoehe: bildHoehe, rand: RAND, glaette: optionen.glaette ?? 1,
     pruefsumme: etage.lichtSzene.pruefsumme, atlas: etage.lichtSzene.atlas,
     kennung: schattenKennung(werferListe, etage.fenster),
-    lichtpunkte: punkte.length, misch: MISCH,
+    lichtpunkte: punkte.length,
     // Ausschnitt der Seite in Anteilen auf 6 Stellen (nur Lage im Bild, kein Abgleich)
     flaechen: liste.map((e) => ({ nr: e.nr, ab: e.ab.map((x) => Math.round(x * 1e6) / 1e6), x: e.x, y: e.y, w: e.w, h: e.h })),
   };
@@ -710,7 +722,8 @@ export async function ladeWerkstattSchatten(ordner, werferListe, etage) {
     else {
       const info = await antwort.json();
       const kennung = schattenKennung(werferListe, etage.fenster);
-      if (info.pruefsumme !== etage.lichtSzene.pruefsumme) grund = 'Lichtkarten-Aufteilung geändert';
+      if (info.version !== 2 || info.bezug !== BEZUG) grund = 'altes Format (Anteil statt Bestrahlung) oder anderer Bezug';
+      else if (info.pruefsumme !== etage.lichtSzene.pruefsumme) grund = 'Lichtkarten-Aufteilung geändert';
       else if (!kennungGleich(info.kennung?.fenster, kennung.fenster)) grund = 'Fenster geändert';
       else if (!kennungGleich(info.kennung?.werfer, kennung.werfer)) grund = 'Werfer geändert';
       else if (info.flaechen.some((/** @type {{ nr: number }} */ f) => !flaechen[f.nr])) grund = 'Fläche fehlt';
@@ -809,8 +822,10 @@ function baueZusatz(bildTex, liste, groesse, etage) {
     wsFenster: { value: Array.from({ length: N }, (_, i) => (fenster[i] ? fenster[i].mitte.clone() : new THREE.Vector3(0, -100, 0))) },
     wsRichtung: { value: Array.from({ length: N }, (_, i) => (fenster[i] ? fenster[i].richtung.clone().negate() : new THREE.Vector3(0, 1, 0))) },
     wsAnzahl: { value: Math.min(N, fenster.length) },
-    /** Abdunkelung im vollen Schatten (Flächen) */
-    wsSchatten: { value: 0.65 },
+    /** Stärke: Anteil der verdeckten Bestrahlung, der abgezogen wird (1 = physikalisch) */
+    wsSchatten: { value: 1 },
+    /** Untergrenze: höchstens so weit abdunkeln (Lichtkarte und Backen rechnen nicht ganz gleich) */
+    wsUntergrenze: { value: 0.25 },
     /** Formlicht runder Teile: Abdunkelung abgewandt, Aufhellung zugewandt */
     wsForm: { value: new THREE.Vector2(0.75, 0.15) },
     /** Raumkontrast: Hochzahl und Bezugshelligkeit */
@@ -829,6 +844,7 @@ uniform vec3 wsFenster[ ${N} ];
 uniform vec3 wsRichtung[ ${N} ];
 uniform int wsAnzahl;
 uniform float wsSchatten;
+uniform float wsUntergrenze;
 uniform vec2 wsForm;
 uniform vec2 wsKontrast;
 uniform float wsGitter;
@@ -854,9 +870,11 @@ float wsSicht( vec2 lkUv ) {
 			float wsF;
 			float wsL = max( dot( lgE, vec3( 0.2126, 0.7152, 0.0722 ) ), 1e-4 );
 			if ( lgKarteAn > 0.5 ) {
-				// Flächen: Schatten aus dem Schattenbild und Raumkontrast (hell bleibt hell, dunkel wird dunkler)
+				// Flächen: verdecktes Fensterlicht abziehen (Schattenbild: 1 − √(verdeckt / Bezug), Einheit der
+				// Lichtkarte, hier wie lgE mit lgStaerke), dann Raumkontrast (hell bleibt hell, dunkel wird dunkler)
 				// (nur Teile, die die Lichtkarte nicht oder nur grob kennt, werfen: sonst doppelter Schatten)
-				wsF = 1.0 - wsSchatten * ( 1.0 - wsSicht( vLkUv ) );
+				float wsV = 1.0 - wsSicht( vLkUv );
+				wsF = max( 1.0 - wsSchatten * ${BEZUG.toFixed(4)} * wsV * wsV * lgStaerke / wsL, wsUntergrenze );
 				wsF *= clamp( pow( wsL / wsKontrast.y, wsKontrast.x ), 0.5, 1.5 );
 			} else {
 				// runde Teile: helle Werte weich begrenzen (am Fenster bis 9× heller als in Raum A, Weiß brannte aus),
