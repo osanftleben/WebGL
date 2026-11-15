@@ -30,7 +30,7 @@ Ziel: Füllungen von Lambris und Türen mit echtem Profil (feine Stufen/Kanten, 
 - offen: Nutzer prüft in Firefox; /abschluss.
 
 ## 19:18 Abschluss
-- Ergebnis: Befund 2 erledigt, Nutzer „passt“ (Firefox ok nach Runde 1/2). Nicht committet.
+- Ergebnis: Befund 2 erledigt, Nutzer „passt“ (Firefox ok nach Runde 1/2). Commit 5c1c78c.
 - Notizen: Projektnotiz (Eintrag statt „Aktueller Auftrag“), Verlauf (Abschnitt „Profile Lambris und Türen“), Befunde Punkt 2 erledigt.
 - Restpunkte: keine vom Nutzer genannt. Projektnotiz weiter > 5 KB (6,1 KB) – Kürzen offen.
 - Hinweis: Uhrzeiten der Einträge ~19:03–19:16 nachträglich geschätzt (vorher falsch eingetragen).

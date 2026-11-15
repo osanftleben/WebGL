@@ -8,7 +8,7 @@ Vorher-Bilder: `.claude/notizen/bilder/2026-11-15-befund<N>-*.png|webp`.
 - Beobachtung: Griffe/Parierstangen schwarz bzw. dunkelbraun verschwinden vor der sehr dunklen Holztafel; Klingen wirken wie flache helle Latten (keine Schneide, keine Hohlkehle, kaum Glanz), Ende gerade abgeschnitten (bei Richtschwertern üblich: stumpf/rund).
 - **Nutzer (15. 11.):** Kontrast UND Form; Tafel mit dunkelrotem Stoffbezug (nicht belegt, angenommen, passt zu den Vorhangschals); Klingenende stumpf/abgerundet (Richtschwert).
 
-## 2. Lambris (Vertäfelung) wirkt „fake“ – ERLEDIGT 15. 11. (Firefox ok, nicht committet)
+## 2. Lambris (Vertäfelung) wirkt „fake“ – ERLEDIGT 15. 11. (5c1c78c, Firefox ok)
 - **Ergebnis:** Füllungen von Lambris und Türen mit echter Profilform (Leiste mit Stufe, Rundstab, Kehle; Spiegel mit Fase), Licht aus der Lichtkarte des Trägers je Richtung angepasst; aus der Ferne feine Kanten weich ausgeblendet (sonst Pünktchen, Runde 1/2). Protokoll `protokolle/2026-11-15-holmes-profile.md`.
 - Bild: `befund2-vertaefelung.png`.
 - **Nutzer, Hauptpunkt:** Die Schrägen an den Füllungen sind zu gleichmäßig schattiert (wie aufgemalt / 3D-Baukasten). Ziel: echtes Profil mit feinen Stufen und Kanten, die kleine Schattenkanten werfen.
