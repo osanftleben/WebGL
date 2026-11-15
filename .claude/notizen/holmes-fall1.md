@@ -52,6 +52,7 @@ Wird **nicht** automatisch geladen. Lesen bei Arbeit an Fall 1, Figuren, Texten,
   8. Nachtwächter der Passage hörte nachts Geräusche aus dem Panopticum.
 - **Verknüpfungen:** 2 + 3 → Wendt hat das Abdruckwachs entdeckt. 3 + 4 + 7 → Rehfeld hat die Schlüssel gegossen.
 - **Auflösung:** Wer? Wie? Warum? – jeweils mit Hinweisen belegen.
+- **Drehbuch Vormittag** (Gespräche Dorn, Lassow, Ida, Rehfeld; neuer Vorraum mit Kasse; Hinweis 4 und neuer Hinweis 9 „Quittung“; Zeitleiste der Nacht): `.claude/notizen/holmes-fall1-drehbuch-vormittag.md`.
 - **Tagesablauf:** Morgen: Panopticum, Saal mit Verbrecher-Abteilung + Werkstatt (= Version 1). Vormittag: Gespräche mit den Verdächtigen. Mittag: Kaisergalerie und Juwelier. Nachmittag: Wendts Wohnung (nördlich der Linden, Straße prüfen). Abend unter künstlichem Licht: Sigerson lauert Rehfeld beim Einbruch in der Passage auf, Dorn nimmt ihn fest. Schluss: bei Rehfeld ein Brief aus London mit einem Zeichen von Moriartys Leuten → Fall 2.
 - **Bauhinweise:** Uhren zeigen Berliner Ortszeit. Unter den Linden abends elektrische Bogenlampen (Schupmann-Kandelaber, seit 1888), nicht nur Gas. Café Kranzler / Café Bauer an der Ecke Linden/Friedrichstraße nur als Kulisse – dort nichts Erfundenes geschehen lassen. Schutzmann mit Lederhelm mit Spitze und Säbel.
 

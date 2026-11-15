@@ -9,14 +9,15 @@ paths:
 - Nicht verwechseln mit den alten, gesperrten Ordnern `sherlock-holmes-in-berlin/`, `sherlock/`, `sherlock2/`.
 
 ## Arbeitsstand (zuletzt 15. 11. 2026)
-- **LOD zurückgestellt** (spätestens Projektende). Fertig: Sichtbarkeit (4eb7f01), Stufen voll/sparsam (019022f). Offen: Umbau nach 50-%-Regel.
+- **LOD zurückgestellt** (spätestens Projektende; Sichtbarkeit 4eb7f01, Stufen 019022f). Offen: 50-%-Regel.
 - Fertig, Firefox ok (Verlauf): Licht + Kontaktschatten (fcbfa13), Augenanpassung, Fensterausblick (d11b743), Boden/Figuren heller (cea5718), Besetzung (65f1767), Feinschliff C (e191cab), B1 Frauenköpfe (9d3034b), B2 Dienstmagd (f80bea6), Kranich neu (23fbdd2; Rest: Monogramm „geht so“). **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben.
 - **Zusätzliche Effekte nur in der vollen Detailstufe** (Nutzer, fest); die sparsame Stufe bekommt gleiche Grundfarben, Fleckprüfung 0.
 - **Feinschliff D** fertig (19566e2): Stuck (`welt/stuck.js`), Messingbeschläge. Firefox ok. Rest: dunkle Fuge unter der Gesims-Deckplatte (Verlauf).
-- **Hinweise verknüpfen** fertig (9d07847), Firefox ok: `fall1/verknuepfungen.js` (Einzelheiten `holmes-fall1.md`).
-- **Als Nächstes:** Fall 1 (Ausbaustufen).
+- **Hinweise verknüpfen** fertig (9d07847), Firefox ok.
+- **Drehbuch Vormittag** abgenommen: `.claude/notizen/holmes-fall1-drehbuch-vormittag.md` (mit Bauliste).
+- **Als Nächstes:** Einbau Vormittag (Teil 2), in 3 Sitzungen: Vorraum, Figuren, Gespräche.
 - **Leistung: nur die Bildrate zählt** (Nutzer, fest): Draw-Calls sind keine Grenze und keine Abnahme – nicht danach fragen.
-- Prüfhilfen: Vorschau `webgl-vorschau` (Pane einblenden); `.claude/scripts/holmes_pruefhilfen.js` in die Konsole. Port-8765-Fehler harmlos.
+- Prüfhilfen: Vorschau `webgl-vorschau`; `.claude/scripts/holmes_pruefhilfen.js` in die Konsole. Port-8765-Fehler harmlos.
 
 ## Ziel und Rahmen (Kurzfassung; vollständig: `.claude/notizen/holmes-rahmen.md`)
 - Browserspiel (Deutsch, Erwachsene), Ich-Perspektive, Handy und PC; Sherlock Holmes als „Sigerson“, Berlin 1892, mehrere Fälle.
@@ -46,7 +47,7 @@ Im Browser: `__debug.steuerung.setzePosition(x, z, blick)` (Blick vorwärts = (�
 - **Grafik-Feinschliff** (stilisiert, selbst erzeugt, handytauglich; spielwichtige Gegenstände zuerst): A–D fertig.
 - Schwierigkeitsstufen, Droschkenfahrt, Startmenü mit Grafikeinstellung
 - LOD nach 50-%-Regel (bei Bedarf, spätestens Projektende)
-- Hinweise verknüpfen (erste Verknüpfung fertig), Auflösung (Wer/Wie/Warum)
+- Hinweise verknüpfen (erste fertig), Auflösung (Wer/Wie/Warum)
 - übrige Orte von Fall 1, danach weitere Fälle (je eigenes Viertel)
 
 ## Weitere Notizen (nicht automatisch geladen, bei Bedarf lesen)
