@@ -86,6 +86,6 @@ Ziel: Werkstatt (z 19,75–27,5, schräge Ecke) als glaubwürdige Wachsfiguren-W
 
 ## 11:47 Abschluss
 - Ergebnis: Werkstatt ausgestattet (`welt/werkstatt.js`), Funde frei, BP 7 60,1 / BP 8 60,3 Bilder/s, check.py 0 Fehler, keine Konsolenfehler, nur 127.0.0.1. Licht aktuell (Gesims-Fix der Sitzung licht-wandkanten enthalten).
-- Nicht committet. Firefox-Bestätigung der Werkstatt steht aus.
+- Commit 715ad95. Firefox-Bestätigung der Werkstatt steht aus.
 - Restfehler: Skizzenblätter (Nutzer „naja“), Kontaktschatten unter Kleinteilen, Frisierkopf/Gipsarme, Gipskörper flach im Gegenlicht → Folgeauftrag „Werkstatt Teil 2“ (Verlauf).
 - Fundstellen in `holmes-quellen.md` übertragen, Projektnotiz 5,0 KB.

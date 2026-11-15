@@ -14,7 +14,7 @@ paths:
 - **Zusätzliche Effekte nur in der vollen Detailstufe** (Nutzer, fest); die sparsame Stufe bekommt gleiche Grundfarben, Fleckprüfung 0.
 - **Drehbuch Vormittag** abgenommen: `.claude/notizen/holmes-fall1-drehbuch-vormittag.md` (mit Bauliste).
 - **Wände + Türen** (f2c9acc), Firefox offen: `welt/innenausbau.js` (auch für den Vorraum).
-- **Werkstatt ausgestattet** (`welt/werkstatt.js`), Lichtkarte: Sturzkanten (Firefox ok) und Gesims-Flecken an der Schräge behoben – alles nicht committet, Werkstatt in Firefox offen. Folgeauftrag „Werkstatt Teil 2“ (Skizzen, Kontaktschatten Kleinteile): Verlauf.
+- **Werkstatt ausgestattet** (`welt/werkstatt.js`), Lichtkarte: Sturzkanten (Firefox ok) und Gesims-Flecken an der Schräge behoben (715ad95), Werkstatt in Firefox offen. Folgeauftrag „Werkstatt Teil 2“ (Skizzen, Kontaktschatten Kleinteile): Verlauf.
 - Weitere Restpunkte im Verlauf (u. a. dunkle Fuge unter der Gesims-Deckplatte, Kranich-Monogramm).
 - **Als Nächstes:** Einbau Vormittag (Teil 2), in 3 Sitzungen: Vorraum, Figuren, Gespräche.
 - **Leistung: nur die Bildrate zählt** (Nutzer, fest): Draw-Calls sind keine Grenze und keine Abnahme – nicht danach fragen.
