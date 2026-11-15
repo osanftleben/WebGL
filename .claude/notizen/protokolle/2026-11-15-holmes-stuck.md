@@ -34,4 +34,4 @@ Ziel: Rokoko-angelehnter Stuck (Rosette, Deckenrahmen, Gesims, Goldleiste, Kapit
 - Firefox: offen (Nutzer noch nicht geprüft)
 - Restfehler: schmale dunkle Fuge unter der Gesims-Deckplatte und auf dem Abakus; Draw-Calls +1…+6 (nur Bildrate zählt)
 - Notizen: Projektnotiz (Arbeitsstand, 5,1 KB), Verlauf (Abschnitt D), Quellen (Annahme D)
-- Commit: nicht erfolgt (nur auf Wunsch)
+- Commit: 19566e2 (auf Wunsch des Nutzers)

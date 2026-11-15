@@ -13,7 +13,7 @@ paths:
 - Fertig, Firefox ok (Verlauf): Licht + Kontaktschatten (fcbfa13), Augenanpassung, Fensterausblick (d11b743), Boden/Figuren heller (cea5718), Besetzung (65f1767), Feinschliff C (e191cab), B1 Frauenköpfe (9d3034b), B2 Dienstmagd (f80bea6). **Licht abgeschlossen** (776b9ed): nur echte Fehler beheben.
 - **Kranich neu** fertig (23fbdd2): Uniform, Helm mit „WR“ (Schwellbänder), Materialien; Firefox ok. Rest: Monogramm „geht so“ (Verlauf).
 - **Zusätzliche Effekte nur in der vollen Detailstufe** (Nutzer, fest); die sparsame Stufe bekommt gleiche Grundfarben, Fleckprüfung 0.
-- **Feinschliff D** fertig (15. 11., nicht committet): Stuck (`welt/stuck.js`: Gesims-Fries, Deckenrahmen, Rosette, Kapitelle), Messingbeschläge; Licht neu (fee3a9c8). Firefox offen. Rest: dunkle Fuge unter der Gesims-Deckplatte (Verlauf).
+- **Feinschliff D** fertig (19566e2): Stuck (`welt/stuck.js`: Gesims-Fries, Deckenrahmen, Rosette, Kapitelle), Messingbeschläge; Licht neu (fee3a9c8). Firefox offen. Rest: dunkle Fuge unter der Gesims-Deckplatte (Verlauf).
 - **Als Nächstes:** Fall 1 (Ausbaustufen).
 - **Leistung: nur die Bildrate zählt** (Nutzer, fest): Draw-Calls sind keine Grenze und keine Abnahme – nicht danach fragen.
 - Prüfhilfen: Vorschau `webgl-vorschau` (Pane einblenden); `.claude/scripts/holmes_pruefhilfen.js` in die Konsole. Port-8765-Fehler harmlos.
