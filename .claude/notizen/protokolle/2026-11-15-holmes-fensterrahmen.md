@@ -36,5 +36,5 @@ Ziel: Laibungen + Fensterbänke innen (III. Etage, Raum A/B, Werkstatt) dunkler 
 
 ## 19:05 Abschluss
 - Nutzer: „Passt, abschließen“ (Runden 0). Ergebnis: Laibung 0,49–0,60, Fensterbank 0,65–0,76, Sturz 0,42–0,56 der Himmelshelligkeit (vor ACES), Raum unverändert; check.py 0 Fehler, Rundgang ok, 60 Bilder/s.
-- Nicht committet (nur auf Wunsch). Dateien: `docs/holmes-berliner-faelle/main.js`, `welt/lichtgitter.js`, `licht/licht-etage3*.{png,json}`, `.claude/scripts/holmes_licht.py`, `.claude/scripts/holmes_fenster_messen.js`, Notizen.
+- Committet: f58d6e3. Dateien: `docs/holmes-berliner-faelle/main.js`, `welt/lichtgitter.js`, `licht/licht-etage3*.{png,json}`, `.claude/scripts/holmes_licht.py`, `.claude/scripts/holmes_fenster_messen.js`, Notizen.
 - Restfehler: Verlauf außen → innen schwach; Firefox-Prüfung durch den Nutzer offen.
