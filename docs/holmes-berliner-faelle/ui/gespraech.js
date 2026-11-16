@@ -55,6 +55,14 @@ export function erstelleGespraech({ beiAenderung }) {
     return b;
   }
 
+  /**
+   * Tastaturfokus nur am PC: auf dem Handy wirkte die erste Frage sonst schon „aktiviert“.
+   * @param {HTMLButtonElement | null} b
+   */
+  function fokussiere(b) {
+    if (b && matchMedia('(hover: hover)').matches) b.focus();
+  }
+
   function zeichneFragen() {
     if (!daten || !regeln) return;
     fragenBox.replaceChildren();
@@ -67,9 +75,9 @@ export function erstelleGespraech({ beiAenderung }) {
     knopf(abschied.frage, () => {
       text.textContent = abschied.antwort;
       fragenBox.replaceChildren();
-      knopf('Gespräch beenden', schliesse).focus();
+      fokussiere(knopf('Gespräch beenden', schliesse));
     }, 'abschied');
-    /** @type {HTMLButtonElement | null} */ (fragenBox.querySelector('button'))?.focus();
+    fokussiere(/** @type {HTMLButtonElement | null} */ (fragenBox.querySelector('button')));
   }
 
   /** @param {Frage} f */
