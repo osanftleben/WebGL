@@ -33,6 +33,8 @@ const TIPP_WEG = 10;
  * @param {(neu: import('three').Object3D | null, alt: import('three').Object3D | null) => void} [optionen.beiZielWechsel]
  *   Wird gerufen, wenn das Fadenkreuz auf ein anderes antippbares Objekt zeigt (oder auf keins mehr).
  * @param {boolean} [optionen.fadenkreuz=true] Fadenkreuz anzeigen, solange die Maus eingefangen ist.
+ * @param {boolean} [optionen.mitteImmer=false] Touch-Modus: Fadenkreuz immer sichtbar, Ziel immer die Bildmitte,
+ *   Antippen an beliebiger Stelle gilt dem Fadenkreuz.
  * @returns {Antippen}
  */
 export function erstelleAntippen({
@@ -44,6 +46,7 @@ export function erstelleAntippen({
   beiAntippen,
   beiZielWechsel,
   fadenkreuz = true,
+  mitteImmer = false,
 }) {
   /** @type {readonly import('three').Object3D[]} */
   let antippbar = objekte;
@@ -86,10 +89,12 @@ export function erstelleAntippen({
     zIndex: '10',
   });
   if (fadenkreuz) document.body.appendChild(kreuz);
+  if (mitteImmer) kreuz.style.display = 'block';
 
-  const istGefangen = () => document.pointerLockElement === element;
+  const istGefangen = () => mitteImmer || document.pointerLockElement === element;
 
   function sperreGeaendert() {
+    if (mitteImmer) return;
     kreuz.style.display = fadenkreuz && istGefangen() ? 'block' : 'none';
     if (!istGefangen()) setzeZiel(null);
   }
@@ -149,7 +154,7 @@ export function erstelleAntippen({
     if (performance.now() - start.zeit > TIPP_DAUER || start.weg > TIPP_WEG) return;
 
     let ergebnis;
-    if (e.pointerType === 'mouse' && istGefangen()) {
+    if (mitteImmer || (e.pointerType === 'mouse' && istGefangen())) {
       ergebnis = pruefe(mitte);
     } else {
       const rechteck = element.getBoundingClientRect();

@@ -143,7 +143,7 @@ const istTouch = matchMedia('(pointer: coarse)').matches;
 const hilfe = document.createElement('div');
 hilfe.className = 'hilfe';
 hilfe.textContent = istTouch
-  ? 'Links: Daumen zum Laufen · Rechts: wischen zum Umsehen · Auffälliges antippen'
+  ? 'Links: Daumen zum Laufen · Rechts: wischen zum Umsehen · Kreis auf Auffälliges richten und antippen'
   : 'Ins Bild klicken · W/A/S/D laufen · Maus: umsehen · Klick: untersuchen · N: Notizbuch · Esc: Maus frei';
 document.body.appendChild(hilfe);
 
@@ -277,6 +277,7 @@ const antippen = erstelleAntippen({
   objekte: [...funde.antippbar, kranich],
   verdecker: etage.verdecker,
   maxEntfernung: 3,
+  mitteImmer: istTouch, // Handy: Kreis in der Bildmitte wirkt wie der Mauszeiger
   beiAntippen: (objekt) => {
     if (objekt.userData.person === 'kranich') {
       wendeZu(kranich);

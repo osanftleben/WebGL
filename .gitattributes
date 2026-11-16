@@ -34,7 +34,6 @@
 
 # Ausnahme: Bilder in docs/ (GitHub Pages) liegen normal im Git. Pages liefert LFS-Zeigerdateien
 # statt der Bilder aus (Fehler "Invalid encoded image data"). Muss NACH den LFS-Mustern stehen.
-docs/** -filter -diff -merge
-docs/**/*.png binary
-docs/**/*.jpg binary
-docs/**/*.webp binary
+docs/**/*.png -filter binary
+docs/**/*.jpg -filter binary
+docs/**/*.webp -filter binary
