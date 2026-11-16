@@ -31,3 +31,10 @@
 # Dokumente und Archive
 *.[pP][dD][fF]          filter=lfs diff=lfs merge=lfs -text
 *.[zZ][iI][pP]          filter=lfs diff=lfs merge=lfs -text
+
+# Ausnahme: Bilder in docs/ (GitHub Pages) liegen normal im Git. Pages liefert LFS-Zeigerdateien
+# statt der Bilder aus (Fehler "Invalid encoded image data"). Muss NACH den LFS-Mustern stehen.
+docs/** -filter -diff -merge
+docs/**/*.png binary
+docs/**/*.jpg binary
+docs/**/*.webp binary
